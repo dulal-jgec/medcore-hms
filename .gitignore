@@ -1,0 +1,105 @@
+########################################
+# IDE / Workspace
+########################################
+
+.metadata/
+.idea/
+.vscode/
+
+*.iml
+*.ipr
+*.iws
+
+.classpath
+.project
+.settings/
+.factorypath
+.springBeans
+.sts4-cache
+.apt_generated
+
+########################################
+# Backend (Spring Boot)
+########################################
+
+backend/target/
+backend/build/
+backend/out/
+
+########################################
+# Environment Files
+########################################
+
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+########################################
+# Logs
+########################################
+
+*.log
+logs/
+
+########################################
+# Maven Wrapper
+########################################
+
+!backend/.mvn/wrapper/maven-wrapper.jar
+
+########################################
+# Frontend (React / Next.js)
+########################################
+
+frontend/node_modules/
+frontend/.next/
+frontend/dist/
+frontend/build/
+frontend/.turbo/
+
+########################################
+# Uploads
+########################################
+
+backend/uploads/
+uploads/
+temp/
+
+########################################
+# Docker
+########################################
+
+docker/data/
+
+########################################
+# OS Files
+########################################
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+########################################
+# Package Managers
+########################################
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+########################################
+# NetBeans
+########################################
+
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+########################################
+# PostgreSQL
+########################################
+
+*.db
