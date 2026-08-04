@@ -33,4 +33,10 @@ public class Hospital extends BaseEntity {
     private String bannerUrl;
 
     private String website;
+    
+    private String city;
+    
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean active = true;
 }

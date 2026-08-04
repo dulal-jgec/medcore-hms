@@ -23,7 +23,7 @@ public class AuthMapper {
                 .password(encodedPassword)
                 .hospital(hospital)
                 .role(role)
-                .status(UserStatus.PENDING_VERIFICATION)
+                .status(UserStatus.ACTIVE)
                 .emailVerified(false)
                 .phoneVerified(false)
                 .build();
