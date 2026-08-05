@@ -3,9 +3,11 @@ package com.medcore.features.hospital.entity;
 import com.medcore.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.*;
-
+import com.medcore.features.hospital.enums.HospitalStatus;
 @Entity
 @Table(name = "hospitals")
 @Getter
@@ -36,7 +38,7 @@ public class Hospital extends BaseEntity {
     
     private String city;
     
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    @Builder.Default
-    private Boolean active = true;
+    private HospitalStatus status;
 }

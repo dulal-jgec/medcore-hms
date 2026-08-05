@@ -5,7 +5,7 @@ import com.medcore.features.hospital.repository.HospitalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
-
+import com.medcore.features.hospital.enums.HospitalStatus;
 @Component
 @RequiredArgsConstructor
 public class HospitalSeeder implements CommandLineRunner {
@@ -24,7 +24,7 @@ public class HospitalSeeder implements CommandLineRunner {
                     .licenseNumber("APH-2026-001")
                     .city("Kolkata")
                     .logoUrl(null)
-                    .active(true)
+                    .status(HospitalStatus.ACTIVE)
                     .build();
 
             hospitalRepository.save(hospital);
