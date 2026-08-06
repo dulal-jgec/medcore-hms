@@ -84,4 +84,22 @@ public class HospitalController {
                 hospitalService.searchHospitals(keyword, page, size)
         );
     }
+    
+    @DeleteMapping("/{hospitalId}")
+    public ResponseEntity<ApiResponse<String>> deleteHospital(
+            @PathVariable Long hospitalId) {
+
+        return ResponseEntity.ok(
+                hospitalService.deleteHospital(hospitalId)
+        );
+    }
+    
+    @PatchMapping("/{hospitalId}/restore")
+    public ResponseEntity<ApiResponse<String>> restoreHospital(
+            @PathVariable Long hospitalId) {
+
+        return ResponseEntity.ok(
+                hospitalService.restoreHospital(hospitalId)
+        );
+    }
 }

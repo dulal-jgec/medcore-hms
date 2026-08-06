@@ -19,4 +19,15 @@ public interface HospitalRepository extends JpaRepository<Hospital, Long> {
             String city,
             Pageable pageable
     );
+    
+    Optional<Hospital> findByIdAndDeletedAtIsNull(Long id);
+
+    Page<Hospital> findByDeletedAtIsNull(Pageable pageable);
+
+    Page<Hospital> findByNameContainingIgnoreCaseAndDeletedAtIsNull(
+            String keyword,
+            Pageable pageable
+    );
+    
+    Optional<Hospital> findById(Long id);
 }

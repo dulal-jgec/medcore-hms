@@ -13,7 +13,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.core.annotation.Order;
-
+import com.medcore.features.hospital.enums.HospitalStatus;
 @Component
 @Order(2)
 @RequiredArgsConstructor
@@ -46,7 +46,7 @@ public class SuperAdminSeeder implements CommandLineRunner {
                             .licenseNumber("MEDCORE-HQ-001")
                             .city("Kolkata")
                             .logoUrl(null)
-                            .active(true)
+                            .status(HospitalStatus.ACTIVE)
                             .build();
 
                     return hospitalRepository.save(hospital);

@@ -1,5 +1,6 @@
 package com.medcore.features.hospital.service.impl;
 
+import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.DuplicateResourceException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
@@ -17,7 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-
+import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class HospitalServiceImpl implements HospitalService {
@@ -62,7 +63,7 @@ public class HospitalServiceImpl implements HospitalService {
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Hospital> hospitalPage = hospitalRepository.findAll(pageable);
+        Page<Hospital> hospitalPage = hospitalRepository.findByDeletedAtIsNull(pageable);
 
         Page<CreateHospitalResponse> responsePage =
                 hospitalPage.map(hospitalMapper::toResponse);
@@ -77,7 +78,7 @@ public class HospitalServiceImpl implements HospitalService {
     @Override
     public ApiResponse<CreateHospitalResponse> getHospitalById(Long hospitalId) {
 
-        Hospital hospital = hospitalRepository.findById(hospitalId)
+        Hospital hospital = hospitalRepository.findByIdAndDeletedAtIsNull(hospitalId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Hospital not found with id : " + hospitalId));
 
@@ -159,11 +160,10 @@ public class HospitalServiceImpl implements HospitalService {
         Pageable pageable = PageRequest.of(page, size);
 
         Page<Hospital> hospitals =
-                hospitalRepository.findByNameContainingIgnoreCaseOrCityContainingIgnoreCase(
-                        keyword,
-                        keyword,
-                        pageable
-                );
+        		hospitalRepository.findByNameContainingIgnoreCaseAndDeletedAtIsNull(
+        		        keyword,
+        		        pageable
+        		);
 
         Page<CreateHospitalResponse> response =
                 hospitals.map(hospitalMapper::toResponse);
@@ -172,6 +172,47 @@ public class HospitalServiceImpl implements HospitalService {
                 .success(true)
                 .message("Hospitals fetched successfully")
                 .data(response)
+                .build();
+    }
+    
+    @Override
+    public ApiResponse<String> deleteHospital(Long hospitalId) {
+
+        Hospital hospital = hospitalRepository
+                .findByIdAndDeletedAtIsNull(hospitalId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Hospital not found"));
+
+        hospital.setDeletedAt(LocalDateTime.now());
+
+        hospitalRepository.save(hospital);
+
+        return ApiResponse.<String>builder()
+                .success(true)
+                .message("Hospital deleted successfully")
+                .data("Deleted")
+                .build();
+    }
+    
+    @Override
+    public ApiResponse<String> restoreHospital(Long hospitalId) {
+
+        Hospital hospital = hospitalRepository.findById(hospitalId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Hospital not found"));
+
+        if (hospital.getDeletedAt() == null) {
+            throw new BusinessException("Hospital is already active");
+        }
+
+        hospital.setDeletedAt(null);
+
+        hospitalRepository.save(hospital);
+
+        return ApiResponse.<String>builder()
+                .success(true)
+                .message("Hospital restored successfully")
+                .data("Restored")
                 .build();
     }
 }
