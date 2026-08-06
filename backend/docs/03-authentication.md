@@ -29,3 +29,15 @@
 - Global Exception Handling
 - Swagger API Documentation
 - Spring Security Configuration
+
+
+
+
+## Authentication Flow
+
+Register
+→ Login
+→ JWT Access Token
+→ Refresh Token
+→ Protected APIs
+→ Logout
