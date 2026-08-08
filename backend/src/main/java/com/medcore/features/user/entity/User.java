@@ -56,4 +56,6 @@ public class User extends BaseEntity {
     private Boolean phoneVerified = false;
 
     private LocalDateTime lastLogin;
+
+	 
 }

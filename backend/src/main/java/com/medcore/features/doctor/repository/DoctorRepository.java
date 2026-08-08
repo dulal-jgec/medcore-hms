@@ -32,4 +32,5 @@ JpaSpecificationExecutor<Doctor> {
             String keyword,
             Pageable pageable
     );
+    Optional<Doctor> findByUserId(Long userId);
 }
