@@ -17,4 +17,6 @@ public interface MedicalRecordService {
     ApiResponse<MedicalRecordResponse> getMedicalRecordByAppointment(
             Long appointmentId
     );
+    
+    
 }

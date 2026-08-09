@@ -1,6 +1,5 @@
 package com.medcore.features.medicalrecord.repository;
 
-import com.medcore.features.doctor.entity.Doctor;
 import com.medcore.features.medicalrecord.entity.MedicalRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -36,5 +35,5 @@ public interface MedicalRecordRepository
             Long doctorId
     );
     
-    Optional<Doctor> findByUserId(Long userId);
+    
 }
