@@ -4,6 +4,7 @@ import com.medcore.common.response.ApiResponse;
 import com.medcore.features.pharmacy.dto.request.AddInventoryRequest;
 import com.medcore.features.pharmacy.dto.request.UpdateInventoryStockRequest;
 import com.medcore.features.pharmacy.dto.response.PharmacyInventoryResponse;
+import com.medcore.features.pharmacy.entity.DispensingRequest;
 
 import java.util.List;
 
@@ -19,4 +20,5 @@ public interface PharmacyInventoryService {
             Long inventoryId,
             UpdateInventoryStockRequest request
     );
+    ApiResponse<List<DispensingRequest>> getPendingRequests();
 }

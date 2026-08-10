@@ -7,6 +7,7 @@ import com.medcore.common.security.SecurityUtil;
 import com.medcore.features.pharmacy.dto.request.AddInventoryRequest;
 import com.medcore.features.pharmacy.dto.request.UpdateInventoryStockRequest;
 import com.medcore.features.pharmacy.dto.response.PharmacyInventoryResponse;
+import com.medcore.features.pharmacy.entity.DispensingRequest;
 import com.medcore.features.pharmacy.entity.Pharmacy;
 import com.medcore.features.pharmacy.entity.PharmacyInventory;
 import com.medcore.features.pharmacy.mapper.PharmacyInventoryMapper;
@@ -21,7 +22,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
+import com.medcore.features.pharmacy.enums.DispensingStatus;
+import com.medcore.features.pharmacy.repository.DispensingRequestRepository;
+import com.medcore.features.pharmacy.repository.PharmacistRepository;
 @Service
 @RequiredArgsConstructor
 public class PharmacyInventoryServiceImpl
@@ -32,7 +35,9 @@ public class PharmacyInventoryServiceImpl
     private final MedicineRepository medicineRepository;
     private final UserRepository userRepository;
     private final PharmacyInventoryMapper inventoryMapper;
-
+    private final PharmacistRepository pharmacistRepository;
+    private final DispensingRequestRepository dispensingRequestRepository;
+    
     @Override
     public ApiResponse<PharmacyInventoryResponse> addInventory(
             AddInventoryRequest request) {
