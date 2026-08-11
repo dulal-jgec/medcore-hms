@@ -131,4 +131,19 @@ public class AppointmentController {
                 appointmentService.restoreAppointment(appointmentId)
         );
     }
+    
+    @GetMapping("/today")
+    public ApiResponse<PageResponse<AppointmentResponse>> getTodayAppointments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "startTime") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+
+        return appointmentService.getTodayAppointments(
+                page,
+                size,
+                sortBy,
+                sortDir
+        );
+    }
 }

@@ -45,4 +45,15 @@ public interface AppointmentService {
     ApiResponse<String> deleteAppointment(Long appointmentId);
 
     ApiResponse<String> restoreAppointment(Long appointmentId);
+    
+    ApiResponse<AppointmentResponse> checkInAppointment(
+            Long appointmentId
+    );
+    
+    ApiResponse<PageResponse<AppointmentResponse>> getTodayAppointments(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
 }

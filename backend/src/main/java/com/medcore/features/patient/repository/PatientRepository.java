@@ -20,4 +20,10 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
             Pageable pageable
     );
     Optional<Patient> findByUserId(Long userId);
+    
+    Page<Patient> findByHospitalIdAndUserFullNameContainingIgnoreCaseAndDeletedAtIsNull(
+            Long hospitalId,
+            String keyword,
+            Pageable pageable
+    );
 }

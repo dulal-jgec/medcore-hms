@@ -43,4 +43,6 @@ public interface PatientService {
     ApiResponse<String> deletePatient(Long patientId);
 
     ApiResponse<String> restorePatient(Long patientId);
+    
+    
 }

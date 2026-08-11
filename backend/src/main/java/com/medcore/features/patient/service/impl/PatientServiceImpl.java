@@ -5,6 +5,7 @@ import com.medcore.common.exception.DuplicateResourceException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
+import com.medcore.common.security.SecurityUtil;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.patient.dto.request.CreatePatientRequest;
@@ -176,44 +177,75 @@ public class PatientServiceImpl implements PatientService {
                 .build();
     }
     
-    @Override
-    public ApiResponse<PageResponse<PatientResponse>> searchPatients(
-            String keyword,
-            int page,
-            int size) {
+@Override
+public ApiResponse<PageResponse<PatientResponse>> searchPatients(
+        String keyword,
+        int page,
+        int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
+    User currentUser = getCurrentUser();
 
-        Page<Patient> patientPage =
-                patientRepository.findByUserFullNameContainingIgnoreCaseAndDeletedAtIsNull(
-                        keyword,
-                        pageable
-                );
+    if (currentUser.getHospital() == null) {
 
-        List<PatientResponse> items = patientPage.getContent()
-                .stream()
-                .map(patientMapper::toResponse)
-                .toList();
-
-        PageResponse<PatientResponse> response =
-                PageResponse.<PatientResponse>builder()
-                        .items(items)
-                        .page(patientPage.getNumber())
-                        .size(patientPage.getSize())
-                        .totalElements(patientPage.getTotalElements())
-                        .totalPages(patientPage.getTotalPages())
-                        .first(patientPage.isFirst())
-                        .last(patientPage.isLast())
-                        .hasNext(patientPage.hasNext())
-                        .hasPrevious(patientPage.hasPrevious())
-                        .build();
-
-        return ApiResponse.<PageResponse<PatientResponse>>builder()
-                .success(true)
-                .message("Patients fetched successfully")
-                .data(response)
-                .build();
+        throw new BusinessException(
+                "User is not associated with any hospital"
+        );
     }
+
+    Long hospitalId =
+            currentUser.getHospital().getId();
+
+    Pageable pageable =
+            PageRequest.of(page, size);
+
+    Page<Patient> patientPage =
+            patientRepository
+                    .findByHospitalIdAndUserFullNameContainingIgnoreCaseAndDeletedAtIsNull(
+                            hospitalId,
+                            keyword,
+                            pageable
+                    );
+
+    List<PatientResponse> items =
+            patientPage.getContent()
+                    .stream()
+                    .map(patientMapper::toResponse)
+                    .toList();
+
+    PageResponse<PatientResponse> response =
+            PageResponse.<PatientResponse>builder()
+                    .items(items)
+                    .page(patientPage.getNumber())
+                    .size(patientPage.getSize())
+                    .totalElements(
+                            patientPage.getTotalElements()
+                    )
+                    .totalPages(
+                            patientPage.getTotalPages()
+                    )
+                    .first(
+                            patientPage.isFirst()
+                    )
+                    .last(
+                            patientPage.isLast()
+                    )
+                    .hasNext(
+                            patientPage.hasNext()
+                    )
+                    .hasPrevious(
+                            patientPage.hasPrevious()
+                    )
+                    .build();
+
+    return ApiResponse
+            .<PageResponse<PatientResponse>>builder()
+            .success(true)
+            .message("Patients fetched successfully")
+            .data(response)
+            .build();
+    
+    
+}
     
     @Override
     public ApiResponse<String> deletePatient(Long patientId) {
@@ -255,5 +287,17 @@ public class PatientServiceImpl implements PatientService {
                 .message("Patient restored successfully")
                 .data("Restored")
                 .build();
+    }
+    
+    private User getCurrentUser() {
+
+        String email = SecurityUtil.getCurrentUsername();
+
+        return userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Current user not found"
+                        ));
     }
 }

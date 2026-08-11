@@ -31,4 +31,10 @@ public interface AppointmentRepository
             Long patientId,
             Pageable pageable
     );
+    
+    Page<Appointment> findByHospitalIdAndAppointmentDateAndDeletedAtIsNull(
+            Long hospitalId,
+            LocalDate appointmentDate,
+            Pageable pageable
+    );
 }
