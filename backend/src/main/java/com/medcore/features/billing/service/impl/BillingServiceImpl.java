@@ -3,6 +3,7 @@ package com.medcore.features.billing.service.impl;
 import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
+import com.medcore.common.response.PageResponse;
 import com.medcore.common.security.SecurityUtil;
 
 import com.medcore.features.appointment.entity.Appointment;
@@ -23,6 +24,10 @@ import com.medcore.features.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -639,6 +644,187 @@ public class BillingServiceImpl implements BillingService {
                                 ? "Bill paid successfully"
                                 : "Partial payment recorded successfully"
                 )
+                .data(response)
+                .build();
+    }
+    
+    @Override
+    public ApiResponse<PageResponse<BillResponse>> getHospitalBills(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getHospital() == null) {
+            throw new BusinessException(
+                    "User is not associated with any hospital"
+            );
+        }
+
+        Long hospitalId =
+                currentUser.getHospital().getId();
+
+        Sort.Direction direction =
+                sortDir.equalsIgnoreCase("desc")
+                        ? Sort.Direction.DESC
+                        : Sort.Direction.ASC;
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        Sort.by(direction, sortBy)
+                );
+
+        Page<Bill> billPage =
+                billRepository
+                        .findByHospitalIdAndDeletedAtIsNull(
+                                hospitalId,
+                                pageable
+                        );
+
+        List<BillResponse> items =
+                billPage.getContent()
+                        .stream()
+                        .map(bill -> {
+
+                            List<BillItemResponse> billItems =
+                                    billItemRepository
+                                            .findByBillIdAndDeletedAtIsNull(
+                                                    bill.getId()
+                                            )
+                                            .stream()
+                                            .map(billItemMapper::toResponse)
+                                            .toList();
+
+                            return billMapper.toResponse(
+                                    bill,
+                                    billItems
+                            );
+                        })
+                        .toList();
+
+        PageResponse<BillResponse> response =
+                PageResponse.<BillResponse>builder()
+                        .items(items)
+                        .page(billPage.getNumber())
+                        .size(billPage.getSize())
+                        .totalElements(
+                                billPage.getTotalElements()
+                        )
+                        .totalPages(
+                                billPage.getTotalPages()
+                        )
+                        .first(
+                                billPage.isFirst()
+                        )
+                        .last(
+                                billPage.isLast()
+                        )
+                        .hasNext(
+                                billPage.hasNext()
+                        )
+                        .hasPrevious(
+                                billPage.hasPrevious()
+                        )
+                        .build();
+
+        return ApiResponse
+                .<PageResponse<BillResponse>>builder()
+                .success(true)
+                .message("Hospital bills fetched successfully")
+                .data(response)
+                .build();
+    }
+    
+    @Override
+    public ApiResponse<PageResponse<BillResponse>> getOutstandingBills(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getHospital() == null) {
+            throw new BusinessException(
+                    "User is not associated with any hospital"
+            );
+        }
+
+        Long hospitalId =
+                currentUser.getHospital().getId();
+
+        List<BillingStatus> outstandingStatuses =
+                List.of(
+                        BillingStatus.PENDING,
+                        BillingStatus.PARTIALLY_PAID
+                );
+
+        Sort.Direction direction =
+                sortDir.equalsIgnoreCase("desc")
+                        ? Sort.Direction.DESC
+                        : Sort.Direction.ASC;
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        Sort.by(direction, sortBy)
+                );
+
+        Page<Bill> billPage =
+                billRepository
+                        .findByHospitalIdAndStatusInAndDeletedAtIsNull(
+                                hospitalId,
+                                outstandingStatuses,
+                                pageable
+                        );
+
+        List<BillResponse> items =
+                billPage.getContent()
+                        .stream()
+                        .map(bill -> {
+
+                            List<BillItemResponse> billItems =
+                                    billItemRepository
+                                            .findByBillIdAndDeletedAtIsNull(
+                                                    bill.getId()
+                                            )
+                                            .stream()
+                                            .map(billItemMapper::toResponse)
+                                            .toList();
+
+                            return billMapper.toResponse(
+                                    bill,
+                                    billItems
+                            );
+                        })
+                        .toList();
+
+        PageResponse<BillResponse> response =
+                PageResponse.<BillResponse>builder()
+                        .items(items)
+                        .page(billPage.getNumber())
+                        .size(billPage.getSize())
+                        .totalElements(
+                                billPage.getTotalElements()
+                        )
+                        .totalPages(
+                                billPage.getTotalPages()
+                        )
+                        .first(billPage.isFirst())
+                        .last(billPage.isLast())
+                        .hasNext(billPage.hasNext())
+                        .hasPrevious(billPage.hasPrevious())
+                        .build();
+
+        return ApiResponse
+                .<PageResponse<BillResponse>>builder()
+                .success(true)
+                .message("Outstanding bills fetched successfully")
                 .data(response)
                 .build();
     }
