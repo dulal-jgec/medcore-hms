@@ -1,0 +1,446 @@
+package com.medcore.features.lab.service.impl;
+
+import com.medcore.common.exception.BusinessException;
+import com.medcore.common.exception.ResourceNotFoundException;
+import com.medcore.common.response.ApiResponse;
+import com.medcore.common.security.SecurityUtil;
+
+import com.medcore.features.appointment.entity.Appointment;
+import com.medcore.features.appointment.enums.AppointmentStatus;
+import com.medcore.features.appointment.repository.AppointmentRepository;
+
+import com.medcore.features.doctor.entity.Doctor;
+import com.medcore.features.doctor.repository.DoctorRepository;
+
+import com.medcore.features.hospital.entity.Hospital;
+
+import com.medcore.features.lab.dto.request.AddLabOrderItemRequest;
+import com.medcore.features.lab.dto.request.CreateLabOrderRequest;
+import com.medcore.features.lab.dto.response.LabOrderItemResponse;
+import com.medcore.features.lab.dto.response.LabOrderResponse;
+
+import com.medcore.features.lab.entity.LabOrder;
+import com.medcore.features.lab.entity.LabOrderItem;
+
+import com.medcore.features.lab.mapper.LabOrderItemMapper;
+import com.medcore.features.lab.mapper.LabOrderMapper;
+
+import com.medcore.features.lab.repository.LabOrderItemRepository;
+import com.medcore.features.lab.repository.LabOrderRepository;
+
+import com.medcore.features.lab.service.LabOrderService;
+
+import com.medcore.features.lab.entity.LabTest;
+import com.medcore.features.lab.enums.LabOrderStatus;
+import com.medcore.features.lab.repository.LabTestRepository;
+
+import com.medcore.features.patient.entity.Patient;
+
+import com.medcore.features.user.entity.User;
+import com.medcore.features.user.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class LabOrderServiceImpl implements LabOrderService {
+
+    private final LabOrderRepository labOrderRepository;
+    private final LabOrderItemRepository labOrderItemRepository;
+
+    private final AppointmentRepository appointmentRepository;
+
+    private final DoctorRepository doctorRepository;
+    private final UserRepository userRepository;
+
+    private final LabTestRepository labTestRepository;
+
+    private final LabOrderMapper labOrderMapper;
+    private final LabOrderItemMapper labOrderItemMapper;
+
+
+     
+
+    @Override
+    public ApiResponse<LabOrderResponse> createLabOrder(
+            CreateLabOrderRequest request) {
+
+        User currentUser = getCurrentUser();
+
+        Doctor currentDoctor =
+                doctorRepository
+                        .findByUserId(currentUser.getId())
+                        .orElseThrow(() ->
+                                new BusinessException(
+                                        "Only doctors can create lab orders"
+                                ));
+
+        Appointment appointment =
+                appointmentRepository
+                        .findByIdAndDeletedAtIsNull(
+                                request.getAppointmentId()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Appointment not found"
+                                ));
+
+        // Doctor ownership
+        if (!appointment.getDoctor().getId()
+                .equals(currentDoctor.getId())) {
+
+            throw new BusinessException(
+                    "You are not authorized to create a lab order for this appointment"
+            );
+        }
+
+        // Hospital isolation
+        if (currentUser.getHospital() == null
+                || appointment.getHospital() == null
+                || !appointment.getHospital().getId()
+                        .equals(currentUser.getHospital().getId())) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
+        }
+
+        // Appointment must be completed
+        if (appointment.getStatus()
+                != AppointmentStatus.COMPLETED) {
+
+            throw new BusinessException(
+                    "Lab order can only be created for a completed appointment"
+            );
+        }
+
+        // Prevent duplicate lab order for appointment
+        if (labOrderRepository
+                .existsByAppointmentIdAndDeletedAtIsNull(
+                        appointment.getId()
+                )) {
+
+            throw new BusinessException(
+                    "Lab order already exists for this appointment"
+            );
+        }
+
+        Doctor doctor = appointment.getDoctor();
+        Patient patient = appointment.getPatient();
+        Hospital hospital = appointment.getHospital();
+
+        LabOrder labOrder =
+                labOrderMapper.toEntity(
+                        request,
+                        appointment,
+                        doctor,
+                        patient,
+                        hospital
+                );
+
+        LabOrder savedOrder =
+                labOrderRepository.save(labOrder);
+
+         
+        for (Long labTestId : request.getLabTestIds()) {
+
+            LabTest labTest =
+                    labTestRepository
+                            .findByIdAndDeletedAtIsNull(
+                                    labTestId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Lab test not found: "
+                                                    + labTestId
+                                    ));
+
+            LabOrderItem item =
+                    LabOrderItem.builder()
+                            .labOrder(savedOrder)
+                            .labTest(labTest)
+                            .build();
+
+            labOrderItemRepository.save(item);
+        }
+
+        List<LabOrderItemResponse> items =
+                labOrderItemRepository
+                        .findByLabOrderIdAndDeletedAtIsNull(
+                                savedOrder.getId()
+                        )
+                        .stream()
+                        .map(labOrderItemMapper::toResponse)
+                        .toList();
+
+        return ApiResponse.<LabOrderResponse>builder()
+                .success(true)
+                .message("Lab order created successfully")
+                .data(
+                        labOrderMapper.toResponse(
+                                savedOrder,
+                                items
+                        )
+                )
+                .build();
+    }
+
+
+     
+
+    @Override
+    public ApiResponse<LabOrderItemResponse> addLabOrderItem(
+            Long labOrderId,
+            AddLabOrderItemRequest request) {
+
+        User currentUser = getCurrentUser();
+
+        Doctor currentDoctor =
+                doctorRepository
+                        .findByUserId(currentUser.getId())
+                        .orElseThrow(() ->
+                                new BusinessException(
+                                        "Only doctors can add lab tests"
+                                ));
+
+        LabOrder labOrder =
+                labOrderRepository
+                        .findByIdAndDeletedAtIsNull(
+                                labOrderId
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Lab order not found"
+                                ));
+
+        // Doctor ownership
+        if (!labOrder.getDoctor().getId()
+                .equals(currentDoctor.getId())) {
+
+            throw new BusinessException(
+                    "You are not authorized to modify this lab order"
+            );
+        }
+
+        // Hospital isolation
+        if (currentUser.getHospital() == null
+                || labOrder.getHospital() == null
+                || !labOrder.getHospital().getId()
+                        .equals(currentUser.getHospital().getId())) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
+        }
+
+        // Only ordered lab orders can be modified
+        if (labOrder.getStatus()
+                != com.medcore.features.lab.enums.LabOrderStatus.ORDERED) {
+
+            throw new BusinessException(
+                    "Only ordered lab orders can be modified"
+            );
+        }
+
+        // Prevent duplicate test
+        if (labOrderItemRepository
+                .existsByLabOrderIdAndLabTestIdAndDeletedAtIsNull(
+                        labOrderId,
+                        request.getLabTestId()
+                )) {
+
+            throw new BusinessException(
+                    "This lab test is already added to the order"
+            );
+        }
+
+        com.medcore.features.lab.entity.LabTest labTest =
+                labTestRepository
+                        .findByIdAndDeletedAtIsNull(
+                                request.getLabTestId()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Lab test not found"
+                                ));
+
+        LabOrderItem item =
+                LabOrderItem.builder()
+                        .labOrder(labOrder)
+                        .labTest(labTest)
+                        .instructions(request.getInstructions())
+                        .build();
+
+        LabOrderItem savedItem =
+                labOrderItemRepository.save(item);
+
+        return ApiResponse.<LabOrderItemResponse>builder()
+                .success(true)
+                .message("Lab test added to order successfully")
+                .data(
+                        labOrderItemMapper.toResponse(
+                                savedItem
+                        )
+                )
+                .build();
+    }
+
+
+     
+    @Override
+    public ApiResponse<LabOrderResponse> getLabOrderById(
+            Long labOrderId) {
+
+        User currentUser = getCurrentUser();
+
+        LabOrder labOrder =
+                labOrderRepository
+                        .findByIdAndDeletedAtIsNull(
+                                labOrderId
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Lab order not found"
+                                ));
+
+        // Hospital isolation
+        if (currentUser.getHospital() == null
+                || labOrder.getHospital() == null
+                || !labOrder.getHospital().getId()
+                        .equals(currentUser.getHospital().getId())) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
+        }
+
+        List<LabOrderItemResponse> items =
+                labOrderItemRepository
+                        .findByLabOrderIdAndDeletedAtIsNull(
+                                labOrder.getId()
+                        )
+                        .stream()
+                        .map(labOrderItemMapper::toResponse)
+                        .toList();
+
+        return ApiResponse.<LabOrderResponse>builder()
+                .success(true)
+                .message("Lab order fetched successfully")
+                .data(
+                        labOrderMapper.toResponse(
+                                labOrder,
+                                items
+                        )
+                )
+                .build();
+    }
+
+
+     
+
+    private User getCurrentUser() {
+
+        String email =
+                SecurityUtil.getCurrentUsername();
+
+        return userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Current user not found"
+                        ));
+    }
+    
+    @Override
+    public ApiResponse<LabOrderResponse> updateStatus(
+            Long labOrderId,
+            LabOrderStatus status) {
+
+        User currentUser = getCurrentUser();
+
+        LabOrder labOrder =
+                labOrderRepository
+                        .findByIdAndDeletedAtIsNull(labOrderId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Lab order not found"
+                                ));
+
+        // Hospital isolation
+        if (currentUser.getHospital() == null
+                || labOrder.getHospital() == null
+                || !labOrder.getHospital().getId()
+                        .equals(currentUser.getHospital().getId())) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
+        }
+
+        LabOrderStatus currentStatus =
+                labOrder.getStatus();
+
+        // ---------------------------------------------------------
+        // Validate status transition
+        // ---------------------------------------------------------
+
+        boolean validTransition =
+                switch (currentStatus) {
+
+                    case ORDERED ->
+                            status == LabOrderStatus.SAMPLE_COLLECTED
+                                    || status == LabOrderStatus.CANCELLED;
+
+                    case SAMPLE_COLLECTED ->
+                            status == LabOrderStatus.PROCESSING
+                                    || status == LabOrderStatus.CANCELLED;
+
+                    case PROCESSING ->
+                            status == LabOrderStatus.COMPLETED
+                                    || status == LabOrderStatus.CANCELLED;
+
+                    case COMPLETED, CANCELLED ->
+                            false;
+                };
+
+        if (!validTransition) {
+
+            throw new BusinessException(
+                    "Invalid lab order status transition from "
+                            + currentStatus
+                            + " to "
+                            + status
+            );
+        }
+
+        // Update status
+        labOrder.setStatus(status);
+
+        LabOrder savedOrder =
+                labOrderRepository.save(labOrder);
+
+        List<LabOrderItemResponse> items =
+                labOrderItemRepository
+                        .findByLabOrderIdAndDeletedAtIsNull(
+                                savedOrder.getId()
+                        )
+                        .stream()
+                        .map(labOrderItemMapper::toResponse)
+                        .toList();
+
+        return ApiResponse.<LabOrderResponse>builder()
+                .success(true)
+                .message("Lab order status updated successfully")
+                .data(
+                        labOrderMapper.toResponse(
+                                savedOrder,
+                                items
+                        )
+                )
+                .build();
+    }
+}
