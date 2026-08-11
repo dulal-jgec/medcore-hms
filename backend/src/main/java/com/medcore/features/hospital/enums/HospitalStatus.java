@@ -5,6 +5,7 @@ public enum HospitalStatus {
     PENDING,
     ACTIVE,
     SUSPENDED,
-    CLOSED
+    CLOSED,
+    INACTIVE
 
 }
