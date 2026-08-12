@@ -1,6 +1,7 @@
 package com.medcore.features.auth.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+import com.medcore.features.auth.dto.response.RefreshTokenResult;
 import com.medcore.features.auth.entity.RefreshToken;
 import com.medcore.features.auth.repository.RefreshTokenRepository;
 import com.medcore.features.auth.service.RefreshTokenService;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @Transactional
@@ -22,49 +24,78 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     private final JwtProperties jwtProperties;
 
     @Override
-    public RefreshToken createRefreshToken(User user) {
+    public RefreshTokenResult createRefreshToken(User user) {
 
-        refreshTokenRepository.findByUser(user)
-                .ifPresent(refreshTokenRepository::delete);
+        String rawToken = jwtService.generateRefreshToken();
 
-        refreshTokenRepository.flush();   // <-- Very Important
+        String hashedToken =
+                jwtService.hashRefreshToken(rawToken);
 
         RefreshToken refreshToken = RefreshToken.builder()
                 .user(user)
-                .token(jwtService.generateRefreshToken(user.getEmail()))
-                .expiryDate(LocalDateTime.now()
-                        .plusSeconds(jwtProperties.getRefreshTokenExpiration() / 1000))
+                .token(hashedToken)
+                .expiryDate(
+                        LocalDateTime.now()
+                                .plusSeconds(
+                                        jwtProperties.getRefreshTokenExpiration() / 1000
+                                )
+                )
                 .revoked(false)
                 .build();
 
-        return refreshTokenRepository.save(refreshToken);
+        RefreshToken savedToken =
+                refreshTokenRepository.save(refreshToken);
+
+        return new RefreshTokenResult(
+                rawToken,
+                savedToken
+        );
     }
 
-    @Override
-    public RefreshToken verifyRefreshToken(String token) {
+@Override
+public RefreshToken verifyRefreshToken(String token) {
 
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() ->
-                        new BusinessException("Refresh token not found"));
+    String hashedToken =
+            jwtService.hashRefreshToken(token);
 
-        if (refreshToken.getRevoked()) {
-            throw new BusinessException("Refresh token has been revoked");
-        }
+    RefreshToken refreshToken =
+            refreshTokenRepository.findByToken(hashedToken)
+                    .orElseThrow(() ->
+                            new BusinessException(
+                                    "Refresh token not found"
+                            ));
 
-        if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            throw new BusinessException("Refresh token has expired");
-        }
-
-        return refreshToken;
+    if (refreshToken.getRevoked()) {
+        throw new BusinessException(
+                "Refresh token has been revoked"
+        );
     }
+
+    if (refreshToken.getExpiryDate()
+            .isBefore(LocalDateTime.now())) {
+
+        throw new BusinessException(
+                "Refresh token has expired"
+        );
+    }
+
+    return refreshToken;
+}
 
     @Override
     public void revokeRefreshToken(User user) {
 
-        refreshTokenRepository.findByUser(user)
-                .ifPresent(token -> {
-                    token.setRevoked(true);
-                    refreshTokenRepository.save(token);
-                });
+        List<RefreshToken>tokens = 
+        		refreshTokenRepository.findByUser(user);
+        tokens.forEach(token-> token.setRevoked(true));
+        
+        refreshTokenRepository.saveAll(tokens);
+    }
+    
+    @Override
+    public void revokeRefreshToken(RefreshToken refreshToken) {
+
+        refreshToken.setRevoked(true);
+        refreshTokenRepository.save(refreshToken);
     }
 }

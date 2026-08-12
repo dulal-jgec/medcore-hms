@@ -11,6 +11,7 @@ import com.medcore.common.security.jwt.JwtService;
 import com.medcore.features.auth.dto.request.LoginRequest;
 import com.medcore.features.auth.dto.request.RegisterRequest;
 import com.medcore.features.auth.dto.response.AuthResponse;
+import com.medcore.features.auth.dto.response.RefreshTokenResult;
 import com.medcore.features.auth.mapper.AuthMapper;
 import com.medcore.features.auth.service.AuthService;
 import com.medcore.features.auth.service.RefreshTokenService;
@@ -109,12 +110,12 @@ public class AuthServiceImpl implements AuthService {
 
     		String accessToken = jwtService.generateAccessToken(user.getEmail());
     		
-    		RefreshToken refreshToken =
+    		RefreshTokenResult refreshTokenResult =
     		        refreshTokenService.createRefreshToken(user);
     		
     		AuthResponse authResponse = AuthResponse.builder()
     		        .accessToken(accessToken)
-    		        .refreshToken(refreshToken.getToken())
+    		        .refreshToken(refreshTokenResult.getRawToken())
     		        .tokenType("Bearer")
     		        .expiresIn(jwtProperties.getAccessTokenExpiration())
     		        .build();
@@ -161,16 +162,19 @@ public class AuthServiceImpl implements AuthService {
                 refreshTokenService.verifyRefreshToken(request.getRefreshToken());
 
         User user = refreshToken.getUser();
+        
+        // Revoke old refreshtoken 
+        refreshTokenService.revokeRefreshToken(refreshToken);
 
         // Generate New Tokens
         String accessToken = jwtService.generateAccessToken(user.getEmail());
 
-        RefreshToken newRefreshToken =
+        RefreshTokenResult refreshTokenResult =
                 refreshTokenService.createRefreshToken(user);
 
         AuthResponse authResponse = AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(newRefreshToken.getToken())
+                .refreshToken(refreshTokenResult.getRawToken())
                 .tokenType("Bearer")
                 .expiresIn(jwtProperties.getAccessTokenExpiration())
                 .build();

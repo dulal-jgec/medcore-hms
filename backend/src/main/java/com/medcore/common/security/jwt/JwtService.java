@@ -1,6 +1,8 @@
 package com.medcore.common.security.jwt;
 
 import io.jsonwebtoken.Claims;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -10,7 +12,8 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
-
+import java.security.SecureRandom;
+import java.util.Base64;
 @Service
 @RequiredArgsConstructor
 public class JwtService {
@@ -82,19 +85,38 @@ public class JwtService {
 
         return header.substring(7);
     }
-    public String generateRefreshToken(String email) {
+    
+    public String generateRefreshToken() {
 
-        Date now = new Date();
+        SecureRandom secureRandom = new SecureRandom();
 
-        Date expiryDate = new Date(
-                now.getTime() + jwtProperties.getRefreshTokenExpiration()
-        );
+        byte[] randomBytes = new byte[64];
+        secureRandom.nextBytes(randomBytes);
 
-        return Jwts.builder()
-                .subject(email)
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(randomBytes);
+    }
+    
+    public String hashRefreshToken(String token) {
+
+        try {
+            MessageDigest digest =
+                    MessageDigest.getInstance("SHA-256");
+
+            byte[] hash =
+                    digest.digest(
+                            token.getBytes(StandardCharsets.UTF_8)
+                    );
+
+            return Base64.getEncoder()
+                    .encodeToString(hash);
+
+        } catch (Exception ex) {
+            throw new IllegalStateException(
+                    "Failed to hash refresh token",
+                    ex
+            );
+        }
     }
 }
