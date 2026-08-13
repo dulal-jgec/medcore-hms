@@ -35,6 +35,7 @@ public interface HospitalService {
             int page,
             int size
     );
+    
     ApiResponse<String> deleteHospital(Long hospitalId);
     
     ApiResponse<String> restoreHospital(Long hospitalId);

@@ -39,9 +39,9 @@ public class SuperAdminSeeder implements CommandLineRunner {
                                         "SUPER_ADMIN role not found"
                                 )
                         );
-
         Hospital headOffice =
-                hospitalRepository.findByEmail("hq@medcore.com")
+                hospitalRepository
+                        .findByEmailAndDeletedAtIsNull("hq@medcore.com")
                         .orElseGet(() -> {
 
                             Hospital hospital = Hospital.builder()

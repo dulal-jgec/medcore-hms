@@ -1,12 +1,15 @@
 package com.medcore.features.hospital.config;
 
 import com.medcore.features.hospital.entity.Hospital;
+import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import com.medcore.features.hospital.enums.HospitalStatus;
+
 @Component
+@Profile("dev")
 @RequiredArgsConstructor
 public class HospitalSeeder implements CommandLineRunner {
 

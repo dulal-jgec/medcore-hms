@@ -9,9 +9,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.medcore.common.response.ApiResponse;
 
 import java.time.LocalDateTime;
-
+import org.springframework.dao.DataIntegrityViolationException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+	
+	
 
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateResourceException(
@@ -71,6 +73,23 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+    
+    
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex) {
+
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .errorCode("DATA_CONFLICT")
+                .message("The requested operation conflicts with existing data")
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
     }
 
     @ExceptionHandler(Exception.class)

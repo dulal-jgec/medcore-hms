@@ -9,8 +9,9 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
- 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 @Configuration
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 

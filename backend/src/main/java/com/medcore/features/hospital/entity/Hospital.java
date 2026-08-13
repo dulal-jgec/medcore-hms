@@ -17,18 +17,17 @@ import com.medcore.features.hospital.enums.HospitalStatus;
 @Builder
 public class Hospital extends BaseEntity {
 
-	@Column(nullable = false, unique = true, length = 150)
+	@Column(nullable = false, length = 150)
 	private String name;
-      
 
-    @Column(nullable = false, unique = true, length = 100)
-    private String email;
+	@Column(nullable = false, length = 100)
+	private String email;
 
-    @Column(nullable = false, unique = true, length = 15)
-    private String phone;
+	@Column(nullable = false, length = 15)
+	private String phone;
 
-    @Column(nullable = false, unique = true)
-    private String licenseNumber;
+	@Column(nullable = false, length = 50)
+	private String licenseNumber;
 
     private String logoUrl;
 

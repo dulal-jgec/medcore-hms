@@ -1,6 +1,7 @@
 package com.medcore.features.superadmin.controller;
 
 import com.medcore.common.response.ApiResponse;
+import com.medcore.features.hospital.dto.request.CreateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalStatusRequest;
 import com.medcore.features.hospital.dto.response.CreateHospitalResponse;
@@ -30,6 +31,14 @@ public class SuperAdminController {
         return superAdminService
                 .getCurrentSuperAdmin();
     }
+    
+    @PostMapping("/hospitals")
+    public ApiResponse<CreateHospitalResponse> createHospital(
+            @Valid @RequestBody CreateHospitalRequest request) {
+
+        return superAdminService.createHospital(request);
+    }
+    
     @GetMapping("/hospitals")
     public ApiResponse<Page<CreateHospitalResponse>> getAllHospitals(
             @RequestParam(defaultValue = "0") int page,
