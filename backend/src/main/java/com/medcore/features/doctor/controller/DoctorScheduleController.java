@@ -9,15 +9,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/doctor-schedules")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
 public class DoctorScheduleController {
 
     private final DoctorScheduleService doctorScheduleService;
+    
 
     @PostMapping
     public ResponseEntity<ApiResponse<DoctorScheduleResponse>> createSchedule(

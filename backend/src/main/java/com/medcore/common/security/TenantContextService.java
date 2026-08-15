@@ -6,7 +6,7 @@ import com.medcore.features.user.entity.User;
 import com.medcore.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
+import com.medcore.features.user.enums.RoleName;
 @Service
 @RequiredArgsConstructor
 public class TenantContextService {
@@ -22,6 +22,10 @@ public class TenantContextService {
                         new BusinessException("User not found")
                 );
 
+        if (user.getRole().getName() == RoleName.SUPER_ADMIN) {
+            return null;
+        }
+
         if (user.getHospital() == null) {
             throw new BusinessException(
                     "User is not associated with a hospital"
@@ -32,6 +36,9 @@ public class TenantContextService {
     }
 
     public Long getCurrentHospitalId() {
-        return getCurrentHospital().getId();
+
+        Hospital hospital = getCurrentHospital();
+
+        return hospital != null ? hospital.getId() : null;
     }
 }

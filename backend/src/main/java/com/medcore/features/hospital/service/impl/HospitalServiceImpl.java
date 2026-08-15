@@ -38,6 +38,9 @@ public ApiResponse<CreateHospitalResponse> createHospital(
     String email = request.getEmail().trim().toLowerCase();
     String licenseNumber = request.getLicenseNumber().trim();
     String phone = request.getPhone().trim();
+    
+    
+    
 
     if (hospitalRepository.existsByEmailAndDeletedAtIsNull(email)) {
         throw new DuplicateResourceException(

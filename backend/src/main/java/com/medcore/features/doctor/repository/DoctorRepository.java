@@ -8,29 +8,47 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.Optional;
 
-public interface DoctorRepository extends
-JpaRepository<Doctor, Long>,
-JpaSpecificationExecutor<Doctor> {
+public interface DoctorRepository
+extends JpaRepository<Doctor, Long>,
+        JpaSpecificationExecutor<Doctor> {
 
-    Optional<Doctor> findByIdAndDeletedAtIsNull(Long id);
+ 
+	Optional<Doctor> findByIdAndDeletedAtIsNull(Long doctorId);
 
-    boolean existsByUserId(Long userId);
+	Optional<Doctor> findByIdAndHospitalIdAndDeletedAtIsNull(
+    Long doctorId,
+    Long hospitalId
+);
 
-    Page<Doctor> findByHospitalIdAndDeletedAtIsNull(
-            Long hospitalId,
-            Pageable pageable
-    );
+ 
+	boolean existsByUserId(Long userId);
 
-    Page<Doctor> findByDepartmentIdAndDeletedAtIsNull(
-            Long departmentId,
-            Pageable pageable
-    );
+ 
+	Page<Doctor> findByDeletedAtIsNull(Pageable pageable);
 
-    Page<Doctor> findByDeletedAtIsNull(Pageable pageable);
-    
-    Page<Doctor> findBySpecializationContainingIgnoreCaseAndDeletedAtIsNull(
-            String keyword,
-            Pageable pageable
-    );
-    Optional<Doctor> findByUserId(Long userId);
+	Page<Doctor> findByHospitalIdAndDeletedAtIsNull(
+    Long hospitalId,
+    Pageable pageable
+);
+
+ 
+	Page<Doctor> findBySpecializationContainingIgnoreCaseAndDeletedAtIsNull(
+    String keyword,
+    Pageable pageable
+);
+
+ 
+	Page<Doctor> findByHospitalIdAndSpecializationContainingIgnoreCaseAndDeletedAtIsNull(
+    Long hospitalId,
+    String keyword,
+    Pageable pageable
+);
+
+ 
+	Optional<Doctor> findByIdAndHospitalId(
+    Long doctorId,
+    Long hospitalId
+);
 }
+	
+	
