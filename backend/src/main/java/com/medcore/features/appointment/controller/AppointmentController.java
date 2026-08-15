@@ -6,18 +6,35 @@ import com.medcore.features.appointment.dto.request.CreateAppointmentRequest;
 import com.medcore.features.appointment.dto.request.UpdateAppointmentStatusRequest;
 import com.medcore.features.appointment.dto.response.AppointmentResponse;
 import com.medcore.features.appointment.service.AppointmentService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/appointments")
 @RequiredArgsConstructor
+@PreAuthorize("""
+    hasAnyRole(
+        'SUPER_ADMIN',
+        'HOSPITAL_ADMIN',
+        'RECEPTIONIST',
+        'DOCTOR',
+        'PATIENT'
+    )
+""")
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
+
+
+     
+    // CREATE APPOINTMENT
+   
 
     @PostMapping
     public ResponseEntity<ApiResponse<AppointmentResponse>> createAppointment(
@@ -25,19 +42,31 @@ public class AppointmentController {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(appointmentService.createAppointment(request));
+                .body(
+                        appointmentService.createAppointment(request)
+                );
     }
-    
+
+
+     
+    // GET ALL APPOINTMENTS
+     
+
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>> getAllAppointments(
+    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>>
+    getAllAppointments(
 
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "0")
+            int page,
 
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "10")
+            int size,
 
-            @RequestParam(defaultValue = "appointmentDate") String sortBy,
+            @RequestParam(defaultValue = "appointmentDate")
+            String sortBy,
 
-            @RequestParam(defaultValue = "asc") String sortDir) {
+            @RequestParam(defaultValue = "asc")
+            String sortDir) {
 
         return ResponseEntity.ok(
                 appointmentService.getAllAppointments(
@@ -48,22 +77,54 @@ public class AppointmentController {
                 )
         );
     }
+
+
+     
+    // TODAY'S APPOINTMENTS
     
-    @GetMapping("/{appointmentId}")
-    public ResponseEntity<ApiResponse<AppointmentResponse>> getAppointmentById(
-            @PathVariable Long appointmentId) {
+
+    @GetMapping("/today")
+    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>>
+    getTodayAppointments(
+
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @RequestParam(defaultValue = "10")
+            int size,
+
+            @RequestParam(defaultValue = "startTime")
+            String sortBy,
+
+            @RequestParam(defaultValue = "asc")
+            String sortDir) {
 
         return ResponseEntity.ok(
-                appointmentService.getAppointmentById(appointmentId)
+                appointmentService.getTodayAppointments(
+                        page,
+                        size,
+                        sortBy,
+                        sortDir
+                )
         );
     }
-    
+
+
+     
+    // DOCTOR APPOINTMENTS
+     
+
     @GetMapping("/doctor/{doctorId}")
     public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>>
     getDoctorAppointments(
+
             @PathVariable Long doctorId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @RequestParam(defaultValue = "10")
+            int size) {
 
         return ResponseEntity.ok(
                 appointmentService.getDoctorAppointments(
@@ -73,13 +134,23 @@ public class AppointmentController {
                 )
         );
     }
-    
+
+
+     
+    // PATIENT APPOINTMENTS
+     
+
     @GetMapping("/patient/{patientId}")
     public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>>
     getPatientAppointments(
+
             @PathVariable Long patientId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @RequestParam(defaultValue = "10")
+            int size) {
 
         return ResponseEntity.ok(
                 appointmentService.getPatientAppointments(
@@ -89,13 +160,37 @@ public class AppointmentController {
                 )
         );
     }
+
+
     
+    // GET APPOINTMENT BY ID
+   
+
+    @GetMapping("/{appointmentId}")
+    public ResponseEntity<ApiResponse<AppointmentResponse>>
+    getAppointmentById(
+            @PathVariable Long appointmentId) {
+
+        return ResponseEntity.ok(
+                appointmentService.getAppointmentById(
+                        appointmentId
+                )
+        );
+    }
+
+
+     
+    // UPDATE STATUS
+    
+
     @PatchMapping("/{appointmentId}/status")
     public ResponseEntity<ApiResponse<AppointmentResponse>>
     updateAppointmentStatus(
+
             @PathVariable Long appointmentId,
-            @Valid @RequestBody UpdateAppointmentStatusRequest
-            request) {
+
+            @Valid
+            @RequestBody UpdateAppointmentStatusRequest request) {
 
         return ResponseEntity.ok(
                 appointmentService.updateAppointmentStatus(
@@ -104,46 +199,72 @@ public class AppointmentController {
                 )
         );
     }
+
+
+   
+    // CHECK-IN
+     
+
+    @PatchMapping("/{appointmentId}/check-in")
+    public ResponseEntity<ApiResponse<AppointmentResponse>>
+    checkInAppointment(
+            @PathVariable Long appointmentId) {
+
+        return ResponseEntity.ok(
+                appointmentService.checkInAppointment(
+                        appointmentId
+                )
+        );
+    }
+
+
     
+    // CANCEL APPOINTMENT
+     
+
     @PatchMapping("/{appointmentId}/cancel")
-    public ResponseEntity<ApiResponse<String>> cancelAppointment(
+    public ResponseEntity<ApiResponse<String>>
+    cancelAppointment(
             @PathVariable Long appointmentId) {
 
         return ResponseEntity.ok(
-                appointmentService.cancelAppointment(appointmentId)
+                appointmentService.cancelAppointment(
+                        appointmentId
+                )
         );
     }
+
+
+     
+    // DELETE APPOINTMENT
     
+
     @DeleteMapping("/{appointmentId}")
-    public ResponseEntity<ApiResponse<String>> deleteAppointment(
+    public ResponseEntity<ApiResponse<String>>
+    deleteAppointment(
             @PathVariable Long appointmentId) {
 
         return ResponseEntity.ok(
-                appointmentService.deleteAppointment(appointmentId)
+                appointmentService.deleteAppointment(
+                        appointmentId
+                )
         );
     }
+
+
+     
+    // RESTORE APPOINTMENT
     
+
     @PatchMapping("/{appointmentId}/restore")
-    public ResponseEntity<ApiResponse<String>> restoreAppointment(
+    public ResponseEntity<ApiResponse<String>>
+    restoreAppointment(
             @PathVariable Long appointmentId) {
 
         return ResponseEntity.ok(
-                appointmentService.restoreAppointment(appointmentId)
-        );
-    }
-    
-    @GetMapping("/today")
-    public ApiResponse<PageResponse<AppointmentResponse>> getTodayAppointments(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "startTime") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
-
-        return appointmentService.getTodayAppointments(
-                page,
-                size,
-                sortBy,
-                sortDir
+                appointmentService.restoreAppointment(
+                        appointmentId
+                )
         );
     }
 }

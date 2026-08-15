@@ -1,5 +1,6 @@
 package com.medcore.features.patient.repository;
 
+import com.medcore.features.appointment.entity.Appointment;
 import com.medcore.features.patient.entity.Patient;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,5 +26,16 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
             Long hospitalId,
             String keyword,
             Pageable pageable
+    );
+    
+    Page<Appointment> findByPatientIdAndHospitalIdAndDeletedAtIsNull(
+            Long patientId,
+            Long hospitalId,
+            Pageable pageable
+    );
+    
+    Optional<Patient> findByIdAndHospitalIdAndDeletedAtIsNull(
+            Long patientId,
+            Long hospitalId
     );
 }
