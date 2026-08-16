@@ -10,6 +10,9 @@ import lombok.Setter;
 @Setter
 public class CreateNurseRequest {
 
+    @NotNull(message = "Hospital ID is required")
+    private Long hospitalId;
+
     @NotNull(message = "User ID is required")
     private Long userId;
 
