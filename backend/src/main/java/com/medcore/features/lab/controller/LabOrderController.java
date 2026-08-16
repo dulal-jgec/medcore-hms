@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,21 +22,18 @@ public class LabOrderController {
 
     private final LabOrderService labOrderService;
 
-
-     
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<LabOrderResponse> createLabOrder(
             @Valid @RequestBody CreateLabOrderRequest request) {
 
         return labOrderService.createLabOrder(request);
     }
 
-
-     
-
     @PostMapping("/{labOrderId}/tests")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<LabOrderItemResponse> addLabOrderItem(
             @PathVariable Long labOrderId,
             @Valid @RequestBody AddLabOrderItemRequest request) {
@@ -46,9 +44,8 @@ public class LabOrderController {
         );
     }
 
-
-    
     @GetMapping("/{labOrderId}")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'PATIENT', 'HOSPITAL_ADMIN')")
     public ApiResponse<LabOrderResponse> getLabOrderById(
             @PathVariable Long labOrderId) {
 
@@ -56,8 +53,9 @@ public class LabOrderController {
                 labOrderId
         );
     }
-    
+
     @PatchMapping("/{labOrderId}/status")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'HOSPITAL_ADMIN')")
     public ApiResponse<LabOrderResponse> updateStatus(
             @PathVariable Long labOrderId,
             @RequestParam LabOrderStatus status) {

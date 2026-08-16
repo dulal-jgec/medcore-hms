@@ -3,7 +3,6 @@ package com.medcore.features.nurse.service.impl;
 import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
-import com.medcore.common.security.SecurityUtil;
 import com.medcore.features.nurse.dto.request.CreateNurseRequest;
 import com.medcore.features.nurse.dto.request.UpdateNurseRequest;
 import com.medcore.features.nurse.dto.response.NurseResponse;

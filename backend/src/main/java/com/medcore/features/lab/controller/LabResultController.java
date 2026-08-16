@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,9 +20,9 @@ public class LabResultController {
 
     private final LabResultService labResultService;
 
-
     @PostMapping("/{labOrderItemId}")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE')")
     public ApiResponse<LabResultResponse> createResult(
             @PathVariable Long labOrderItemId,
             @Valid @RequestBody CreateLabResultRequest request) {
@@ -32,8 +33,8 @@ public class LabResultController {
         );
     }
 
-
     @GetMapping("/{labOrderItemId}")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'PATIENT', 'NURSE')")
     public ApiResponse<LabResultResponse> getResult(
             @PathVariable Long labOrderItemId) {
 
@@ -41,8 +42,9 @@ public class LabResultController {
                 labOrderItemId
         );
     }
-    
+
     @PutMapping("/{labOrderItemId}")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE')")
     public ApiResponse<LabResultResponse> updateResult(
             @PathVariable Long labOrderItemId,
             @Valid @RequestBody CreateLabResultRequest request) {

@@ -4,6 +4,7 @@ import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.security.SecurityUtil;
+import com.medcore.common.security.TenantContextService;
 
 import com.medcore.features.appointment.entity.Appointment;
 import com.medcore.features.appointment.enums.AppointmentStatus;
@@ -21,18 +22,18 @@ import com.medcore.features.lab.dto.response.LabOrderResponse;
 
 import com.medcore.features.lab.entity.LabOrder;
 import com.medcore.features.lab.entity.LabOrderItem;
+import com.medcore.features.lab.entity.LabTest;
+
+import com.medcore.features.lab.enums.LabOrderStatus;
 
 import com.medcore.features.lab.mapper.LabOrderItemMapper;
 import com.medcore.features.lab.mapper.LabOrderMapper;
 
 import com.medcore.features.lab.repository.LabOrderItemRepository;
 import com.medcore.features.lab.repository.LabOrderRepository;
+import com.medcore.features.lab.repository.LabTestRepository;
 
 import com.medcore.features.lab.service.LabOrderService;
-
-import com.medcore.features.lab.entity.LabTest;
-import com.medcore.features.lab.enums.LabOrderStatus;
-import com.medcore.features.lab.repository.LabTestRepository;
 
 import com.medcore.features.patient.entity.Patient;
 
@@ -62,18 +63,21 @@ public class LabOrderServiceImpl implements LabOrderService {
     private final LabOrderMapper labOrderMapper;
     private final LabOrderItemMapper labOrderItemMapper;
 
+    private final TenantContextService tenantContextService;
 
-     
 
     @Override
     public ApiResponse<LabOrderResponse> createLabOrder(
             CreateLabOrderRequest request) {
 
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
         User currentUser = getCurrentUser();
 
         Doctor currentDoctor =
                 doctorRepository
-                        .findByUserId(currentUser.getId())
+                        .findByUserIdAndDeletedAtIsNull(currentUser.getId())
                         .orElseThrow(() ->
                                 new BusinessException(
                                         "Only doctors can create lab orders"
@@ -89,7 +93,16 @@ public class LabOrderServiceImpl implements LabOrderService {
                                         "Appointment not found"
                                 ));
 
-        // Doctor ownership
+        if (hospitalId != null
+                && (appointment.getHospital() == null
+                || !appointment.getHospital().getId()
+                        .equals(hospitalId))) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
+        }
+
         if (!appointment.getDoctor().getId()
                 .equals(currentDoctor.getId())) {
 
@@ -98,18 +111,6 @@ public class LabOrderServiceImpl implements LabOrderService {
             );
         }
 
-        // Hospital isolation
-        if (currentUser.getHospital() == null
-                || appointment.getHospital() == null
-                || !appointment.getHospital().getId()
-                        .equals(currentUser.getHospital().getId())) {
-
-            throw new BusinessException(
-                    "You are not authorized to access this hospital data"
-            );
-        }
-
-        // Appointment must be completed
         if (appointment.getStatus()
                 != AppointmentStatus.COMPLETED) {
 
@@ -118,7 +119,6 @@ public class LabOrderServiceImpl implements LabOrderService {
             );
         }
 
-        // Prevent duplicate lab order for appointment
         if (labOrderRepository
                 .existsByAppointmentIdAndDeletedAtIsNull(
                         appointment.getId()
@@ -145,7 +145,6 @@ public class LabOrderServiceImpl implements LabOrderService {
         LabOrder savedOrder =
                 labOrderRepository.save(labOrder);
 
-         
         for (Long labTestId : request.getLabTestIds()) {
 
             LabTest labTest =
@@ -190,8 +189,6 @@ public class LabOrderServiceImpl implements LabOrderService {
     }
 
 
-     
-
     @Override
     public ApiResponse<LabOrderItemResponse> addLabOrderItem(
             Long labOrderId,
@@ -199,9 +196,12 @@ public class LabOrderServiceImpl implements LabOrderService {
 
         User currentUser = getCurrentUser();
 
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
         Doctor currentDoctor =
                 doctorRepository
-                        .findByUserId(currentUser.getId())
+                        .findByUserIdAndDeletedAtIsNull(currentUser.getId())
                         .orElseThrow(() ->
                                 new BusinessException(
                                         "Only doctors can add lab tests"
@@ -217,7 +217,16 @@ public class LabOrderServiceImpl implements LabOrderService {
                                         "Lab order not found"
                                 ));
 
-        // Doctor ownership
+        if (hospitalId != null
+                && (labOrder.getHospital() == null
+                || !labOrder.getHospital().getId()
+                        .equals(hospitalId))) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
+        }
+
         if (!labOrder.getDoctor().getId()
                 .equals(currentDoctor.getId())) {
 
@@ -226,27 +235,14 @@ public class LabOrderServiceImpl implements LabOrderService {
             );
         }
 
-        // Hospital isolation
-        if (currentUser.getHospital() == null
-                || labOrder.getHospital() == null
-                || !labOrder.getHospital().getId()
-                        .equals(currentUser.getHospital().getId())) {
-
-            throw new BusinessException(
-                    "You are not authorized to access this hospital data"
-            );
-        }
-
-        // Only ordered lab orders can be modified
         if (labOrder.getStatus()
-                != com.medcore.features.lab.enums.LabOrderStatus.ORDERED) {
+                != LabOrderStatus.ORDERED) {
 
             throw new BusinessException(
                     "Only ordered lab orders can be modified"
             );
         }
 
-        // Prevent duplicate test
         if (labOrderItemRepository
                 .existsByLabOrderIdAndLabTestIdAndDeletedAtIsNull(
                         labOrderId,
@@ -258,7 +254,7 @@ public class LabOrderServiceImpl implements LabOrderService {
             );
         }
 
-        com.medcore.features.lab.entity.LabTest labTest =
+        LabTest labTest =
                 labTestRepository
                         .findByIdAndDeletedAtIsNull(
                                 request.getLabTestId()
@@ -290,12 +286,14 @@ public class LabOrderServiceImpl implements LabOrderService {
     }
 
 
-     
     @Override
     public ApiResponse<LabOrderResponse> getLabOrderById(
             Long labOrderId) {
 
         User currentUser = getCurrentUser();
+
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
 
         LabOrder labOrder =
                 labOrderRepository
@@ -307,11 +305,10 @@ public class LabOrderServiceImpl implements LabOrderService {
                                         "Lab order not found"
                                 ));
 
-        // Hospital isolation
-        if (currentUser.getHospital() == null
-                || labOrder.getHospital() == null
+        if (hospitalId != null
+                && (labOrder.getHospital() == null
                 || !labOrder.getHospital().getId()
-                        .equals(currentUser.getHospital().getId())) {
+                        .equals(hospitalId))) {
 
             throw new BusinessException(
                     "You are not authorized to access this hospital data"
@@ -340,8 +337,6 @@ public class LabOrderServiceImpl implements LabOrderService {
     }
 
 
-     
-
     private User getCurrentUser() {
 
         String email =
@@ -354,7 +349,8 @@ public class LabOrderServiceImpl implements LabOrderService {
                                 "Current user not found"
                         ));
     }
-    
+
+
     @Override
     public ApiResponse<LabOrderResponse> updateStatus(
             Long labOrderId,
@@ -362,19 +358,23 @@ public class LabOrderServiceImpl implements LabOrderService {
 
         User currentUser = getCurrentUser();
 
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
         LabOrder labOrder =
                 labOrderRepository
-                        .findByIdAndDeletedAtIsNull(labOrderId)
+                        .findByIdAndDeletedAtIsNull(
+                                labOrderId
+                        )
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Lab order not found"
                                 ));
 
-        // Hospital isolation
-        if (currentUser.getHospital() == null
-                || labOrder.getHospital() == null
+        if (hospitalId != null
+                && (labOrder.getHospital() == null
                 || !labOrder.getHospital().getId()
-                        .equals(currentUser.getHospital().getId())) {
+                        .equals(hospitalId))) {
 
             throw new BusinessException(
                     "You are not authorized to access this hospital data"
@@ -383,10 +383,6 @@ public class LabOrderServiceImpl implements LabOrderService {
 
         LabOrderStatus currentStatus =
                 labOrder.getStatus();
-
-        // ---------------------------------------------------------
-        // Validate status transition
-        // ---------------------------------------------------------
 
         boolean validTransition =
                 switch (currentStatus) {
@@ -417,7 +413,6 @@ public class LabOrderServiceImpl implements LabOrderService {
             );
         }
 
-        // Update status
         labOrder.setStatus(status);
 
         LabOrder savedOrder =

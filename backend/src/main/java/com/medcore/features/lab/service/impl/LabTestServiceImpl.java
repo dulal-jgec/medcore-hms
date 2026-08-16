@@ -4,18 +4,25 @@ import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.security.SecurityUtil;
+
 import com.medcore.features.lab.dto.request.CreateLabTestRequest;
 import com.medcore.features.lab.dto.request.UpdateLabTestRequest;
 import com.medcore.features.lab.dto.response.LabTestResponse;
+
 import com.medcore.features.lab.entity.LabTest;
 import com.medcore.features.lab.enums.LabTestStatus;
+
 import com.medcore.features.lab.mapper.LabTestMapper;
 import com.medcore.features.lab.repository.LabTestRepository;
 import com.medcore.features.lab.service.LabTestService;
+
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,16 +35,18 @@ public class LabTestServiceImpl implements LabTestService {
     private final LabTestMapper labTestMapper;
     private final UserRepository userRepository;
 
-     
+
     @Override
+    @Transactional
     public ApiResponse<LabTestResponse> createLabTest(
             CreateLabTestRequest request) {
 
         getCurrentUser();
 
+        String name = request.getName().trim();
+
         if (labTestRepository
-                .existsByNameIgnoreCaseAndDeletedAtIsNull(
-                        request.getName().trim())) {
+                .existsByNameIgnoreCaseAndDeletedAtIsNull(name)) {
 
             throw new BusinessException(
                     "Lab test already exists"
@@ -65,9 +74,9 @@ public class LabTestServiceImpl implements LabTestService {
                 .build();
     }
 
-     
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<LabTestResponse> getLabTestById(
             Long labTestId) {
 
@@ -87,8 +96,9 @@ public class LabTestServiceImpl implements LabTestService {
                 .build();
     }
 
-    
+
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<List<LabTestResponse>> getAllLabTests() {
 
         getCurrentUser();
@@ -110,8 +120,9 @@ public class LabTestServiceImpl implements LabTestService {
                 .build();
     }
 
-    
+
     @Override
+    @Transactional
     public ApiResponse<LabTestResponse> updateLabTest(
             Long labTestId,
             UpdateLabTestRequest request) {
@@ -121,16 +132,17 @@ public class LabTestServiceImpl implements LabTestService {
         LabTest labTest =
                 getLabTest(labTestId);
 
+        String newName =
+                request.getName().trim();
+
         boolean nameChanged =
                 !labTest.getName()
-                        .equalsIgnoreCase(
-                                request.getName().trim()
-                        );
+                        .equalsIgnoreCase(newName);
 
         if (nameChanged
                 && labTestRepository
                         .existsByNameIgnoreCaseAndDeletedAtIsNull(
-                                request.getName().trim()
+                                newName
                         )) {
 
             throw new BusinessException(
@@ -157,8 +169,9 @@ public class LabTestServiceImpl implements LabTestService {
                 .build();
     }
 
-     
+
     @Override
+    @Transactional
     public ApiResponse<Void> deleteLabTest(
             Long labTestId) {
 
@@ -180,8 +193,9 @@ public class LabTestServiceImpl implements LabTestService {
                 .build();
     }
 
-   
+
     @Override
+    @Transactional
     public ApiResponse<LabTestResponse> activateLabTest(
             Long labTestId) {
 
@@ -189,6 +203,12 @@ public class LabTestServiceImpl implements LabTestService {
 
         LabTest labTest =
                 getLabTest(labTestId);
+
+        if (labTest.getStatus() == LabTestStatus.ACTIVE) {
+            throw new BusinessException(
+                    "Lab test is already active"
+            );
+        }
 
         labTest.setStatus(
                 LabTestStatus.ACTIVE
@@ -208,8 +228,9 @@ public class LabTestServiceImpl implements LabTestService {
                 .build();
     }
 
-     
+
     @Override
+    @Transactional
     public ApiResponse<LabTestResponse> deactivateLabTest(
             Long labTestId) {
 
@@ -217,6 +238,12 @@ public class LabTestServiceImpl implements LabTestService {
 
         LabTest labTest =
                 getLabTest(labTestId);
+
+        if (labTest.getStatus() == LabTestStatus.INACTIVE) {
+            throw new BusinessException(
+                    "Lab test is already inactive"
+            );
+        }
 
         labTest.setStatus(
                 LabTestStatus.INACTIVE
@@ -236,9 +263,6 @@ public class LabTestServiceImpl implements LabTestService {
                 .build();
     }
 
-    // ---------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------
 
     private LabTest getLabTest(Long labTestId) {
 
@@ -249,6 +273,7 @@ public class LabTestServiceImpl implements LabTestService {
                                 "Lab test not found"
                         ));
     }
+
 
     private User getCurrentUser() {
 

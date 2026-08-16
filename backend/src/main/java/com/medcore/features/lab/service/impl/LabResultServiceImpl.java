@@ -4,6 +4,7 @@ import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.security.SecurityUtil;
+import com.medcore.common.security.TenantContextService;
 
 import com.medcore.features.lab.dto.request.CreateLabResultRequest;
 import com.medcore.features.lab.dto.response.LabResultResponse;
@@ -25,13 +26,17 @@ import com.medcore.features.lab.service.LabResultService;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.repository.UserRepository;
 
+import com.medcore.features.doctor.repository.DoctorRepository;
+import com.medcore.features.patient.repository.PatientRepository;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
-import com.medcore.features.doctor.repository.DoctorRepository;
-import com.medcore.features.patient.repository.PatientRepository;
+
 @Service
 @RequiredArgsConstructor
 public class LabResultServiceImpl
@@ -44,6 +49,7 @@ public class LabResultServiceImpl
     private final LabResultMapper labResultMapper;
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
+    private final TenantContextService tenantContextService;
 
     private User getCurrentUser() {
 
@@ -58,8 +64,8 @@ public class LabResultServiceImpl
                         ));
     }
 
-
     @Override
+    @Transactional
     public ApiResponse<LabResultResponse> createResult(
             Long labOrderItemId,
             CreateLabResultRequest request) {
@@ -79,22 +85,19 @@ public class LabResultServiceImpl
         LabOrder order =
                 item.getLabOrder();
 
-        // Hospital isolation
-        if (currentUser.getHospital() == null
-                || order.getHospital() == null
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+        if (hospitalId != null
+                && (order.getHospital() == null
                 || !order.getHospital().getId()
-                        .equals(
-                                currentUser
-                                        .getHospital()
-                                        .getId()
-                        )) {
+                        .equals(hospitalId))) {
 
             throw new BusinessException(
                     "You are not authorized to access this hospital data"
             );
         }
 
-        // Order must be processing
         if (order.getStatus()
                 != LabOrderStatus.PROCESSING) {
 
@@ -103,7 +106,6 @@ public class LabResultServiceImpl
             );
         }
 
-        // Prevent duplicate result
         if (labResultRepository
                 .existsByLabOrderItemIdAndDeletedAtIsNull(
                         labOrderItemId
@@ -122,10 +124,6 @@ public class LabResultServiceImpl
 
         LabResult savedResult =
                 labResultRepository.save(result);
-
-         
-        // Check whether every test has a result
-       
 
         List<LabOrderItem> items =
                 labOrderItemRepository
@@ -163,109 +161,100 @@ public class LabResultServiceImpl
                 .build();
     }
 
+    @Override
+    public ApiResponse<LabResultResponse> getResult(
+            Long labOrderItemId) {
 
-@Override
-public ApiResponse<LabResultResponse> getResult(
-        Long labOrderItemId) {
+        User currentUser = getCurrentUser();
 
-    User currentUser = getCurrentUser();
-
-    LabOrderItem item =
-            labOrderItemRepository
-                    .findByIdAndDeletedAtIsNull(labOrderItemId)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Lab order item not found"
-                            ));
-
-    LabOrder order = item.getLabOrder();
-
-    // ---------------------------------------------------------
-    // Hospital isolation
-    // ---------------------------------------------------------
-
-    if (currentUser.getHospital() == null
-            || order.getHospital() == null
-            || !order.getHospital().getId()
-                    .equals(currentUser.getHospital().getId())) {
-
-        throw new BusinessException(
-                "You are not authorized to access this hospital data"
-        );
-    }
-
-    // ---------------------------------------------------------
-    // Doctor / Patient ownership
-    // ---------------------------------------------------------
-
-    boolean authorized = false;
-
-    // Doctor who created the order
-    if (order.getDoctor() != null) {
-
-        boolean isDoctor =
-                doctorRepository
-                        .findByUserId(currentUser.getId())
-                        .map(doctor ->
-                                order.getDoctor().getId()
-                                        .equals(doctor.getId())
+        LabOrderItem item =
+                labOrderItemRepository
+                        .findByIdAndDeletedAtIsNull(
+                                labOrderItemId
                         )
-                        .orElse(false);
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Lab order item not found"
+                                ));
 
-        if (isDoctor) {
-            authorized = true;
+        LabOrder order =
+                item.getLabOrder();
+
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+        if (hospitalId != null
+                && (order.getHospital() == null
+                || !order.getHospital().getId()
+                        .equals(hospitalId))) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
         }
-    }
 
-    // Patient who owns the order
-    if (order.getPatient() != null) {
+        boolean authorized = false;
 
-        boolean isPatient =
-                patientRepository
-                        .findByUserId(currentUser.getId())
-                        .map(patient ->
-                                order.getPatient().getId()
-                                        .equals(patient.getId())
+        if (order.getDoctor() != null) {
+
+            boolean isDoctor =
+                    doctorRepository
+                            .findByUserIdAndDeletedAtIsNull(currentUser.getId())
+                            .map(doctor ->
+                                    order.getDoctor().getId()
+                                            .equals(doctor.getId())
+                            )
+                            .orElse(false);
+
+            if (isDoctor) {
+                authorized = true;
+            }
+        }
+
+        if (order.getPatient() != null) {
+
+            boolean isPatient =
+                    patientRepository
+                            .findByUserId(currentUser.getId())
+                            .map(patient ->
+                                    order.getPatient().getId()
+                                            .equals(patient.getId())
+                            )
+                            .orElse(false);
+
+            if (isPatient) {
+                authorized = true;
+            }
+        }
+
+        if (!authorized) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this lab result"
+            );
+        }
+
+        LabResult result =
+                labResultRepository
+                        .findByLabOrderItemIdAndDeletedAtIsNull(
+                                labOrderItemId
                         )
-                        .orElse(false);
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Lab result not found"
+                                ));
 
-        if (isPatient) {
-            authorized = true;
-        }
+        return ApiResponse.<LabResultResponse>builder()
+                .success(true)
+                .message("Lab result fetched successfully")
+                .data(
+                        labResultMapper.toResponse(
+                                result
+                        )
+                )
+                .build();
     }
 
-    if (!authorized) {
-
-        throw new BusinessException(
-                "You are not authorized to access this lab result"
-        );
-    }
-
-    // ---------------------------------------------------------
-    // Get result
-    // ---------------------------------------------------------
-
-    LabResult result =
-            labResultRepository
-                    .findByLabOrderItemIdAndDeletedAtIsNull(
-                            labOrderItemId
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Lab result not found"
-                            ));
-
-    return ApiResponse.<LabResultResponse>builder()
-            .success(true)
-            .message("Lab result fetched successfully")
-            .data(
-                    labResultMapper.toResponse(
-                            result
-                    )
-            )
-            .build();
-}
-    
     @Override
     public ApiResponse<LabResultResponse> updateResult(
             Long labOrderItemId,
@@ -283,20 +272,22 @@ public ApiResponse<LabResultResponse> getResult(
                                         "Lab order item not found"
                                 ));
 
-        LabOrder order = item.getLabOrder();
+        LabOrder order =
+                item.getLabOrder();
 
-        // Hospital isolation
-        if (currentUser.getHospital() == null
-                || order.getHospital() == null
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+        if (hospitalId != null
+                && (order.getHospital() == null
                 || !order.getHospital().getId()
-                        .equals(currentUser.getHospital().getId())) {
+                        .equals(hospitalId))) {
 
             throw new BusinessException(
                     "You are not authorized to access this hospital data"
             );
         }
 
-        // Only processing orders can have results modified
         if (order.getStatus()
                 != LabOrderStatus.PROCESSING) {
 
@@ -338,7 +329,7 @@ public ApiResponse<LabResultResponse> getResult(
         );
 
         result.setResultDate(
-                java.time.LocalDateTime.now()
+                LocalDateTime.now()
         );
 
         LabResult savedResult =

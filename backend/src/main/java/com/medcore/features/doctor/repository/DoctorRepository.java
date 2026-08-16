@@ -20,6 +20,7 @@ extends JpaRepository<Doctor, Long>,
     Long hospitalId
 );
 
+	Optional<Doctor> findByUserIdAndDeletedAtIsNull(Long userId);
  
 	boolean existsByUserId(Long userId);
 

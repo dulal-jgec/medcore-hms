@@ -7,9 +7,11 @@ import com.medcore.features.lab.dto.response.LabTestResponse;
 import com.medcore.features.lab.service.LabTestService;
 
 import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +25,7 @@ public class LabTestController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
     public ApiResponse<LabTestResponse> createLabTest(
             @Valid @RequestBody CreateLabTestRequest request) {
 
@@ -30,12 +33,14 @@ public class LabTestController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'PATIENT')")
     public ApiResponse<List<LabTestResponse>> getAllLabTests() {
 
         return labTestService.getAllLabTests();
     }
 
     @GetMapping("/{labTestId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'PATIENT')")
     public ApiResponse<LabTestResponse> getLabTestById(
             @PathVariable Long labTestId) {
 
@@ -43,6 +48,7 @@ public class LabTestController {
     }
 
     @PutMapping("/{labTestId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
     public ApiResponse<LabTestResponse> updateLabTest(
             @PathVariable Long labTestId,
             @Valid @RequestBody UpdateLabTestRequest request) {
@@ -54,6 +60,7 @@ public class LabTestController {
     }
 
     @DeleteMapping("/{labTestId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
     public ApiResponse<Void> deleteLabTest(
             @PathVariable Long labTestId) {
 
@@ -61,6 +68,7 @@ public class LabTestController {
     }
 
     @PatchMapping("/{labTestId}/activate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
     public ApiResponse<LabTestResponse> activateLabTest(
             @PathVariable Long labTestId) {
 
@@ -68,6 +76,7 @@ public class LabTestController {
     }
 
     @PatchMapping("/{labTestId}/deactivate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
     public ApiResponse<LabTestResponse> deactivateLabTest(
             @PathVariable Long labTestId) {
 
