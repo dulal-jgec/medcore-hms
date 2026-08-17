@@ -1,8 +1,13 @@
 package com.medcore.features.pharmacy.repository;
 
 import com.medcore.features.pharmacy.entity.PharmacyInventory;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,9 +26,21 @@ public interface PharmacyInventoryRepository
             Long medicineId,
             String batchNumber
     );
-    
-    List<PharmacyInventory> findByPharmacyIdAndMedicineIdAndActiveTrueAndDeletedAtIsNullOrderByExpiryDateAsc(
-            Long pharmacyId,
-            Long medicineId
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT i
+            FROM PharmacyInventory i
+            WHERE i.pharmacy.id = :pharmacyId
+              AND i.medicine.id = :medicineId
+              AND i.active = true
+              AND i.deletedAt IS NULL
+              AND i.expiryDate >= :today
+            ORDER BY i.expiryDate ASC
+            """)
+    List<PharmacyInventory> findAvailableInventory(
+            @Param("pharmacyId") Long pharmacyId,
+            @Param("medicineId") Long medicineId,
+            @Param("today") LocalDate today
     );
 }

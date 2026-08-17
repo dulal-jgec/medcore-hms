@@ -3,6 +3,7 @@ package com.medcore.features.receptionist.repository;
 import com.medcore.features.receptionist.entity.Receptionist;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ReceptionistRepository
@@ -18,5 +19,9 @@ public interface ReceptionistRepository
 
     boolean existsByUserIdAndDeletedAtIsNull(
             Long userId
+    );
+
+    List<Receptionist> findByHospitalIdAndDeletedAtIsNull(
+            Long hospitalId
     );
 }

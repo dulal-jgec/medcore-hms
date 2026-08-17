@@ -6,11 +6,15 @@ import com.medcore.features.prescription.dto.request.CreatePrescriptionRequest;
 import com.medcore.features.prescription.dto.response.PrescriptionItemResponse;
 import com.medcore.features.prescription.dto.response.PrescriptionResponse;
 import com.medcore.features.prescription.service.PrescriptionService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
 @RestController
 @RequestMapping("/api/v1/prescriptions")
 @RequiredArgsConstructor
@@ -20,6 +24,7 @@ public class PrescriptionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<PrescriptionResponse> createPrescription(
             @Valid @RequestBody CreatePrescriptionRequest request) {
 
@@ -28,6 +33,7 @@ public class PrescriptionController {
 
     @PostMapping("/{prescriptionId}/medicines")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<PrescriptionItemResponse> addMedicine(
             @PathVariable Long prescriptionId,
             @Valid @RequestBody AddPrescriptionItemRequest request) {
@@ -39,6 +45,7 @@ public class PrescriptionController {
     }
 
     @GetMapping("/{prescriptionId}")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'PATIENT')")
     public ApiResponse<PrescriptionResponse> getPrescriptionById(
             @PathVariable Long prescriptionId) {
 
@@ -48,6 +55,7 @@ public class PrescriptionController {
     }
 
     @PatchMapping("/{prescriptionId}/finalize")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<PrescriptionResponse> finalizePrescription(
             @PathVariable Long prescriptionId) {
 
@@ -55,8 +63,9 @@ public class PrescriptionController {
                 prescriptionId
         );
     }
-    
+
     @PatchMapping("/{prescriptionId}/share")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<PrescriptionResponse> sharePrescriptionWithPatient(
             @PathVariable Long prescriptionId) {
 
@@ -64,8 +73,9 @@ public class PrescriptionController {
                 prescriptionId
         );
     }
-    
+
     @GetMapping("/{prescriptionId}/patient")
+    @PreAuthorize("hasRole('PATIENT')")
     public ApiResponse<PrescriptionResponse> getPatientPrescription(
             @PathVariable Long prescriptionId) {
 
@@ -73,8 +83,9 @@ public class PrescriptionController {
                 prescriptionId
         );
     }
-    
+
     @PutMapping("/{prescriptionId}/medicines/{itemId}")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<PrescriptionItemResponse> updateMedicine(
             @PathVariable Long prescriptionId,
             @PathVariable Long itemId,
@@ -86,8 +97,9 @@ public class PrescriptionController {
                 request
         );
     }
-    
+
     @DeleteMapping("/{prescriptionId}/medicines/{itemId}")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<Void> deleteMedicine(
             @PathVariable Long prescriptionId,
             @PathVariable Long itemId) {
@@ -97,8 +109,9 @@ public class PrescriptionController {
                 itemId
         );
     }
-    
+
     @GetMapping("/{prescriptionId}/download")
+    @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<byte[]> downloadPrescriptionPdf(
             @PathVariable Long prescriptionId) {
 

@@ -4,6 +4,7 @@ import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.security.SecurityUtil;
+import com.medcore.common.security.TenantContextService;
 
 import com.medcore.features.patient.entity.Patient;
 import com.medcore.features.patient.repository.PatientRepository;
@@ -33,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -54,14 +56,12 @@ public class DispensingServiceImpl
 
     private final PharmacistRepository pharmacistRepository;
 
-
-    // =========================================================
-    // Helper Method
-    // =========================================================
+    private final TenantContextService tenantContextService;
 
     private User getCurrentUser() {
 
-        String email = SecurityUtil.getCurrentUsername();
+        String email =
+                SecurityUtil.getCurrentUsername();
 
         return userRepository
                 .findByEmail(email)
@@ -71,28 +71,40 @@ public class DispensingServiceImpl
                         ));
     }
 
+    private Long getCurrentHospitalId() {
 
-    // =========================================================
-    // 1. CREATE DISPENSING REQUEST
-    // Patient requests pharmacy to dispense prescription
-    // =========================================================
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+        if (hospitalId == null) {
+            throw new BusinessException(
+                    "User is not associated with a hospital"
+            );
+        }
+
+        return hospitalId;
+    }
 
     @Override
     public ApiResponse<DispensingRequest> createDispensingRequest(
             CreateDispensingRequest request) {
 
-        // 1. Get logged-in user
-        User currentUser = getCurrentUser();
+        User currentUser =
+                getCurrentUser();
 
-        // 2. User must be a patient
-        Patient patient = patientRepository
-                .findByUserId(currentUser.getId())
-                .orElseThrow(() ->
-                        new BusinessException(
-                                "Only patients can request prescription dispensing"
-                        ));
+        Long hospitalId =
+                getCurrentHospitalId();
 
-        // 3. Find prescription
+        Patient patient =
+                patientRepository
+                        .findByUserId(
+                                currentUser.getId()
+                        )
+                        .orElseThrow(() ->
+                                new BusinessException(
+                                        "Only patients can request prescription dispensing"
+                                ));
+
         Prescription prescription =
                 prescriptionRepository
                         .findByIdAndDeletedAtIsNull(
@@ -103,8 +115,8 @@ public class DispensingServiceImpl
                                         "Prescription not found"
                                 ));
 
-        // 4. Prescription must belong to patient
-        if (!prescription.getPatient()
+        if (prescription.getPatient() == null
+                || !prescription.getPatient()
                 .getId()
                 .equals(patient.getId())) {
 
@@ -113,19 +125,16 @@ public class DispensingServiceImpl
             );
         }
 
-        // 5. Hospital isolation
-        if (currentUser.getHospital() == null
-                || prescription.getHospital() == null
+        if (prescription.getHospital() == null
                 || !prescription.getHospital()
-                        .getId()
-                        .equals(currentUser.getHospital().getId())) {
+                .getId()
+                .equals(hospitalId)) {
 
             throw new BusinessException(
                     "You are not authorized to access this hospital data"
             );
         }
 
-        // 6. Prescription must be finalized
         if (prescription.getStatus()
                 != PrescriptionStatus.FINALIZED) {
 
@@ -134,7 +143,6 @@ public class DispensingServiceImpl
             );
         }
 
-        // 7. Prescription must be shared
         if (!Boolean.TRUE.equals(
                 prescription.getSharedWithPatient())) {
 
@@ -143,7 +151,6 @@ public class DispensingServiceImpl
             );
         }
 
-        // 8. Prevent duplicate dispensing request
         if (dispensingRequestRepository
                 .existsByPrescriptionIdAndDeletedAtIsNull(
                         prescription.getId()
@@ -154,7 +161,6 @@ public class DispensingServiceImpl
             );
         }
 
-        // 9. Build dispensing request
         DispensingRequest dispensingRequest =
                 DispensingRequest.builder()
                         .prescription(prescription)
@@ -164,13 +170,11 @@ public class DispensingServiceImpl
                         .requestedAt(LocalDateTime.now())
                         .build();
 
-        // 10. Save
         DispensingRequest savedRequest =
                 dispensingRequestRepository.save(
                         dispensingRequest
                 );
 
-        // 11. Response
         return ApiResponse.<DispensingRequest>builder()
                 .success(true)
                 .message(
@@ -180,21 +184,17 @@ public class DispensingServiceImpl
                 .build();
     }
 
-
-    // =========================================================
-    // 2. DISPENSE PRESCRIPTION
-    // Pharmacist dispenses medicine and stock decreases
-    // =========================================================
-
     @Override
     @Transactional
     public ApiResponse<DispensingRequest> dispensePrescription(
             Long dispensingRequestId) {
 
-        // 1. Get logged-in user
-        User currentUser = getCurrentUser();
+        User currentUser =
+                getCurrentUser();
 
-        // 2. Find dispensing request
+        Long hospitalId =
+                getCurrentHospitalId();
+
         DispensingRequest dispensingRequest =
                 dispensingRequestRepository
                         .findByIdAndDeletedAtIsNull(
@@ -205,7 +205,6 @@ public class DispensingServiceImpl
                                         "Dispensing request not found"
                                 ));
 
-        // 3. Request must be PENDING
         if (dispensingRequest.getStatus()
                 != DispensingStatus.PENDING) {
 
@@ -214,20 +213,17 @@ public class DispensingServiceImpl
             );
         }
 
-        // 4. Hospital isolation
-        if (currentUser.getHospital() == null
-                || dispensingRequest.getHospital() == null
+        if (dispensingRequest.getHospital() == null
                 || !dispensingRequest
-                        .getHospital()
-                        .getId()
-                        .equals(currentUser.getHospital().getId())) {
+                .getHospital()
+                .getId()
+                .equals(hospitalId)) {
 
             throw new BusinessException(
                     "You are not authorized to access this hospital data"
             );
         }
 
-        // 5. Current user must be a pharmacist
         pharmacistRepository
                 .findByUserId(currentUser.getId())
                 .orElseThrow(() ->
@@ -235,24 +231,19 @@ public class DispensingServiceImpl
                                 "Only pharmacists can dispense prescriptions"
                         ));
 
-        // 6. Find pharmacy of this hospital
         Pharmacy pharmacy =
                 pharmacyRepository
                         .findByHospitalIdAndDeletedAtIsNull(
-                                dispensingRequest
-                                        .getHospital()
-                                        .getId()
+                                hospitalId
                         )
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Pharmacy not found for this hospital"
                                 ));
 
-        // 7. Get prescription
         Prescription prescription =
                 dispensingRequest.getPrescription();
 
-        // 8. Get prescription medicines
         List<PrescriptionItem> items =
                 prescriptionItemRepository
                         .findByPrescriptionIdAndDeletedAtIsNull(
@@ -266,13 +257,8 @@ public class DispensingServiceImpl
             );
         }
 
-        // =====================================================
-        // 9. Process every medicine
-        // =====================================================
-
         for (PrescriptionItem item : items) {
 
-            // Manual medicines cannot be automatically dispensed
             if (item.getMedicine() == null) {
 
                 throw new BusinessException(
@@ -288,15 +274,14 @@ public class DispensingServiceImpl
             int requiredQuantity =
                     item.getQuantity();
 
-            // 10. Find inventory batches
             List<PharmacyInventory> inventories =
                     pharmacyInventoryRepository
-                            .findByPharmacyIdAndMedicineIdAndActiveTrueAndDeletedAtIsNullOrderByExpiryDateAsc(
+                            .findAvailableInventory(
                                     pharmacy.getId(),
-                                    medicineId
+                                    medicineId,
+                                    LocalDate.now()
                             );
 
-            // 11. Calculate total available stock
             int availableStock =
                     inventories.stream()
                             .mapToInt(
@@ -315,10 +300,6 @@ public class DispensingServiceImpl
                                 + availableStock
                 );
             }
-
-            // =================================================
-            // 12. Decrease stock
-            // =================================================
 
             int remaining =
                     requiredQuantity;
@@ -343,9 +324,7 @@ public class DispensingServiceImpl
                         currentStock - deducted
                 );
 
-                // If stock becomes zero, deactivate batch
                 if (inventory.getStockQuantity() == 0) {
-
                     inventory.setActive(false);
                 }
 
@@ -356,10 +335,6 @@ public class DispensingServiceImpl
                 remaining -= deducted;
             }
         }
-
-        // =====================================================
-        // 13. Mark request as DISPENSED
-        // =====================================================
 
         dispensingRequest.setStatus(
                 DispensingStatus.DISPENSED
@@ -374,10 +349,6 @@ public class DispensingServiceImpl
                         dispensingRequest
                 );
 
-        // =====================================================
-        // 14. Response
-        // =====================================================
-
         return ApiResponse.<DispensingRequest>builder()
                 .success(true)
                 .message(
@@ -387,43 +358,31 @@ public class DispensingServiceImpl
                 .build();
     }
 
-
-    // =========================================================
-    // 3. GET PENDING DISPENSING REQUESTS
-    // Pharmacist sees pending requests
-    // =========================================================
-
     @Override
     public ApiResponse<List<DispensingRequest>> getPendingRequests() {
 
-        // 1. Get logged-in user
-        User currentUser = getCurrentUser();
+        Long hospitalId =
+                getCurrentHospitalId();
 
-        // 2. Only pharmacists can view requests
+        User currentUser =
+                getCurrentUser();
+
         pharmacistRepository
-                .findByUserId(currentUser.getId())
+                .findByUserId(
+                        currentUser.getId()
+                )
                 .orElseThrow(() ->
                         new BusinessException(
                                 "Only pharmacists can view dispensing requests"
                         ));
 
-        // 3. Hospital isolation
-        if (currentUser.getHospital() == null) {
-
-            throw new BusinessException(
-                    "User is not associated with a hospital"
-            );
-        }
-
-        // 4. Get pending requests
         List<DispensingRequest> requests =
                 dispensingRequestRepository
                         .findByHospitalIdAndStatusAndDeletedAtIsNull(
-                                currentUser.getHospital().getId(),
+                                hospitalId,
                                 DispensingStatus.PENDING
                         );
 
-        // 5. Response
         return ApiResponse.<List<DispensingRequest>>builder()
                 .success(true)
                 .message(

@@ -8,9 +8,11 @@ import com.medcore.features.pharmacy.service.PharmacyInventoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
+import com.medcore.features.pharmacy.entity.DispensingRequest;
 import java.util.List;
+ 
 
 @RestController
 @RequestMapping("/api/v1/pharmacies/inventory")
@@ -21,6 +23,7 @@ public class PharmacyInventoryController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('PHARMACIST')")
     public ApiResponse<PharmacyInventoryResponse> addInventory(
             @Valid @RequestBody AddInventoryRequest request) {
 
@@ -28,12 +31,14 @@ public class PharmacyInventoryController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('PHARMACIST')")
     public ApiResponse<List<PharmacyInventoryResponse>> getInventory() {
 
         return inventoryService.getInventory();
     }
-    
+
     @PatchMapping("/{inventoryId}/stock")
+    @PreAuthorize("hasRole('PHARMACIST')")
     public ApiResponse<PharmacyInventoryResponse> updateStock(
             @PathVariable Long inventoryId,
             @Valid @RequestBody UpdateInventoryStockRequest request) {
@@ -42,5 +47,12 @@ public class PharmacyInventoryController {
                 inventoryId,
                 request
         );
+    }
+    
+    @GetMapping("/pending-dispensing")
+    @PreAuthorize("hasRole('PHARMACIST')")
+    public ApiResponse<List<DispensingRequest>> getPendingRequests() {
+
+        return inventoryService.getPendingRequests();
     }
 }

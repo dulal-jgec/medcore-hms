@@ -1,6 +1,5 @@
 package com.medcore.features.patient.repository;
 
-import com.medcore.features.appointment.entity.Appointment;
 import com.medcore.features.patient.entity.Patient;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,33 +7,37 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-public interface PatientRepository extends JpaRepository<Patient, Long> {
-
-    Optional<Patient> findByIdAndDeletedAtIsNull(Long id);
+public interface PatientRepository
+        extends JpaRepository<Patient, Long> {
 
     boolean existsByUserId(Long userId);
 
-    Page<Patient> findByDeletedAtIsNull(Pageable pageable);
-
-    Page<Patient> findByUserFullNameContainingIgnoreCaseAndDeletedAtIsNull(
-            String keyword,
-            Pageable pageable
-    );
     Optional<Patient> findByUserId(Long userId);
-    
-    Page<Patient> findByHospitalIdAndUserFullNameContainingIgnoreCaseAndDeletedAtIsNull(
+
+    Optional<Patient> findByIdAndDeletedAtIsNull(
+            Long patientId
+    );
+
+    Page<Patient> findByHospitalIdAndDeletedAtIsNull(
+            Long hospitalId,
+            Pageable pageable
+    );
+
+    Page<Patient>
+    findByHospitalIdAndUserFullNameContainingIgnoreCaseAndDeletedAtIsNull(
             Long hospitalId,
             String keyword,
             Pageable pageable
     );
-    
-    Page<Appointment> findByPatientIdAndHospitalIdAndDeletedAtIsNull(
+
+    Optional<Patient>
+    findByIdAndHospitalIdAndDeletedAtIsNull(
             Long patientId,
-            Long hospitalId,
-            Pageable pageable
+            Long hospitalId
     );
-    
-    Optional<Patient> findByIdAndHospitalIdAndDeletedAtIsNull(
+
+    Optional<Patient>
+    findByIdAndHospitalId(
             Long patientId,
             Long hospitalId
     );

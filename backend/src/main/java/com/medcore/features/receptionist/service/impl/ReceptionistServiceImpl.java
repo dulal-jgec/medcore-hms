@@ -5,11 +5,18 @@ import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
 import com.medcore.common.security.SecurityUtil;
+import com.medcore.common.security.TenantContextService;
+
+import com.medcore.features.appointment.dto.response.AppointmentResponse;
+import com.medcore.features.appointment.service.AppointmentService;
+
+import com.medcore.features.patient.dto.request.CreatePatientRequest;
+import com.medcore.features.patient.dto.response.PatientResponse;
+import com.medcore.features.patient.service.PatientService;
 
 import com.medcore.features.receptionist.dto.request.CreateReceptionistRequest;
 import com.medcore.features.receptionist.dto.request.UpdateReceptionistRequest;
 import com.medcore.features.receptionist.dto.response.ReceptionistResponse;
-
 import com.medcore.features.receptionist.entity.Receptionist;
 import com.medcore.features.receptionist.enums.ReceptionistStatus;
 import com.medcore.features.receptionist.mapper.ReceptionistMapper;
@@ -23,11 +30,6 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
 
-import com.medcore.features.appointment.dto.response.AppointmentResponse;
-import com.medcore.features.appointment.service.AppointmentService;
-import com.medcore.features.patient.dto.request.CreatePatientRequest;
-import com.medcore.features.patient.dto.response.PatientResponse;
-import com.medcore.features.patient.service.PatientService;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -39,22 +41,17 @@ public class ReceptionistServiceImpl
     private final ReceptionistRepository receptionistRepository;
     private final UserRepository userRepository;
     private final ReceptionistMapper receptionistMapper;
+
     private final PatientService patientService;
     private final AppointmentService appointmentService;
-     
+
+    private final TenantContextService tenantContextService;
+
     @Override
     public ApiResponse<ReceptionistResponse> createReceptionist(
             CreateReceptionistRequest request) {
 
-        User currentUser = getCurrentUser();
-
-        // Current user must belong to a hospital
-        if (currentUser.getHospital() == null) {
-
-            throw new BusinessException(
-                    "User is not associated with any hospital"
-            );
-        }
+        Long hospitalId = getCurrentHospitalId();
 
         User user =
                 userRepository
@@ -64,21 +61,16 @@ public class ReceptionistServiceImpl
                                         "User not found"
                                 ));
 
-        // User must belong to same hospital
         if (user.getHospital() == null
-                || !user.getHospital().getId()
-                        .equals(
-                                currentUser
-                                        .getHospital()
-                                        .getId()
-                        )) {
+                || !user.getHospital()
+                .getId()
+                .equals(hospitalId)) {
 
             throw new BusinessException(
-                    "User does not belong to your hospital"
+                    "User does not belong to the current hospital"
             );
         }
 
-        // Prevent duplicate receptionist profile
         if (receptionistRepository
                 .existsByUserIdAndDeletedAtIsNull(
                         user.getId()
@@ -115,22 +107,14 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
-
-     
-
     @Override
     public ApiResponse<ReceptionistResponse> getReceptionistById(
             Long receptionistId) {
 
-        User currentUser = getCurrentUser();
-
         Receptionist receptionist =
                 getReceptionist(receptionistId);
 
-        validateHospitalAccess(
-                receptionist,
-                currentUser
-        );
+        validateHospitalAccess(receptionist);
 
         return ApiResponse.<ReceptionistResponse>builder()
                 .success(true)
@@ -143,73 +127,39 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
-
-    
-
     @Override
     public ApiResponse<List<ReceptionistResponse>>
     getAllReceptionists() {
 
-        User currentUser = getCurrentUser();
-
-        if (currentUser.getHospital() == null) {
-
-            throw new BusinessException(
-                    "User is not associated with any hospital"
-            );
-        }
-
         Long hospitalId =
-                currentUser
-                        .getHospital()
-                        .getId();
+                getCurrentHospitalId();
 
         List<ReceptionistResponse> receptionists =
                 receptionistRepository
-                        .findAll()
+                        .findByHospitalIdAndDeletedAtIsNull(
+                                hospitalId
+                        )
                         .stream()
-                        .filter(receptionist ->
-                                receptionist.getDeletedAt() == null
-                        )
-                        .filter(receptionist ->
-                                receptionist.getHospital() != null
-                                        && receptionist
-                                                .getHospital()
-                                                .getId()
-                                                .equals(hospitalId)
-                        )
-                        .map(
-                                receptionistMapper::toResponse
-                        )
+                        .map(receptionistMapper::toResponse)
                         .toList();
 
         return ApiResponse
                 .<List<ReceptionistResponse>>builder()
                 .success(true)
-                .message(
-                        "Receptionists fetched successfully"
-                )
+                .message("Receptionists fetched successfully")
                 .data(receptionists)
                 .build();
     }
-
-
-     
 
     @Override
     public ApiResponse<ReceptionistResponse> updateReceptionist(
             Long receptionistId,
             UpdateReceptionistRequest request) {
 
-        User currentUser = getCurrentUser();
-
         Receptionist receptionist =
                 getReceptionist(receptionistId);
 
-        validateHospitalAccess(
-                receptionist,
-                currentUser
-        );
+        validateHospitalAccess(receptionist);
 
         receptionistMapper.updateEntity(
                 receptionist,
@@ -232,22 +182,14 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
-
-     
-
     @Override
     public ApiResponse<Void> deleteReceptionist(
             Long receptionistId) {
 
-        User currentUser = getCurrentUser();
-
         Receptionist receptionist =
                 getReceptionist(receptionistId);
 
-        validateHospitalAccess(
-                receptionist,
-                currentUser
-        );
+        validateHospitalAccess(receptionist);
 
         receptionist.setDeletedAt(
                 LocalDateTime.now()
@@ -259,30 +201,20 @@ public class ReceptionistServiceImpl
 
         return ApiResponse.<Void>builder()
                 .success(true)
-                .message(
-                        "Receptionist deleted successfully"
-                )
+                .message("Receptionist deleted successfully")
                 .data(null)
                 .build();
     }
-
-
-     
 
     @Override
     public ApiResponse<ReceptionistResponse>
     activateReceptionist(
             Long receptionistId) {
 
-        User currentUser = getCurrentUser();
-
         Receptionist receptionist =
                 getReceptionist(receptionistId);
 
-        validateHospitalAccess(
-                receptionist,
-                currentUser
-        );
+        validateHospitalAccess(receptionist);
 
         receptionist.setStatus(
                 ReceptionistStatus.ACTIVE
@@ -295,9 +227,7 @@ public class ReceptionistServiceImpl
 
         return ApiResponse.<ReceptionistResponse>builder()
                 .success(true)
-                .message(
-                        "Receptionist activated successfully"
-                )
+                .message("Receptionist activated successfully")
                 .data(
                         receptionistMapper.toResponse(
                                 savedReceptionist
@@ -306,22 +236,15 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
-
-   
     @Override
     public ApiResponse<ReceptionistResponse>
     deactivateReceptionist(
             Long receptionistId) {
 
-        User currentUser = getCurrentUser();
-
         Receptionist receptionist =
                 getReceptionist(receptionistId);
 
-        validateHospitalAccess(
-                receptionist,
-                currentUser
-        );
+        validateHospitalAccess(receptionist);
 
         receptionist.setStatus(
                 ReceptionistStatus.INACTIVE
@@ -334,9 +257,7 @@ public class ReceptionistServiceImpl
 
         return ApiResponse.<ReceptionistResponse>builder()
                 .success(true)
-                .message(
-                        "Receptionist deactivated successfully"
-                )
+                .message("Receptionist deactivated successfully")
                 .data(
                         receptionistMapper.toResponse(
                                 savedReceptionist
@@ -345,8 +266,62 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
+    @Override
+    public ApiResponse<PatientResponse> registerPatient(
+            CreatePatientRequest request) {
 
-    
+        validateActiveReceptionist();
+
+        return patientService.createPatient(
+                request
+        );
+    }
+
+    @Override
+    public ApiResponse<AppointmentResponse> checkInPatient(
+            Long appointmentId) {
+
+        validateActiveReceptionist();
+
+        return appointmentService.checkInAppointment(
+                appointmentId
+        );
+    }
+
+    @Override
+    public ApiResponse<PageResponse<AppointmentResponse>>
+    getTodayAppointments(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+
+        validateActiveReceptionist();
+
+        return appointmentService.getTodayAppointments(
+                page,
+                size,
+                sortBy,
+                sortDir
+        );
+    }
+
+    @Override
+    public ApiResponse<PageResponse<PatientResponse>>
+    searchPatients(
+            String keyword,
+            int page,
+            int size) {
+
+        validateActiveReceptionist();
+
+        return patientService.searchPatients(
+                keyword,
+                page,
+                size
+        );
+    }
+
     private Receptionist getReceptionist(
             Long receptionistId) {
 
@@ -361,6 +336,78 @@ public class ReceptionistServiceImpl
                 );
     }
 
+    private void validateHospitalAccess(
+            Receptionist receptionist) {
+
+        Long hospitalId =
+                getCurrentHospitalId();
+
+        if (receptionist.getHospital() == null
+                || !receptionist.getHospital()
+                .getId()
+                .equals(hospitalId)) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
+        }
+    }
+
+    private Receptionist validateActiveReceptionist() {
+
+        Long hospitalId =
+                getCurrentHospitalId();
+
+        User currentUser =
+                getCurrentUser();
+
+        Receptionist receptionist =
+                receptionistRepository
+                        .findByUserIdAndDeletedAtIsNull(
+                                currentUser.getId()
+                        )
+                        .orElseThrow(() ->
+                                new BusinessException(
+                                        "Only receptionists can perform this action"
+                                )
+                        );
+
+        if (receptionist.getHospital() == null
+                || !receptionist.getHospital()
+                .getId()
+                .equals(hospitalId)) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
+        }
+
+        if (receptionist.getStatus()
+                != ReceptionistStatus.ACTIVE) {
+
+            throw new BusinessException(
+                    "Inactive receptionists cannot perform this action"
+            );
+        }
+
+        return receptionist;
+    }
+
+    private Long getCurrentHospitalId() {
+
+        Long hospitalId =
+                tenantContextService
+                        .getCurrentHospitalId();
+
+        if (hospitalId == null) {
+
+            throw new BusinessException(
+                    "User is not associated with a hospital"
+            );
+        }
+
+        return hospitalId;
+    }
 
     private User getCurrentUser() {
 
@@ -374,184 +421,4 @@ public class ReceptionistServiceImpl
                                 "Current user not found"
                         ));
     }
-
-
-    private void validateHospitalAccess(
-            Receptionist receptionist,
-            User currentUser) {
-
-        if (currentUser.getHospital() == null
-                || receptionist.getHospital() == null
-                || !receptionist
-                        .getHospital()
-                        .getId()
-                        .equals(
-                                currentUser
-                                        .getHospital()
-                                        .getId()
-                        )) {
-
-            throw new BusinessException(
-                    "You are not authorized to access this hospital data"
-            );
-        }
-    }
-    
-@Override
-public ApiResponse<PatientResponse> registerPatient(
-        CreatePatientRequest request) {
-
-    User currentUser = getCurrentUser();
-
-    if (currentUser.getHospital() == null) {
-
-        throw new BusinessException(
-                "User is not associated with any hospital"
-        );
-    }
-
-    Receptionist receptionist =
-            receptionistRepository
-                    .findByUserIdAndDeletedAtIsNull(
-                            currentUser.getId()
-                    )
-                    .orElseThrow(() ->
-                            new BusinessException(
-                                    "Only receptionists can register patients"
-                            ));
-
-    if (receptionist.getStatus()
-            != ReceptionistStatus.ACTIVE) {
-
-        throw new BusinessException(
-                "Inactive receptionists cannot register patients"
-        );
-    }
-
-    return patientService.createPatient(request);
-}
-    
-    @Override
-    public ApiResponse<AppointmentResponse> checkInPatient(
-            Long appointmentId) {
-
-        User currentUser = getCurrentUser();
-
-        Receptionist receptionist =
-                receptionistRepository
-                        .findByUserIdAndDeletedAtIsNull(
-                                currentUser.getId()
-                        )
-                        .orElseThrow(() ->
-                                new BusinessException(
-                                        "Only receptionists can check in patients"
-                                ));
-
-        if (receptionist.getStatus()
-                != ReceptionistStatus.ACTIVE) {
-
-            throw new BusinessException(
-                    "Inactive receptionists cannot check in patients"
-            );
-        }
-
-        if (currentUser.getHospital() == null) {
-
-            throw new BusinessException(
-                    "User is not associated with any hospital"
-            );
-        }
-
-        /*
-         * Reuse existing AppointmentService.
-         *
-         * Use your existing check-in method here.
-         */
-        return appointmentService.checkInAppointment(
-                appointmentId
-        );
-    }
-    
- @Override
-public ApiResponse<PageResponse<AppointmentResponse>> getTodayAppointments(
-        int page,
-        int size,
-        String sortBy,
-        String sortDir) {
-
-    User currentUser = getCurrentUser();
-
-    Receptionist receptionist =
-            receptionistRepository
-                    .findByUserIdAndDeletedAtIsNull(
-                            currentUser.getId()
-                    )
-                    .orElseThrow(() ->
-                            new BusinessException(
-                                    "Only receptionists can access appointment queue"
-                            ));
-
-    if (receptionist.getStatus()
-            != ReceptionistStatus.ACTIVE) {
-
-        throw new BusinessException(
-                "Inactive receptionists cannot access appointment queue"
-        );
-    }
-
-    if (currentUser.getHospital() == null) {
-
-        throw new BusinessException(
-                "User is not associated with any hospital"
-        );
-    }
-
-    return appointmentService.getTodayAppointments(
-            page,
-            size,
-            sortBy,
-            sortDir
-    );
-}
- 	
- 
- @Override
- public ApiResponse<PageResponse<PatientResponse>> searchPatients(
-         String keyword,
-         int page,
-         int size) {
-
-     User currentUser = getCurrentUser();
-
-     Receptionist receptionist =
-             receptionistRepository
-                     .findByUserIdAndDeletedAtIsNull(
-                             currentUser.getId()
-                     )
-                     .orElseThrow(() ->
-                             new BusinessException(
-                                     "Only receptionists can search patients"
-                             ));
-
-     if (receptionist.getStatus()
-             != ReceptionistStatus.ACTIVE) {
-
-         throw new BusinessException(
-                 "Inactive receptionists cannot search patients"
-         );
-     }
-
-     if (currentUser.getHospital() == null) {
-
-         throw new BusinessException(
-                 "User is not associated with any hospital"
-         );
-     }
-
-     return patientService.searchPatients(
-             keyword,
-             page,
-             size
-     );
- }
 }
