@@ -22,102 +22,66 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/accountants")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ACCOUNTANT')")
 public class AccountantController {
 
     private final AccountantService accountantService;
 
-
-     // Create Accountant
- 
+    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @PostMapping
     public ApiResponse<AccountantResponse> createAccountant(
             @Valid @RequestBody CreateAccountantRequest request) {
-
         return accountantService.createAccountant(request);
     }
 
-
-     // Get All Accountants
- 
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping
     public ApiResponse<List<AccountantResponse>> getAllAccountants() {
-
         return accountantService.getAllAccountants();
     }
 
-
-     // Get Accountant By ID
- 
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/{accountantId}")
     public ApiResponse<AccountantResponse> getAccountantById(
             @PathVariable Long accountantId) {
-
-        return accountantService.getAccountantById(
-                accountantId
-        );
+        return accountantService.getAccountantById(accountantId);
     }
 
-
-     // Update Accountant
- 
+    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @PutMapping("/{accountantId}")
     public ApiResponse<AccountantResponse> updateAccountant(
             @PathVariable Long accountantId,
             @Valid @RequestBody UpdateAccountantRequest request) {
-
         return accountantService.updateAccountant(
                 accountantId,
                 request
         );
     }
 
-
-     
-    // Delete Accountant
- 
+    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @DeleteMapping("/{accountantId}")
     public ApiResponse<Void> deleteAccountant(
             @PathVariable Long accountantId) {
-
-        return accountantService.deleteAccountant(
-                accountantId
-        );
+        return accountantService.deleteAccountant(accountantId);
     }
 
-
-    
-    // Activate Accountant
-     
-
+    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @PatchMapping("/{accountantId}/activate")
-    public ApiResponse<AccountantResponse>
-    activateAccountant(
+    public ApiResponse<AccountantResponse> activateAccountant(
             @PathVariable Long accountantId) {
-
-        return accountantService.activateAccountant(
-                accountantId
-        );
+        return accountantService.activateAccountant(accountantId);
     }
 
-
-     
-    // Deactivate Accountant
-     
+    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @PatchMapping("/{accountantId}/deactivate")
-    public ApiResponse<AccountantResponse>
-    deactivateAccountant(
+    public ApiResponse<AccountantResponse> deactivateAccountant(
             @PathVariable Long accountantId) {
-
-        return accountantService.deactivateAccountant(
-                accountantId
-        );
+        return accountantService.deactivateAccountant(accountantId);
     }
-    
+
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/bills")
     public ApiResponse<PageResponse<BillResponse>> getHospitalBills(
             @RequestParam(defaultValue = "0") int page,
@@ -126,13 +90,11 @@ public class AccountantController {
             @RequestParam(defaultValue = "desc") String sortDir) {
 
         return accountantService.getHospitalBills(
-                page,
-                size,
-                sortBy,
-                sortDir
+                page, size, sortBy, sortDir
         );
     }
-    
+
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/bills/outstanding")
     public ApiResponse<PageResponse<BillResponse>> getOutstandingBills(
             @RequestParam(defaultValue = "0") int page,
@@ -141,20 +103,18 @@ public class AccountantController {
             @RequestParam(defaultValue = "desc") String sortDir) {
 
         return accountantService.getOutstandingBills(
-                page,
-                size,
-                sortBy,
-                sortDir
+                page, size, sortBy, sortDir
         );
     }
-    
+
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/financial-summary")
     public ApiResponse<FinancialSummaryResponse>
     getFinancialSummary() {
-
         return accountantService.getFinancialSummary();
     }
-    
+
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/financial-report")
     public ApiResponse<FinancialReportResponse>
     getFinancialReport(
@@ -162,34 +122,34 @@ public class AccountantController {
             @RequestParam LocalDate toDate) {
 
         return accountantService.getFinancialReport(
-                fromDate,
-                toDate
+                fromDate, toDate
         );
     }
-    
+
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/payment-method-collection")
     public ApiResponse<List<PaymentMethodCollectionResponse>>
     getPaymentMethodCollection() {
 
-        return accountantService
-                .getPaymentMethodCollection();
+        return accountantService.getPaymentMethodCollection();
     }
-    
+
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/dashboard")
     public ApiResponse<AccountantDashboardResponse>
     getDashboard() {
 
         return accountantService.getDashboard();
     }
-    
+
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     @PostMapping("/bills/{billId}/payment")
     public ApiResponse<PaymentResponse> payBill(
             @PathVariable Long billId,
             @Valid @RequestBody PaymentRequest request) {
 
         return accountantService.payBill(
-                billId,
-                request
+                billId, request
         );
     }
 }

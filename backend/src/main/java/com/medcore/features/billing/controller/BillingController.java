@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,19 +23,25 @@ public class BillingController {
 
     private final BillingService billingService;
 
-     
 
+    
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
     public ApiResponse<BillResponse> createBill(
             @Valid @RequestBody CreateBillRequest request) {
 
         return billingService.createBill(request);
     }
 
-     
+
+    // =========================================================
+    // ADD BILL ITEM
+    // =========================================================
+
     @PostMapping("/{billId}/items")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
     public ApiResponse<BillItemResponse> addBillItem(
             @PathVariable Long billId,
             @Valid @RequestBody AddBillItemRequest request) {
@@ -45,8 +52,11 @@ public class BillingController {
         );
     }
 
-   
+
+     
+
     @GetMapping("/{billId}")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
     public ApiResponse<BillResponse> getBillById(
             @PathVariable Long billId) {
 
@@ -55,9 +65,10 @@ public class BillingController {
         );
     }
 
-     
 
+    
     @PutMapping("/{billId}/items/{itemId}")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
     public ApiResponse<BillItemResponse> updateBillItem(
             @PathVariable Long billId,
             @PathVariable Long itemId,
@@ -70,9 +81,10 @@ public class BillingController {
         );
     }
 
-     
 
+     
     @DeleteMapping("/{billId}/items/{itemId}")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
     public ApiResponse<Void> deleteBillItem(
             @PathVariable Long billId,
             @PathVariable Long itemId) {
@@ -83,8 +95,11 @@ public class BillingController {
         );
     }
 
+
      
+
     @PostMapping("/{billId}/payments")
+    @PreAuthorize("hasRole('ACCOUNTANT')")
     public ApiResponse<PaymentResponse> payBill(
             @PathVariable Long billId,
             @Valid @RequestBody PaymentRequest request) {
