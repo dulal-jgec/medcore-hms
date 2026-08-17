@@ -7,30 +7,42 @@ import com.medcore.features.department.dto.request.UpdateDepartmentRequest;
 import com.medcore.features.department.dto.request.UpdateDepartmentStatusRequest;
 import com.medcore.features.department.dto.response.DepartmentResponse;
 import com.medcore.features.department.service.DepartmentService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/departments")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('HOSPITAL_ADMIN')")
 public class DepartmentController {
 
     private final DepartmentService departmentService;
 
+
     @PostMapping
-    public ResponseEntity<ApiResponse<DepartmentResponse>> createDepartment(
+    public ResponseEntity<ApiResponse<DepartmentResponse>>
+    createDepartment(
             @Valid @RequestBody CreateDepartmentRequest request) {
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(departmentService.createDepartment(request));
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(
+                        departmentService.createDepartment(
+                                request
+                        )
+                );
     }
-    
-    @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<DepartmentResponse>>> getAllDepartments(
 
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<PageResponse<DepartmentResponse>>>
+    getAllDepartments(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
@@ -44,21 +56,25 @@ public class DepartmentController {
                         sortDir
                 )
         );
-        
-        
     }
-    
+
+
     @GetMapping("/{departmentId}")
-    public ResponseEntity<ApiResponse<DepartmentResponse>> getDepartmentById(
+    public ResponseEntity<ApiResponse<DepartmentResponse>>
+    getDepartmentById(
             @PathVariable Long departmentId) {
 
         return ResponseEntity.ok(
-                departmentService.getDepartmentById(departmentId)
+                departmentService.getDepartmentById(
+                        departmentId
+                )
         );
     }
-    
+
+
     @PutMapping("/{departmentId}")
-    public ResponseEntity<ApiResponse<DepartmentResponse>> updateDepartment(
+    public ResponseEntity<ApiResponse<DepartmentResponse>>
+    updateDepartment(
             @PathVariable Long departmentId,
             @Valid @RequestBody UpdateDepartmentRequest request) {
 
@@ -69,9 +85,11 @@ public class DepartmentController {
                 )
         );
     }
-    
+
+
     @PatchMapping("/{departmentId}/status")
-    public ResponseEntity<ApiResponse<DepartmentResponse>> updateDepartmentStatus(
+    public ResponseEntity<ApiResponse<DepartmentResponse>>
+    updateDepartmentStatus(
             @PathVariable Long departmentId,
             @Valid @RequestBody UpdateDepartmentStatusRequest request) {
 
@@ -82,14 +100,13 @@ public class DepartmentController {
                 )
         );
     }
-    
+
+
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<PageResponse<DepartmentResponse>>> searchDepartments(
-
+    public ResponseEntity<ApiResponse<PageResponse<DepartmentResponse>>>
+    searchDepartments(
             @RequestParam String keyword,
-
             @RequestParam(defaultValue = "0") int page,
-
             @RequestParam(defaultValue = "10") int size) {
 
         return ResponseEntity.ok(
@@ -100,22 +117,30 @@ public class DepartmentController {
                 )
         );
     }
-    
+
+
     @DeleteMapping("/{departmentId}")
-    public ResponseEntity<ApiResponse<String>> deleteDepartment(
+    public ResponseEntity<ApiResponse<String>>
+    deleteDepartment(
             @PathVariable Long departmentId) {
 
         return ResponseEntity.ok(
-                departmentService.deleteDepartment(departmentId)
+                departmentService.deleteDepartment(
+                        departmentId
+                )
         );
     }
 
+
     @PatchMapping("/{departmentId}/restore")
-    public ResponseEntity<ApiResponse<String>> restoreDepartment(
+    public ResponseEntity<ApiResponse<String>>
+    restoreDepartment(
             @PathVariable Long departmentId) {
 
         return ResponseEntity.ok(
-                departmentService.restoreDepartment(departmentId)
+                departmentService.restoreDepartment(
+                        departmentId
+                )
         );
     }
 }

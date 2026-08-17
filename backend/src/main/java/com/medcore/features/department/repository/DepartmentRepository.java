@@ -7,19 +7,38 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-public interface DepartmentRepository extends JpaRepository<Department, Long> {
+public interface DepartmentRepository
+        extends JpaRepository<Department, Long> {
 
-    Optional<Department> findByIdAndDeletedAtIsNull(Long id);
+    Optional<Department> findByIdAndHospitalIdAndDeletedAtIsNull(
+            Long departmentId,
+            Long hospitalId
+    );
 
-    boolean existsByHospitalIdAndNameIgnoreCase(Long hospitalId, String name);
+    Optional<Department> findByIdAndHospitalId(
+            Long departmentId,
+            Long hospitalId
+    );
 
-    boolean existsByHospitalIdAndCodeIgnoreCase(Long hospitalId, String code);
+    Page<Department> findByHospitalIdAndDeletedAtIsNull(
+            Long hospitalId,
+            Pageable pageable
+    );
 
-    Page<Department> findByDeletedAtIsNull(Pageable pageable);
-    
-    Page<Department> findByNameContainingIgnoreCaseAndDeletedAtIsNull(
+    Page<Department>
+    findByHospitalIdAndNameContainingIgnoreCaseAndDeletedAtIsNull(
+            Long hospitalId,
             String keyword,
             Pageable pageable
     );
 
+    boolean existsByHospitalIdAndNameIgnoreCase(
+            Long hospitalId,
+            String name
+    );
+
+    boolean existsByHospitalIdAndCodeIgnoreCase(
+            Long hospitalId,
+            String code
+    );
 }

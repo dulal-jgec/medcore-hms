@@ -55,9 +55,6 @@ public class DoctorServiceImpl implements DoctorService {
                     "createdAt",
                     "updatedAt"
             );
-
- 
-    // CREATE DOCTOR
     
 
     @Override
@@ -68,14 +65,7 @@ public class DoctorServiceImpl implements DoctorService {
                 tenantContextService.getCurrentHospitalId();
 
         Long hospitalId;
-
-        /*
-         * SUPER_ADMIN
-         * → can create doctor for any hospital
-         *
-         * HOSPITAL_ADMIN
-         * → can create doctor only for own hospital
-         */
+ 
         if (currentHospitalId == null) {
 
             hospitalId = request.getHospitalId();
@@ -92,7 +82,7 @@ public class DoctorServiceImpl implements DoctorService {
         }
 
   
-        // Validate hospital
+       
          
 
         Hospital hospital = hospitalRepository
@@ -104,7 +94,7 @@ public class DoctorServiceImpl implements DoctorService {
                 );
 
  
-        // Validate user
+        
        
 
         User user = userRepository
@@ -123,8 +113,7 @@ public class DoctorServiceImpl implements DoctorService {
         }
 
     
-        // Prevent duplicate doctor profile
-        
+         
 
         if (doctorRepository.existsByUserId(user.getId())) {
 
@@ -133,13 +122,14 @@ public class DoctorServiceImpl implements DoctorService {
             );
         }
 
-   
-        // Validate department
+    
+        
          
 
         Department department = departmentRepository
-                .findByIdAndDeletedAtIsNull(
-                        request.getDepartmentId()
+                .findByIdAndHospitalIdAndDeletedAtIsNull(
+                        request.getDepartmentId(),
+                        request.getHospitalId()
                 )
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
