@@ -67,18 +67,15 @@ public RefreshToken verifyRefreshToken(String token) {
 
     if (refreshToken.getRevoked()) {
         throw new BusinessException(
-                "Refresh token has been revoked"
+                "Refresh token is invalid"
         );
     }
 
-    if (refreshToken.getExpiryDate()
-            .isBefore(LocalDateTime.now())) {
-
+    if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
         throw new BusinessException(
-                "Refresh token has expired"
+                "Refresh token is invalid"
         );
     }
-
     return refreshToken;
 }
 

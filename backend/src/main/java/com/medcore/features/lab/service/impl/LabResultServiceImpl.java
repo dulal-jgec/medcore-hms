@@ -215,9 +215,13 @@ public class LabResultServiceImpl
 
             boolean isPatient =
                     patientRepository
-                            .findByUserId(currentUser.getId())
+                            .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                                    currentUser.getId(),
+                                    tenantContextService.getCurrentHospitalId()
+                            )
                             .map(patient ->
-                                    order.getPatient().getId()
+                                    order.getPatient()
+                                            .getId()
                                             .equals(patient.getId())
                             )
                             .orElse(false);

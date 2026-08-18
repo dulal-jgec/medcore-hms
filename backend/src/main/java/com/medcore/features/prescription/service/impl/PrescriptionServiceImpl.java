@@ -578,8 +578,9 @@ public ApiResponse<PrescriptionResponse> getPatientPrescription(
 
     Patient currentPatient =
             patientRepository
-                    .findByUserId(
-                            currentUser.getId()
+                    .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                            currentUser.getId(),
+                            tenantContextService.getCurrentHospitalId()
                     )
                     .orElseThrow(() ->
                             new BusinessException(
@@ -704,14 +705,14 @@ public ResponseEntity<byte[]> downloadPrescriptionPdf(
 
     Patient currentPatient =
             patientRepository
-                    .findByUserId(
-                            currentUser.getId()
+                    .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                            currentUser.getId(),
+                            tenantContextService.getCurrentHospitalId()
                     )
                     .orElseThrow(() ->
                             new BusinessException(
                                     "Only patients can download prescriptions"
-                            )
-                    );
+                            ));
 
 
     Prescription prescription =
@@ -730,8 +731,9 @@ public ResponseEntity<byte[]> downloadPrescriptionPdf(
                     .equals(currentPatient.getId())) {
 
         throw new BusinessException(
-                "You are not authorized to download this prescription"
+                "You are not authorized to access this prescription"
         );
+    
     }
 
 
@@ -800,19 +802,21 @@ public ResponseEntity<byte[]> downloadPrescriptionPdf(
     }
 
 
-    private Prescription getPrescription(
-            Long prescriptionId) {
+    private Prescription getPrescription(Long prescriptionId) {
+
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
 
         return prescriptionRepository
-                .findByIdAndDeletedAtIsNull(
-                        prescriptionId
+                .findByIdAndHospitalIdAndDeletedAtIsNull(
+                        prescriptionId,
+                        hospitalId
                 )
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Prescription not found"
                         ));
     }
-
 
 
     private void validateAppointmentHospital(
@@ -922,10 +926,10 @@ private void validatePrescriptionAccess(
 
 
     Patient currentPatient =
-            patientRepository
-                    .findByUserId(
-                            currentUser.getId()
-                    )
+    		patientRepository.findByUserIdAndHospitalIdAndDeletedAtIsNull(
+    		        currentUser.getId(),
+    		        tenantContextService.getCurrentHospitalId()
+    		)
                     .orElse(null);
 
     if (currentPatient != null) {

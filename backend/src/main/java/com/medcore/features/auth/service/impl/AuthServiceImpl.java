@@ -20,6 +20,7 @@ import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
+import com.medcore.features.user.enums.UserStatus;
 import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import com.medcore.features.auth.dto.response.UserProfileResponse;
 import com.medcore.features.auth.entity.RefreshToken;
 import com.medcore.features.auth.dto.request.RefreshTokenRequest;
- 
+import com.medcore.features.hospital.enums.HospitalStatus;
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -52,22 +53,32 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("Passwords do not match");
         }
 
-        // Email Exists
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String email = request.getEmail().trim().toLowerCase();
+        
+        if (userRepository.existsByEmail(email)) {
             throw new DuplicateResourceException("Email already exists");
         }
-
-        // Phone Exists
-        if (userRepository.existsByPhone(request.getPhone())) {
+        
+        String phone = request.getPhone().trim();
+        
+        if (userRepository.existsByPhone(phone)) {
             throw new DuplicateResourceException("Phone number already exists");
         }
 
-        // Hospital Exists
-        Hospital hospital = hospitalRepository.findById(request.getHospitalId())
+        Hospital hospital = hospitalRepository
+                .findById(request.getHospitalId())
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Hospital not found"));
 
-        // Default Role = PATIENT
+        if (hospital.getDeletedAt() != null) {
+            throw new BusinessException("Hospital is not available");
+        }
+
+        if (hospital.getStatus() != HospitalStatus.ACTIVE) {
+            throw new BusinessException("Hospital is not active");
+        }
+        
+         
         Role role = roleRepository.findByName(RoleName.PATIENT)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Patient role not found"));
@@ -80,7 +91,8 @@ public class AuthServiceImpl implements AuthService {
                 request,
                 hospital,
                 role,
-                encodedPassword
+                encodedPassword,
+                email
         );
 
         // Save User
@@ -96,19 +108,21 @@ public class AuthServiceImpl implements AuthService {
     
     @Override
     public ApiResponse<AuthResponse> login(LoginRequest request) {
+    	
+    	String email = request.getEmail().trim().toLowerCase();
 
     	authenticationManager.authenticate(
-    		    new UsernamePasswordAuthenticationToken(
-    		        request.getEmail(),
-    		        request.getPassword()
-    		    )
-    		);
+    	        new UsernamePasswordAuthenticationToken(
+    	                email,
+    	                request.getPassword()
+    	        )
+    	);
 
-    		User user = userRepository.findByEmail(request.getEmail())
-    		        .orElseThrow(() ->
-    		                new ResourceNotFoundException("User not found"));
+    	User user = userRepository.findByEmail(email)
+    	        .orElseThrow(() ->
+    	                new ResourceNotFoundException("User not found"));
 
-    		String accessToken = jwtService.generateAccessToken(user.getEmail());
+    	String accessToken = jwtService.generateAccessToken(user.getEmail());
     		
     		RefreshTokenResult refreshTokenResult =
     		        refreshTokenService.createRefreshToken(user);
@@ -162,6 +176,10 @@ public class AuthServiceImpl implements AuthService {
                 refreshTokenService.verifyRefreshToken(request.getRefreshToken());
 
         User user = refreshToken.getUser();
+        
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException("User account is not active");
+        }
         
         // Revoke old refreshtoken 
         refreshTokenService.revokeRefreshToken(refreshToken);

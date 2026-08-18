@@ -2,43 +2,40 @@ package com.medcore.common.security;
 
 import com.medcore.common.exception.BusinessException;
 import com.medcore.features.hospital.entity.Hospital;
-import com.medcore.features.user.entity.User;
-import com.medcore.features.user.repository.UserRepository;
+import com.medcore.features.hospital.repository.HospitalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import com.medcore.features.user.enums.RoleName;
+
 @Service
 @RequiredArgsConstructor
 public class TenantContextService {
 
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
+    private final HospitalRepository hospitalRepository;
 
-    public Hospital getCurrentHospital() {
+    public Long getCurrentHospitalId() {
 
-        String username = SecurityUtil.getCurrentUsername();
+        CurrentUser currentUser =
+                currentUserService.getCurrentUser();
 
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() ->
-                        new BusinessException("User not found")
-                );
-
-        if (user.getRole().getName() == RoleName.SUPER_ADMIN) {
-            return null;
-        }
-
-        if (user.getHospital() == null) {
+        if (currentUser.getHospitalId() == null) {
             throw new BusinessException(
                     "User is not associated with a hospital"
             );
         }
 
-        return user.getHospital();
+        return currentUser.getHospitalId();
     }
 
-    public Long getCurrentHospitalId() {
+    public Hospital getCurrentHospital() {
 
-        Hospital hospital = getCurrentHospital();
+        Long hospitalId = getCurrentHospitalId();
 
-        return hospital != null ? hospital.getId() : null;
+        return hospitalRepository
+                .findByIdAndDeletedAtIsNull(hospitalId)
+                .orElseThrow(() ->
+                        new BusinessException(
+                                "Current hospital not found"
+                        ));
     }
 }

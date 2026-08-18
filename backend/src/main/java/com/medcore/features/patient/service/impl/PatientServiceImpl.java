@@ -90,7 +90,9 @@ public class PatientServiceImpl
         }
 
       
-        if (patientRepository.existsByUserId(user.getId())) {
+        if (patientRepository.existsByUserIdAndHospitalId(
+                user.getId(),
+                hospitalId)) {
 
             throw new DuplicateResourceException(
                     "Patient profile already exists for this user"

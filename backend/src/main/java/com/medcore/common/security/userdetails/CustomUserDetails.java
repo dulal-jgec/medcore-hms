@@ -1,6 +1,8 @@
 package com.medcore.common.security.userdetails;
 
 import com.medcore.features.user.entity.User;
+import com.medcore.features.user.enums.UserStatus;
+import com.medcore.common.security.CurrentUser;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -52,6 +54,20 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return user.getStatus().name().equals("ACTIVE");
+        return user.getStatus() == UserStatus.ACTIVE;
+    }
+    
+    
+    public CurrentUser getCurrentUser() {
+
+        return CurrentUser.builder()
+                .userId(user.getId())
+                .role(user.getRole().getName())
+                .hospitalId(
+                        user.getHospital() != null
+                                ? user.getHospital().getId()
+                                : null
+                )
+                .build();
     }
 }

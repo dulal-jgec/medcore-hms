@@ -8,5 +8,8 @@ import java.util.Optional;
 public interface PharmacistRepository
         extends JpaRepository<Pharmacist, Long> {
 
-    Optional<Pharmacist> findByUserId(Long userId);
+	Optional<Pharmacist> findByUserIdAndHospitalIdAndDeletedAtIsNull(
+	        Long userId,
+	        Long hospitalId
+	);
 }

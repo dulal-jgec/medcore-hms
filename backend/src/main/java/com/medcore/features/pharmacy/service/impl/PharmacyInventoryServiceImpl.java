@@ -258,9 +258,10 @@ public class PharmacyInventoryServiceImpl
                 getCurrentHospitalId();
 
         pharmacistRepository
-                .findByUserId(
-                        currentUser.getId()
-                )
+        .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                currentUser.getId(),
+                hospitalId
+        )
                 .orElseThrow(() ->
                         new BusinessException(
                                 "Only pharmacists can view dispensing requests"

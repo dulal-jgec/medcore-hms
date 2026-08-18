@@ -97,8 +97,9 @@ public class DispensingServiceImpl
 
         Patient patient =
                 patientRepository
-                        .findByUserId(
-                                currentUser.getId()
+                        .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                                currentUser.getId(),
+                                hospitalId
                         )
                         .orElseThrow(() ->
                                 new BusinessException(
@@ -115,16 +116,7 @@ public class DispensingServiceImpl
                                         "Prescription not found"
                                 ));
 
-        if (prescription.getPatient() == null
-                || !prescription.getPatient()
-                .getId()
-                .equals(patient.getId())) {
-
-            throw new BusinessException(
-                    "You are not authorized to request this prescription"
-            );
-        }
-
+        
         if (prescription.getHospital() == null
                 || !prescription.getHospital()
                 .getId()
@@ -225,11 +217,14 @@ public class DispensingServiceImpl
         }
 
         pharmacistRepository
-                .findByUserId(currentUser.getId())
-                .orElseThrow(() ->
-                        new BusinessException(
-                                "Only pharmacists can dispense prescriptions"
-                        ));
+        .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                currentUser.getId(),
+                hospitalId
+        )
+        .orElseThrow(() ->
+                new BusinessException(
+                        "Only pharmacists can dispense prescriptions"
+                ));
 
         Pharmacy pharmacy =
                 pharmacyRepository
@@ -368,13 +363,14 @@ public class DispensingServiceImpl
                 getCurrentUser();
 
         pharmacistRepository
-                .findByUserId(
-                        currentUser.getId()
-                )
-                .orElseThrow(() ->
-                        new BusinessException(
-                                "Only pharmacists can view dispensing requests"
-                        ));
+        .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                currentUser.getId(),
+                hospitalId
+        )
+        .orElseThrow(() ->
+                new BusinessException(
+                        "Only pharmacists can view dispensing requests"
+                ));
 
         List<DispensingRequest> requests =
                 dispensingRequestRepository

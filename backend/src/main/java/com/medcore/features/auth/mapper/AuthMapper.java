@@ -11,19 +11,21 @@ public class AuthMapper {
     private AuthMapper() {
     }
 
-    public static User toUser(RegisterRequest request,
-                              Hospital hospital,
-                              Role role,
-                              String encodedPassword) {
+    public static User toUser(
+            RegisterRequest request,
+            Hospital hospital,
+            Role role,
+            String encodedPassword,
+            String email) {
 
         return User.builder()
-                .fullName(request.getFullName())
-                .email(request.getEmail())
-                .phone(request.getPhone())
+                .fullName(request.getFullName().trim())
+                .email(email)
+                .phone(request.getPhone().trim())
                 .password(encodedPassword)
                 .hospital(hospital)
                 .role(role)
-                .status(UserStatus.ACTIVE)
+                .status(UserStatus.PENDING_VERIFICATION)
                 .emailVerified(false)
                 .phoneVerified(false)
                 .build();
