@@ -86,6 +86,7 @@ public class DispensingServiceImpl
     }
 
     @Override
+    @Transactional
     public ApiResponse<DispensingRequest> createDispensingRequest(
             CreateDispensingRequest request) {
 
