@@ -1,9 +1,7 @@
-server:
-  port: ${SERVER_PORT}
-
 spring:
-  application:
-    name: ${APP_NAME}
+  config:
+    activate:
+      on-profile: dev
 
   datasource:
     url: ${DB_URL}
@@ -14,6 +12,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+
     show-sql: true
 
     properties:

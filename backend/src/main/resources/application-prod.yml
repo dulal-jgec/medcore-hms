@@ -2,3 +2,31 @@ spring:
   config:
     activate:
       on-profile: prod
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+    show-sql: false
+
+    properties:
+      hibernate:
+        format_sql: false
+
+  flyway:
+    baseline-on-migrate: true
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION}
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION}
+
+logging:
+  level:
+    org.hibernate.SQL: INFO
