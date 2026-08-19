@@ -98,11 +98,13 @@ public class GlobalExceptionHandler {
         ErrorResponse response = ErrorResponse.builder()
                 .success(false)
                 .errorCode("INTERNAL_SERVER_ERROR")
-                .message(ex.getMessage())
+                .message("Something went wrong. Please try again later.")
                 .timestamp(LocalDateTime.now())
                 .build();
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(response);
     }
     
     @ExceptionHandler(AccessDeniedException.class)
@@ -118,5 +120,7 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.FORBIDDEN)
                 .body(response);
     }
+    
+    
 
 }

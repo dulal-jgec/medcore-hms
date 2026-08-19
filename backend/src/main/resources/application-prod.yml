@@ -27,6 +27,6 @@ jwt:
   access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION}
   refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION}
 
-logging:
-  level:
-    org.hibernate.SQL: INFO
+  logging:
+    level:
+      org.hibernate.SQL: WARN
