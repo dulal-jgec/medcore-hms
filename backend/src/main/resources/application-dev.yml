@@ -1,6 +1,4 @@
 spring:
-  profiles:
-    active: dev
 
   application:
     name: ${APP_NAME}
@@ -15,6 +13,11 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
       connection-timeout: 30000
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   jpa:
     open-in-view: false

@@ -26,7 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 @Service
 @RequiredArgsConstructor
 public class LabTestServiceImpl implements LabTestService {
@@ -38,6 +39,10 @@ public class LabTestServiceImpl implements LabTestService {
 
     @Override
     @Transactional
+    @CacheEvict(
+            cacheNames = "labTests",
+            allEntries = true
+    )
     public ApiResponse<LabTestResponse> createLabTest(
             CreateLabTestRequest request) {
 
@@ -97,35 +102,42 @@ public class LabTestServiceImpl implements LabTestService {
     }
 
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<List<LabTestResponse>> getAllLabTests() {
+@Override
+@Transactional(readOnly = true)
+@Cacheable(
+        cacheNames = "labTests",
+        key = "'all'"
+)
+public ApiResponse<List<LabTestResponse>> getAllLabTests() {
 
-        getCurrentUser();
+    getCurrentUser();
 
-        List<LabTestResponse> tests =
-                labTestRepository
-                        .findAll()
-                        .stream()
-                        .filter(test ->
-                                test.getDeletedAt() == null
-                        )
-                        .map(labTestMapper::toResponse)
-                        .toList();
+    System.out.println("DATABASE HIT - LAB TESTS");
 
-        return ApiResponse.<List<LabTestResponse>>builder()
-                .success(true)
-                .message("Lab tests fetched successfully")
-                .data(tests)
-                .build();
-    }
+    List<LabTestResponse> tests =
+            labTestRepository
+                    .findAllByDeletedAtIsNull()
+                    .stream()
+                    .map(labTestMapper::toResponse)
+                    .toList();
+
+    return ApiResponse.<List<LabTestResponse>>builder()
+            .success(true)
+            .message("Lab tests fetched successfully")
+            .data(tests)
+            .build();
+}
 
 
-    @Override
-    @Transactional
-    public ApiResponse<LabTestResponse> updateLabTest(
-            Long labTestId,
-            UpdateLabTestRequest request) {
+@Override
+@Transactional
+@CacheEvict(
+        cacheNames = "labTests",
+        allEntries = true
+)
+public ApiResponse<LabTestResponse> updateLabTest(
+        Long labTestId,
+        UpdateLabTestRequest request) {
 
         getCurrentUser();
 
@@ -170,10 +182,14 @@ public class LabTestServiceImpl implements LabTestService {
     }
 
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> deleteLabTest(
-            Long labTestId) {
+@Override
+@Transactional
+@CacheEvict(
+        cacheNames = "labTests",
+        allEntries = true
+)
+public ApiResponse<Void> deleteLabTest(
+        Long labTestId) {
 
         getCurrentUser();
 
@@ -194,10 +210,14 @@ public class LabTestServiceImpl implements LabTestService {
     }
 
 
-    @Override
-    @Transactional
-    public ApiResponse<LabTestResponse> activateLabTest(
-            Long labTestId) {
+@Override
+@Transactional
+@CacheEvict(
+        cacheNames = "labTests",
+        allEntries = true
+)
+public ApiResponse<LabTestResponse> activateLabTest(
+        Long labTestId) {
 
         getCurrentUser();
 
@@ -229,10 +249,14 @@ public class LabTestServiceImpl implements LabTestService {
     }
 
 
-    @Override
-    @Transactional
-    public ApiResponse<LabTestResponse> deactivateLabTest(
-            Long labTestId) {
+@Override
+@Transactional
+@CacheEvict(
+        cacheNames = "labTests",
+        allEntries = true
+)
+public ApiResponse<LabTestResponse> deactivateLabTest(
+        Long labTestId) {
 
         getCurrentUser();
 
