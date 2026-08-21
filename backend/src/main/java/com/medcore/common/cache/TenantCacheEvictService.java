@@ -37,4 +37,31 @@ public class TenantCacheEvictService {
             redisTemplate.delete(keys);
         }
     }
+    
+    public void evictLabOrders() {
+
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+        if (hospitalId == null) {
+            throw new BusinessException(
+                    "Hospital context is required"
+            );
+        }
+
+        String pattern =
+                "labOrders::hospital:"
+                        + hospitalId
+                        + ":*";
+
+        var keys =
+                redisTemplate.keys(pattern);
+
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
+    }
+    
+
+    
 }

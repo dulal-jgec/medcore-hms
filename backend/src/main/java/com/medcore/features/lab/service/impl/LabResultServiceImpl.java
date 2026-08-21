@@ -1,5 +1,6 @@
 package com.medcore.features.lab.service.impl;
 
+ import com.medcore.common.cache.TenantCacheEvictService;
 import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
@@ -50,7 +51,8 @@ public class LabResultServiceImpl
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
     private final TenantContextService tenantContextService;
-
+    private final TenantCacheEvictService tenantCacheEvictService;
+ 
     private User getCurrentUser() {
 
         String email =
@@ -124,6 +126,8 @@ public class LabResultServiceImpl
 
         LabResult savedResult =
                 labResultRepository.save(result);
+        
+        
 
         List<LabOrderItem> items =
                 labOrderItemRepository
@@ -148,6 +152,8 @@ public class LabResultServiceImpl
             );
 
             labOrderRepository.save(order);
+
+            tenantCacheEvictService.evictLabOrders();
         }
 
         return ApiResponse.<LabResultResponse>builder()
@@ -260,6 +266,7 @@ public class LabResultServiceImpl
     }
 
     @Override
+    @Transactional
     public ApiResponse<LabResultResponse> updateResult(
             Long labOrderItemId,
             CreateLabResultRequest request) {

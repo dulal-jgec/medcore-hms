@@ -42,10 +42,12 @@ import com.medcore.features.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-
+import com.medcore.common.cache.TenantCacheEvictService;
 @Service
 @RequiredArgsConstructor
 public class LabOrderServiceImpl implements LabOrderService {
@@ -64,9 +66,10 @@ public class LabOrderServiceImpl implements LabOrderService {
     private final LabOrderItemMapper labOrderItemMapper;
 
     private final TenantContextService tenantContextService;
-
+    private final TenantCacheEvictService tenantCacheEvictService;
 
     @Override
+    @Transactional
     public ApiResponse<LabOrderResponse> createLabOrder(
             CreateLabOrderRequest request) {
 
@@ -175,6 +178,8 @@ public class LabOrderServiceImpl implements LabOrderService {
                         .stream()
                         .map(labOrderItemMapper::toResponse)
                         .toList();
+        
+        tenantCacheEvictService.evictLabOrders();
 
         return ApiResponse.<LabOrderResponse>builder()
                 .success(true)
@@ -190,6 +195,7 @@ public class LabOrderServiceImpl implements LabOrderService {
 
 
     @Override
+    @Transactional
     public ApiResponse<LabOrderItemResponse> addLabOrderItem(
             Long labOrderId,
             AddLabOrderItemRequest request) {
@@ -273,6 +279,8 @@ public class LabOrderServiceImpl implements LabOrderService {
 
         LabOrderItem savedItem =
                 labOrderItemRepository.save(item);
+        
+        tenantCacheEvictService.evictLabOrders();
 
         return ApiResponse.<LabOrderItemResponse>builder()
                 .success(true)
@@ -287,6 +295,11 @@ public class LabOrderServiceImpl implements LabOrderService {
 
 
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(
+            cacheNames = "labOrders",
+            keyGenerator = "tenantCacheKeyGenerator"
+    )
     public ApiResponse<LabOrderResponse> getLabOrderById(
             Long labOrderId) {
 
@@ -352,6 +365,7 @@ public class LabOrderServiceImpl implements LabOrderService {
 
 
     @Override
+    @Transactional
     public ApiResponse<LabOrderResponse> updateStatus(
             Long labOrderId,
             LabOrderStatus status) {
@@ -426,6 +440,8 @@ public class LabOrderServiceImpl implements LabOrderService {
                         .stream()
                         .map(labOrderItemMapper::toResponse)
                         .toList();
+        
+        tenantCacheEvictService.evictLabOrders();
 
         return ApiResponse.<LabOrderResponse>builder()
                 .success(true)
