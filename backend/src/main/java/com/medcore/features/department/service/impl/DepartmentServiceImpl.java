@@ -1,6 +1,7 @@
 package com.medcore.features.department.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+import com.medcore.common.cache.TenantCacheEvictService;
 import com.medcore.common.exception.DuplicateResourceException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
@@ -41,7 +42,7 @@ public class DepartmentServiceImpl
     private final HospitalRepository hospitalRepository;
     private final DepartmentMapper departmentMapper;
     private final TenantContextService tenantContextService;
-
+    private final TenantCacheEvictService tenantCacheEvictService;
     private static final int MAX_PAGE_SIZE = 50;
 
     private static final Set<String> ALLOWED_SORT_FIELDS =
@@ -56,10 +57,6 @@ public class DepartmentServiceImpl
 
     @Override
     @Transactional
-    @CacheEvict(
-            cacheNames = "departments",
-            allEntries = true
-    )
     public ApiResponse<DepartmentResponse> createDepartment(
             CreateDepartmentRequest request) {
 
@@ -127,6 +124,9 @@ public class DepartmentServiceImpl
                 departmentRepository.save(
                         department
                 );
+        
+        tenantCacheEvictService.evictDepartments();
+
 
         return ApiResponse
                 .<DepartmentResponse>builder()
@@ -212,10 +212,6 @@ public class DepartmentServiceImpl
 
       @Override
       @Transactional
-      @CacheEvict(
-              cacheNames = "departments",
-              allEntries = true
-      )
       public ApiResponse<DepartmentResponse>
       updateDepartment(
               Long departmentId,
@@ -229,6 +225,7 @@ public class DepartmentServiceImpl
                         departmentId,
                         hospitalId
                 );
+        
 
         String newName =
                 request.getName()
@@ -280,6 +277,7 @@ public class DepartmentServiceImpl
                 departmentRepository.save(
                         department
                 );
+        tenantCacheEvictService.evictDepartments();
 
         return ApiResponse
                 .<DepartmentResponse>builder()
@@ -299,10 +297,6 @@ public class DepartmentServiceImpl
     
       @Override
       @Transactional
-      @CacheEvict(
-              cacheNames = "departments",
-              allEntries = true
-      )
       public ApiResponse<DepartmentResponse>
       updateDepartmentStatus(
               Long departmentId,
@@ -331,8 +325,11 @@ public class DepartmentServiceImpl
         Department updatedDepartment =
                 departmentRepository.save(
                         department
-                );
-
+            
+                		);
+        
+        tenantCacheEvictService.evictDepartments();
+        
         return ApiResponse
                 .<DepartmentResponse>builder()
                 .success(true)
@@ -395,10 +392,6 @@ public class DepartmentServiceImpl
 
     @Override
     @Transactional
-    @CacheEvict(
-            cacheNames = "departments",
-            allEntries = true
-    )
     public ApiResponse<String>
     deleteDepartment(
             Long departmentId) {
@@ -418,6 +411,8 @@ public class DepartmentServiceImpl
         departmentRepository.save(
                 department
         );
+        
+        tenantCacheEvictService.evictDepartments();
 
         return ApiResponse
                 .<String>builder()
@@ -433,10 +428,6 @@ public class DepartmentServiceImpl
     
     @Override
     @Transactional
-    @CacheEvict(
-            cacheNames = "departments",
-            allEntries = true
-    )
     public ApiResponse<String>
     restoreDepartment(
             Long departmentId) {
@@ -468,6 +459,8 @@ public class DepartmentServiceImpl
         departmentRepository.save(
                 department
         );
+        
+        tenantCacheEvictService.evictDepartments();
 
         return ApiResponse
                 .<String>builder()
