@@ -29,7 +29,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
-
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class DepartmentServiceImpl
@@ -53,6 +55,11 @@ public class DepartmentServiceImpl
  
 
     @Override
+    @Transactional
+    @CacheEvict(
+            cacheNames = "departments",
+            allEntries = true
+    )
     public ApiResponse<DepartmentResponse> createDepartment(
             CreateDepartmentRequest request) {
 
@@ -137,6 +144,11 @@ public class DepartmentServiceImpl
 
 
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(
+            cacheNames = "departments",
+            keyGenerator = "tenantCacheKeyGenerator"
+    )
     public ApiResponse<PageResponse<DepartmentResponse>>
     getAllDepartments(
             int page,
@@ -198,11 +210,16 @@ public class DepartmentServiceImpl
     }
 
 
-    @Override
-    public ApiResponse<DepartmentResponse>
-    updateDepartment(
-            Long departmentId,
-            UpdateDepartmentRequest request) {
+      @Override
+      @Transactional
+      @CacheEvict(
+              cacheNames = "departments",
+              allEntries = true
+      )
+      public ApiResponse<DepartmentResponse>
+      updateDepartment(
+              Long departmentId,
+              UpdateDepartmentRequest request) {
 
         Long hospitalId =
                 getCurrentHospitalId();
@@ -280,12 +297,16 @@ public class DepartmentServiceImpl
 
 
     
-
-    @Override
-    public ApiResponse<DepartmentResponse>
-    updateDepartmentStatus(
-            Long departmentId,
-            UpdateDepartmentStatusRequest request) {
+      @Override
+      @Transactional
+      @CacheEvict(
+              cacheNames = "departments",
+              allEntries = true
+      )
+      public ApiResponse<DepartmentResponse>
+      updateDepartmentStatus(
+              Long departmentId,
+              UpdateDepartmentStatusRequest request) {
 
         Long hospitalId =
                 getCurrentHospitalId();
@@ -329,6 +350,11 @@ public class DepartmentServiceImpl
 
    
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(
+            cacheNames = "departments",
+            keyGenerator = "tenantCacheKeyGenerator"
+    )
     public ApiResponse<PageResponse<DepartmentResponse>>
     searchDepartments(
             String keyword,
@@ -367,12 +393,15 @@ public class DepartmentServiceImpl
     }
 
 
-   
     @Override
+    @Transactional
+    @CacheEvict(
+            cacheNames = "departments",
+            allEntries = true
+    )
     public ApiResponse<String>
     deleteDepartment(
             Long departmentId) {
-
         Long hospitalId =
                 getCurrentHospitalId();
 
@@ -402,8 +431,12 @@ public class DepartmentServiceImpl
 
 
     
-
     @Override
+    @Transactional
+    @CacheEvict(
+            cacheNames = "departments",
+            allEntries = true
+    )
     public ApiResponse<String>
     restoreDepartment(
             Long departmentId) {
