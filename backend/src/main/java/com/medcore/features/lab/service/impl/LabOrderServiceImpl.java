@@ -1,6 +1,8 @@
 package com.medcore.features.lab.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+import com.medcore.features.notification.service.NotificationService;
+import com.medcore.features.notification.enums.NotificationType;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.security.SecurityUtil;
@@ -67,7 +69,8 @@ public class LabOrderServiceImpl implements LabOrderService {
 
     private final TenantContextService tenantContextService;
     private final TenantCacheEvictService tenantCacheEvictService;
-
+    private final NotificationService notificationService;
+    
     @Override
     @Transactional
     public ApiResponse<LabOrderResponse> createLabOrder(
@@ -169,6 +172,13 @@ public class LabOrderServiceImpl implements LabOrderService {
 
             labOrderItemRepository.save(item);
         }
+        
+        notificationService.sendNotification(
+                patient.getUser().getId(),
+                NotificationType.LAB_ORDER_CREATED,
+                "New Lab Order",
+                "A new lab order has been created for you."
+        );
 
         List<LabOrderItemResponse> items =
                 labOrderItemRepository
