@@ -61,4 +61,44 @@ public class NotificationController {
                         .build()
         );
     }
+    
+    @PatchMapping("/{notificationId}/read")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<String>>
+    markAsRead(
+            @PathVariable Long notificationId) {
+
+        notificationService.markAsRead(notificationId);
+
+        return ResponseEntity.ok(
+                ApiResponse
+                        .<String>builder()
+                        .success(true)
+                        .message(
+                                "Notification marked as read"
+                        )
+                        .data("Read")
+                        .build()
+        );
+    }
+    
+    @GetMapping("/unread-count")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Long>>
+    getUnreadCount() {
+
+        long count =
+                notificationService.getUnreadCount();
+
+        return ResponseEntity.ok(
+                ApiResponse
+                        .<Long>builder()
+                        .success(true)
+                        .message(
+                                "Unread notification count fetched successfully"
+                        )
+                        .data(count)
+                        .build()
+        );
+    }
 }

@@ -18,4 +18,6 @@ public interface NotificationService {
             int page,
             int size
     );
+    void markAsRead(Long notificationId);
+    long getUnreadCount();
 }

@@ -183,8 +183,71 @@ public class NotificationServiceImpl
                                 .build()
                 );
     }
+    
+    @Override
+    @Transactional
+    public void markAsRead(Long notificationId) {
 
+        Long hospitalId =
+                tenantContextService
+                        .getCurrentHospitalId();
 
+        if (hospitalId == null) {
+            throw new BusinessException(
+                    "Hospital context is required"
+            );
+        }
+
+        User currentUser =
+                getCurrentUser();
+
+        Notification notification =
+                notificationRepository
+                        .findByIdAndHospitalIdAndRecipientIdAndDeletedAtIsNull(
+                                notificationId,
+                                hospitalId,
+                                currentUser.getId()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Notification not found"
+                                )
+                        );
+
+        if (Boolean.TRUE.equals(notification.getRead())) {
+            throw new BusinessException(
+                    "Notification is already marked as read"
+            );
+        }
+
+        notification.setRead(true);
+
+        notificationRepository.save(notification);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getUnreadCount() {
+
+        Long hospitalId =
+                tenantContextService
+                        .getCurrentHospitalId();
+
+        if (hospitalId == null) {
+            throw new BusinessException(
+                    "Hospital context is required"
+            );
+        }
+
+        User currentUser =
+                getCurrentUser();
+
+        return notificationRepository
+                .countByHospitalIdAndRecipientIdAndReadFalseAndDeletedAtIsNull(
+                        hospitalId,
+                        currentUser.getId()
+                );
+    } 
      
 
     private User getCurrentUser() {
