@@ -34,7 +34,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-
+import com.medcore.common.cache.TenantCacheEvictService;
 @ExtendWith(MockitoExtension.class)
 class DepartmentServiceImplTest {
 
@@ -49,6 +49,9 @@ class DepartmentServiceImplTest {
 
     @Mock
     private TenantContextService tenantContextService;
+    
+    @Mock
+    private TenantCacheEvictService tenantCacheEvictService;
 
     @InjectMocks
     private DepartmentServiceImpl departmentService;

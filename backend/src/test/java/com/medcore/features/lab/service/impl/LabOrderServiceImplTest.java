@@ -46,13 +46,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
-
+import com.medcore.features.notification.enums.NotificationType;
+import com.medcore.features.notification.service.NotificationService;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-
+import com.medcore.common.cache.TenantCacheEvictService;
 @ExtendWith(MockitoExtension.class)
 class LabOrderServiceImplTest {
 
@@ -82,6 +83,12 @@ class LabOrderServiceImplTest {
 
     @Mock
     private TenantContextService tenantContextService;
+    
+    @Mock
+    private TenantCacheEvictService tenantCacheEvictService;
+    
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private LabOrderServiceImpl labOrderService;
@@ -114,9 +121,7 @@ class LabOrderServiceImplTest {
         itemResponse = mock(LabOrderItemResponse.class);
     }
 
-    // ============================================================
-    // CREATE LAB ORDER
-    // ============================================================
+     
 
     @Test
     void createLabOrder_shouldCreateSuccessfully() {
@@ -170,15 +175,23 @@ class LabOrderServiceImplTest {
                 .thenReturn(false);
 
         when(appointment.getPatient())
-                .thenReturn(patient);
+        .thenReturn(patient);
+
+        User patientUser = mock(User.class);
+
+        when(patientUser.getId())
+        .thenReturn(60L);
+
+        when(patient.getUser())
+        .thenReturn(patientUser);
 
         when(labOrderMapper.toEntity(
-                request,
-                appointment,
-                doctor,
-                patient,
-                hospital
-        )).thenReturn(labOrder);
+        request,
+        appointment,
+        doctor,
+        patient,
+        hospital
+)).thenReturn(labOrder);
 
         when(labOrderRepository.save(labOrder))
                 .thenReturn(labOrder);

@@ -11,6 +11,7 @@ import com.medcore.features.lab.entity.LabTest;
 import com.medcore.features.lab.enums.LabTestStatus;
 import com.medcore.features.lab.mapper.LabTestMapper;
 import com.medcore.features.lab.repository.LabTestRepository;
+import com.medcore.features.notification.service.NotificationService;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +41,9 @@ class LabTestServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+    
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private LabTestServiceImpl labTestService;
@@ -78,9 +82,7 @@ class LabTestServiceImplTest {
         securityUtil.close();
     }
 
-    // ---------------------------------------------------------
-    // CREATE
-    // ---------------------------------------------------------
+     
 
     @Test
     void createLabTest_shouldCreateSuccessfully() {
@@ -169,9 +171,7 @@ class LabTestServiceImplTest {
         verifyNoInteractions(labTestMapper);
     }
 
-    // ---------------------------------------------------------
-    // GET BY ID
-    // ---------------------------------------------------------
+     
 
     @Test
     void getLabTestById_shouldReturnLabTest() {
@@ -214,73 +214,52 @@ class LabTestServiceImplTest {
         verifyNoInteractions(labTestMapper);
     }
 
-    // ---------------------------------------------------------
-    // GET ALL
-    // ---------------------------------------------------------
+    
 
     @Test
-    void getAllLabTests_shouldReturnOnlyActiveRecords() {
+void getAllLabTests_shouldReturnOnlyActiveRecords() {
 
-        LabTest activeTest =
-                mock(LabTest.class);
+    LabTest activeTest =
+            mock(LabTest.class);
 
-        LabTest deletedTest =
-                mock(LabTest.class);
+    LabTestResponse activeResponse =
+            LabTestResponse.builder()
+                    .id(10L)
+                    .name("CBC")
+                    .status(LabTestStatus.ACTIVE)
+                    .build();
 
-        LabTestResponse activeResponse =
-                LabTestResponse.builder()
-                        .id(10L)
-                        .name("CBC")
-                        .status(LabTestStatus.ACTIVE)
-                        .build();
+    when(labTestRepository.findAllByDeletedAtIsNull())
+            .thenReturn(List.of(activeTest));
 
-        when(activeTest.getDeletedAt())
-                .thenReturn(null);
+    when(labTestMapper.toResponse(activeTest))
+            .thenReturn(activeResponse);
 
-        when(deletedTest.getDeletedAt())
-                .thenReturn(LocalDateTime.now());
+    ApiResponse<List<LabTestResponse>> result =
+            labTestService.getAllLabTests();
 
-        when(labTestRepository.findAll())
-                .thenReturn(
-                        List.of(
-                                activeTest,
-                                deletedTest
-                        )
-                );
+    assertTrue(result.isSuccess());
 
-        when(labTestMapper.toResponse(activeTest))
-                .thenReturn(activeResponse);
+    assertEquals(
+            "Lab tests fetched successfully",
+            result.getMessage()
+    );
 
-        ApiResponse<List<LabTestResponse>> result =
-                labTestService.getAllLabTests();
+    assertEquals(
+            1,
+            result.getData().size()
+    );
 
-        assertTrue(result.isSuccess());
+    assertEquals(
+            activeResponse,
+            result.getData().get(0)
+    );
 
-        assertEquals(
-                "Lab tests fetched successfully",
-                result.getMessage()
-        );
+    verify(labTestMapper)
+            .toResponse(activeTest);
+}
 
-        assertEquals(
-                1,
-                result.getData().size()
-        );
-
-        assertEquals(
-                activeResponse,
-                result.getData().get(0)
-        );
-
-        verify(labTestMapper)
-                .toResponse(activeTest);
-
-        verify(labTestMapper, never())
-                .toResponse(deletedTest);
-    }
-
-    // ---------------------------------------------------------
-    // UPDATE
-    // ---------------------------------------------------------
+   
 
     @Test
     void updateLabTest_shouldUpdateSuccessfully() {
@@ -444,9 +423,7 @@ class LabTestServiceImplTest {
                 .save(any());
     }
 
-    // ---------------------------------------------------------
-    // DELETE
-    // ---------------------------------------------------------
+    
 
     @Test
     void deleteLabTest_shouldSoftDelete() {
@@ -480,9 +457,7 @@ class LabTestServiceImplTest {
                 .save(any());
     }
 
-    // ---------------------------------------------------------
-    // ACTIVATE
-    // ---------------------------------------------------------
+    
 
     @Test
     void activateLabTest_shouldActivateSuccessfully() {
@@ -536,10 +511,7 @@ class LabTestServiceImplTest {
                 .save(any());
     }
 
-    // ---------------------------------------------------------
-    // DEACTIVATE
-    // ---------------------------------------------------------
-
+    
     @Test
     void deactivateLabTest_shouldDeactivateSuccessfully() {
 
