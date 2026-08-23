@@ -1,6 +1,7 @@
 package com.medcore.features.notification.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+import com.medcore.features.notification.channel.EmailNotificationChannel;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.security.SecurityUtil;
 import com.medcore.common.security.TenantContextService;
@@ -44,7 +45,7 @@ public class NotificationServiceImpl
     private final TenantContextService tenantContextService;
 
     private final SimpMessagingTemplate messagingTemplate;
-
+    private final EmailNotificationChannel emailNotificationChannel;
      
     @Override
     @Transactional
@@ -102,7 +103,12 @@ public class NotificationServiceImpl
                 notificationRepository.save(
                         notification
                 );
-
+        
+        emailNotificationChannel.send(
+                recipient,
+                title,
+                message
+        );
 
         NotificationDelivery delivery =
                 NotificationDelivery.builder()
