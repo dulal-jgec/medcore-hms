@@ -26,6 +26,7 @@ import com.medcore.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.medcore.features.auth.dto.response.UserProfileResponse;
@@ -168,38 +169,56 @@ public class AuthServiceImpl implements AuthService {
                 .data(response)
                 .build();
     }
-    @Override
-    public ApiResponse<AuthResponse> refreshToken(RefreshTokenRequest request) {
 
-        // Verify Refresh Token
+    	
+    @Override
+    @Transactional
+    public ApiResponse<AuthResponse> refreshToken(
+            RefreshTokenRequest request) {
+
         RefreshToken refreshToken =
-                refreshTokenService.verifyRefreshToken(request.getRefreshToken());
+                refreshTokenService.verifyRefreshToken(
+                        request.getRefreshToken()
+                );
 
         User user = refreshToken.getUser();
-        
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new BusinessException("User account is not active");
-        }
-        
-        // Revoke old refreshtoken 
-        refreshTokenService.revokeRefreshToken(refreshToken);
 
-        // Generate New Tokens
-        String accessToken = jwtService.generateAccessToken(user.getEmail());
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(
+                    "User account is not active"
+            );
+        }
+
+        refreshTokenService.revokeRefreshToken(
+                refreshToken
+        );
+
+        String accessToken =
+                jwtService.generateAccessToken(
+                        user.getEmail()
+                );
 
         RefreshTokenResult refreshTokenResult =
                 refreshTokenService.createRefreshToken(user);
 
-        AuthResponse authResponse = AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshTokenResult.getRawToken())
-                .tokenType("Bearer")
-                .expiresIn(jwtProperties.getAccessTokenExpiration())
-                .build();
+        AuthResponse authResponse =
+                AuthResponse.builder()
+                        .accessToken(accessToken)
+                        .refreshToken(
+                                refreshTokenResult.getRawToken()
+                        )
+                        .tokenType("Bearer")
+                        .expiresIn(
+                                jwtProperties
+                                        .getAccessTokenExpiration()
+                        )
+                        .build();
 
         return ApiResponse.<AuthResponse>builder()
                 .success(true)
-                .message("Access token refreshed successfully")
+                .message(
+                        "Access token refreshed successfully"
+                )
                 .data(authResponse)
                 .build();
     }

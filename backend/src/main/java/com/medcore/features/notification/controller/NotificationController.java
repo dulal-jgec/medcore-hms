@@ -14,14 +14,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import org.springframework.web.bind.annotation.*;
-
+import com.medcore.common.security.SecurityUtil;
+import com.medcore.common.exception.ResourceNotFoundException;
+import com.medcore.features.user.entity.User;
+import com.medcore.features.user.repository.UserRepository;
+import com.medcore.features.notification.channel.EmailNotificationChannel;
 @RestController
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
 
     private final NotificationService notificationService;
-
+    private final UserRepository userRepository;
+    private final EmailNotificationChannel emailNotificationChannel;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -98,6 +103,37 @@ public class NotificationController {
                                 "Unread notification count fetched successfully"
                         )
                         .data(count)
+                        .build()
+        );
+    }
+    
+    @PostMapping("/test-email")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<String>> testEmail() {
+
+        String email =
+                SecurityUtil.getCurrentUsername();
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Current user not found"
+                                ));
+
+        emailNotificationChannel.send(
+                user,
+                "MedCore Test Email",
+                "This is a test email from MedCore HMS."
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse
+                        .<String>builder()
+                        .success(true)
+                        .message("Test email sent successfully")
+                        .data("Email sent")
                         .build()
         );
     }

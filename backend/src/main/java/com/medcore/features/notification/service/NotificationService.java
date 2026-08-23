@@ -20,4 +20,9 @@ public interface NotificationService {
     );
     void markAsRead(Long notificationId);
     long getUnreadCount();
+    
+    void sendRealtimeNotification(
+            Long userId,
+            NotificationResponse notification
+    );
 }

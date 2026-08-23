@@ -28,7 +28,7 @@ import org.springframework.data.domain.Pageable;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl
@@ -43,6 +43,7 @@ public class NotificationServiceImpl
 
     private final TenantContextService tenantContextService;
 
+    private final SimpMessagingTemplate messagingTemplate;
 
      
     @Override
@@ -248,6 +249,19 @@ public class NotificationServiceImpl
                         currentUser.getId()
                 );
     } 
+    
+    
+    @Override
+    public void sendRealtimeNotification(
+            Long userId,
+            NotificationResponse notification) {
+
+        messagingTemplate.convertAndSendToUser(
+                userId.toString(),
+                "/queue/notifications",
+                notification
+        );
+    }
      
 
     private User getCurrentUser() {
