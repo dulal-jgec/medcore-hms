@@ -1,28 +1,28 @@
 package com.medcore.features.notification.channel.impl;
 
 import com.medcore.features.notification.channel.SmsNotificationChannel;
+import com.medcore.features.notification.provider.NotificationDeliveryResult;
+import com.medcore.features.notification.provider.SmsProvider;
 import com.medcore.features.user.entity.User;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-@Slf4j
+@RequiredArgsConstructor
 public class SmsNotificationChannelImpl
         implements SmsNotificationChannel {
 
+    private final SmsProvider smsProvider;
+
     @Override
-    public void send(
+    public NotificationDeliveryResult send(
             User recipient,
             String title,
             String message) {
 
-        String phoneNumber = recipient.getPhone();
-
-        log.info(
-                "Sending SMS to {} | Title: {} | Message: {}",
-                phoneNumber,
-                title,
+        return smsProvider.sendSms(
+                recipient.getPhone(),
                 message
         );
     }

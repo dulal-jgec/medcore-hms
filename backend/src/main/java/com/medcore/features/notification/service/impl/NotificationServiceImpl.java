@@ -1,6 +1,8 @@
 package com.medcore.features.notification.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+import com.medcore.features.notification.channel.SmsNotificationChannel;
+import com.medcore.features.notification.provider.NotificationDeliveryResult;
 import com.medcore.features.notification.channel.EmailNotificationChannel;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.security.SecurityUtil;
@@ -46,6 +48,7 @@ public class NotificationServiceImpl
 
     private final SimpMessagingTemplate messagingTemplate;
     private final EmailNotificationChannel emailNotificationChannel;
+    private final SmsNotificationChannel smsNotificationChannel;
      
     @Override
     @Transactional
@@ -120,19 +123,33 @@ public class NotificationServiceImpl
             errorMessage = e.getMessage();
         }
         
-        try {
-            emailNotificationChannel.send(
-                    recipient,
-                    title,
-                    message
-            );
+        NotificationDeliveryResult smsResult =
+                smsNotificationChannel.send(
+                        recipient,
+                        title,
+                        message
+                );
 
-            deliveryStatus = DeliveryStatus.SENT;
+        NotificationDelivery smsDelivery =
+                NotificationDelivery.builder()
+                        .notification(savedNotification)
+                        .channel(NotificationChannel.SMS)
+                        .status(
+                                smsResult.isSuccess()
+                                        ? DeliveryStatus.SENT
+                                        : DeliveryStatus.FAILED
+                        )
+                        .recipientAddress(
+                                recipient.getPhone()
+                        )
+                        .errorMessage(
+                                smsResult.getErrorMessage()
+                        )
+                        .build();
 
-        } catch (Exception e) {
-            deliveryStatus = DeliveryStatus.FAILED;
-            errorMessage = e.getMessage();
-        }
+        notificationDeliveryRepository.save(
+                smsDelivery
+        );
 
         NotificationDelivery delivery =
                 NotificationDelivery.builder()
@@ -145,6 +162,21 @@ public class NotificationServiceImpl
 
         notificationDeliveryRepository.save(
                 delivery
+        );
+        
+        NotificationResponse notificationResponse =
+                NotificationResponse.builder()
+                        .id(savedNotification.getId())
+                        .type(savedNotification.getType())
+                        .title(savedNotification.getTitle())
+                        .message(savedNotification.getMessage())
+                        .read(savedNotification.getRead())
+                        .createdAt(savedNotification.getCreatedAt())
+                        .build();
+
+        sendRealtimeNotification(
+                recipient.getId(),
+                notificationResponse
         );
     }
 
