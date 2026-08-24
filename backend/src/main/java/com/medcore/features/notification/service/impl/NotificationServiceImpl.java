@@ -103,25 +103,30 @@ public class NotificationServiceImpl
                 notificationRepository.save(
                         notification
                 );
-        
-        emailNotificationChannel.send(
-                recipient,
-                title,
-                message
-        );
+        DeliveryStatus deliveryStatus;
+        String errorMessage = null;
+
+        try {
+            emailNotificationChannel.send(
+                    recipient,
+                    title,
+                    message
+            );
+
+            deliveryStatus = DeliveryStatus.SENT;
+
+        } catch (Exception e) {
+            deliveryStatus = DeliveryStatus.FAILED;
+            errorMessage = e.getMessage();
+        }
 
         NotificationDelivery delivery =
                 NotificationDelivery.builder()
                         .notification(savedNotification)
-                        .channel(
-                                NotificationChannel.IN_APP
-                        )
-                        .status(
-                                DeliveryStatus.SENT
-                        )
-                        .recipientAddress(
-                                recipient.getEmail()
-                        )
+                        .channel(NotificationChannel.EMAIL)
+                        .status(deliveryStatus)
+                        .recipientAddress(recipient.getEmail())
+                        .errorMessage(errorMessage)
                         .build();
 
         notificationDeliveryRepository.save(

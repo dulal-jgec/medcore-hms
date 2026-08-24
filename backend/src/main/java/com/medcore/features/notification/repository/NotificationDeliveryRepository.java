@@ -8,9 +8,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface NotificationDeliveryRepository
-        extends JpaRepository<NotificationDelivery, Long> {
+extends JpaRepository<NotificationDelivery, Long> {
 
-    List<NotificationDelivery> findByStatus(
-            DeliveryStatus status
-    );
+List<NotificationDelivery> findByStatus(
+    DeliveryStatus status
+);
+
+List<NotificationDelivery> findByStatusAndRetryCountLessThan(
+    DeliveryStatus status,
+    Integer retryCount
+);
 }

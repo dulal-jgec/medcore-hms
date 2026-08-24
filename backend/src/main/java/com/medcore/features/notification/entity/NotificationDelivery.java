@@ -44,4 +44,8 @@ public class NotificationDelivery extends BaseEntity {
 
     @Column(length = 1000)
     private String errorMessage;
+    
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer retryCount = 0;
 }
