@@ -119,6 +119,20 @@ public class NotificationServiceImpl
             deliveryStatus = DeliveryStatus.FAILED;
             errorMessage = e.getMessage();
         }
+        
+        try {
+            emailNotificationChannel.send(
+                    recipient,
+                    title,
+                    message
+            );
+
+            deliveryStatus = DeliveryStatus.SENT;
+
+        } catch (Exception e) {
+            deliveryStatus = DeliveryStatus.FAILED;
+            errorMessage = e.getMessage();
+        }
 
         NotificationDelivery delivery =
                 NotificationDelivery.builder()

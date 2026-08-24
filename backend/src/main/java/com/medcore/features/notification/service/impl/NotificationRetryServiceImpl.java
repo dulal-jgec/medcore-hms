@@ -23,6 +23,7 @@ public class NotificationRetryServiceImpl
 
     private final EmailNotificationChannel
             emailNotificationChannel;
+    
 
     @Override
     @Scheduled(fixedDelay = 60000)
