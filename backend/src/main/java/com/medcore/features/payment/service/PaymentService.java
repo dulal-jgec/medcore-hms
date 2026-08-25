@@ -9,4 +9,9 @@ public interface PaymentService {
     ApiResponse<PaymentOrderResponse> createPaymentOrder(
             CreatePaymentRequest request
     );
+
+    void handleWebhook(
+            String signature,
+            String payload
+    );
 }

@@ -102,4 +102,23 @@ public class RazorpayPaymentGateway
             return false;
         }
     }
+    
+    @Override
+    public boolean verifyWebhookSignature(
+            String payload,
+            String signature) {
+
+        try {
+
+            return com.razorpay.Utils.verifyWebhookSignature(
+                    payload,
+                    signature,
+                    razorpayProperties.getWebhookSecret()
+            );
+
+        } catch (Exception e) {
+
+            return false;
+        }
+    }
 }

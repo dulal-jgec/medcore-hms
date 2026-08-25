@@ -17,4 +17,9 @@ public interface PaymentGateway {
             String paymentId,
             String signature
     );
+    
+    boolean verifyWebhookSignature(
+            String payload,
+            String signature
+    );
 }
