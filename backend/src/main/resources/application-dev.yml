@@ -1,57 +1,100 @@
 spring:
+
   application:
+
     name: ${APP_NAME}
 
   datasource:
+
     url: ${DB_URL}
+
     username: ${DB_USERNAME}
+
     password: ${DB_PASSWORD}
+
     driver-class-name: org.postgresql.Driver
 
     hikari:
+
       maximum-pool-size: 10
+
       minimum-idle: 2
+
       connection-timeout: 30000
 
   data:
+
     redis:
+
       host: ${REDIS_HOST:localhost}
+
       port: ${REDIS_PORT:6379}
 
   jpa:
+
     open-in-view: false
 
     hibernate:
+
       ddl-auto: validate
 
     show-sql: true
 
     properties:
+
       hibernate:
+
         format_sql: true
 
   flyway:
+
     baseline-on-migrate: true
 
   mail:
+
     host: smtp.gmail.com
+
     port: 465
+
     username: ${MAIL_USERNAME}
+
     password: ${MAIL_PASSWORD}
 
     properties:
+
       mail:
+
         smtp:
+
           auth: true
+
           ssl:
+
             enable: true
+
             trust: smtp.gmail.com
 
+
 jwt:
+
   secret: ${JWT_SECRET}
+
   access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION}
+
   refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION}
 
+
+razorpay:
+
+  key-id: ${RAZORPAY_KEY_ID}
+
+  key-secret: ${RAZORPAY_KEY_SECRET}
+
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}
+
+
 logging:
+
   level:
+
     org.hibernate.SQL: DEBUG
