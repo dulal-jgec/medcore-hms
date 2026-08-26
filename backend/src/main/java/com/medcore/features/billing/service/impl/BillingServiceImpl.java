@@ -50,11 +50,16 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 public class BillingServiceImpl
         implements BillingService {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(BillingServiceImpl.class);
 
     private final BillRepository billRepository;
     private final AppointmentRepository appointmentRepository;
@@ -223,6 +228,15 @@ public class BillingServiceImpl
 
         Bill savedBill =
                 billRepository.save(bill);
+        
+        log.info(
+                "Bill created: billId={}, hospitalId={}, patientId={}, appointmentId={}, totalAmount={}",
+                savedBill.getId(),
+                hospitalId,
+                patient.getId(),
+                appointment.getId(),
+                savedBill.getTotalAmount()
+        );
 
         return ApiResponse.<BillResponse>builder()
                 .success(true)
@@ -265,6 +279,13 @@ public class BillingServiceImpl
         recalculateBill(bill);
 
         billRepository.save(bill);
+        
+        log.info(
+                "Bill item added: billId={}, itemId={}, hospitalId={}",
+                billId,
+                savedItem.getId(),
+                hospitalId
+        );
 
         return ApiResponse.<BillItemResponse>builder()
                 .success(true)
@@ -412,6 +433,13 @@ public class BillingServiceImpl
         );
 
         billItemRepository.save(item);
+        
+        log.info(
+                "Bill item deleted: billId={}, itemId={}, hospitalId={}",
+                billId,
+                itemId,
+                hospitalId
+        );
 
         recalculateBill(bill);
 
@@ -531,6 +559,16 @@ public class BillingServiceImpl
 
         Bill savedBill =
                 billRepository.save(bill);
+        
+        log.info(
+                "Bill payment recorded: billId={}, hospitalId={}, paidNow={}, totalPaid={}, status={}, paymentMethod={}",
+                savedBill.getId(),
+                hospitalId,
+                request.getAmount(),
+                savedBill.getPaidAmount(),
+                savedBill.getStatus(),
+                savedBill.getPaymentMethod()
+        );
 
         BigDecimal remainingDue =
                 savedBill.getTotalAmount()
