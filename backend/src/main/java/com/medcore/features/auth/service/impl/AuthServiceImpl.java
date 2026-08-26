@@ -1,6 +1,8 @@
 package com.medcore.features.auth.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import com.medcore.common.exception.DuplicateResourceException;
@@ -36,6 +38,9 @@ import com.medcore.features.hospital.enums.HospitalStatus;
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
+	
+	private static final Logger log= 
+			LoggerFactory.getLogger(AuthServiceImpl.class);
 
     private final UserRepository userRepository;
     private final HospitalRepository hospitalRepository;
@@ -49,7 +54,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public ApiResponse<String> register(RegisterRequest request) {
 
-        // Password Match
+         
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new BusinessException("Passwords do not match");
         }
@@ -98,6 +103,12 @@ public class AuthServiceImpl implements AuthService {
 
         // Save User
         userRepository.save(user);
+        
+        log.info(
+        		"User registered successfully: userId={}, role={}",
+        		user.getId(),
+        		role.getName()
+        		);
 
         // Response
         return ApiResponse.<String>builder()
@@ -118,6 +129,11 @@ public class AuthServiceImpl implements AuthService {
     	                request.getPassword()
     	        )
     	);
+    	
+    	log.info(
+    			"User authentication successful: email={}",
+    			email
+    			);
 
     	User user = userRepository.findByEmail(email)
     	        .orElseThrow(() ->
@@ -127,6 +143,11 @@ public class AuthServiceImpl implements AuthService {
     		
     		RefreshTokenResult refreshTokenResult =
     		        refreshTokenService.createRefreshToken(user);
+    		
+    		log.info(
+    		        "Login successful: userId={}",
+    		        user.getId()
+    		);
     		
     		AuthResponse authResponse = AuthResponse.builder()
     		        .accessToken(accessToken)
@@ -180,6 +201,11 @@ public class AuthServiceImpl implements AuthService {
                 refreshTokenService.verifyRefreshToken(
                         request.getRefreshToken()
                 );
+        
+        log.info(
+                "Refresh token verified: userId={}",
+                refreshToken.getUser().getId()
+        );
 
         User user = refreshToken.getUser();
 
@@ -200,6 +226,11 @@ public class AuthServiceImpl implements AuthService {
 
         RefreshTokenResult refreshTokenResult =
                 refreshTokenService.createRefreshToken(user);
+        
+        log.info(
+                "Access token refreshed successfully: userId={}",
+                user.getId()
+        );
 
         AuthResponse authResponse =
                 AuthResponse.builder()
@@ -238,6 +269,11 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenService.revokeRefreshToken(user);
 
         SecurityContextHolder.clearContext();
+        
+        log.info(
+                "User logged out successfully: userId={}",
+                user.getId()
+        );
 
         return ApiResponse.<String>builder()
                 .success(true)
