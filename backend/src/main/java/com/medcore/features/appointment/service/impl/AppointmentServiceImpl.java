@@ -42,10 +42,18 @@ import java.util.List;
 import java.time.LocalDateTime;
 import com.medcore.common.security.TenantContextService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 @Service
 @RequiredArgsConstructor
 public class AppointmentServiceImpl
         implements AppointmentService {
+	
+	private static final Logger log = 
+			LoggerFactory.getLogger(AppointmentServiceImpl.class);
+			
 
     private final AppointmentRepository appointmentRepository;
     private final HospitalRepository hospitalRepository;
@@ -213,6 +221,15 @@ public class AppointmentServiceImpl
                 appointmentRepository.save(
                         appointment
                 );
+
+        log.info(
+                "Appointment created: appointmentId={}, hospitalId={}, doctorId={}, patientId={}, appointmentDate={}",
+                savedAppointment.getId(),
+                hospitalId,
+                doctor.getId(),
+                patient.getId(),
+                request.getAppointmentDate()
+        );
 
         return ApiResponse.<AppointmentResponse>builder()
                 .success(true)
@@ -643,6 +660,14 @@ public ApiResponse<AppointmentResponse> updateAppointmentStatus(
     Appointment savedAppointment =
             appointmentRepository.save(appointment);
 
+    log.info(
+            "Appointment status updated: appointmentId={}, hospitalId={}, fromStatus={}, toStatus={}",
+            appointmentId,
+            hospitalId,
+            currentStatus,
+            newStatus
+    );
+
     return ApiResponse.<AppointmentResponse>builder()
             .success(true)
             .message("Appointment status updated successfully")
@@ -713,6 +738,12 @@ public ApiResponse<String> cancelAppointment(
 
     appointmentRepository.save(appointment);
 
+    log.info(
+            "Appointment cancelled: appointmentId={}, hospitalId={}",
+            appointmentId,
+            hospitalId
+    );
+
     return ApiResponse.<String>builder()
             .success(true)
             .message("Appointment cancelled successfully")
@@ -760,6 +791,12 @@ public ApiResponse<String> deleteAppointment(Long appointmentId) {
     appointment.setDeletedAt(LocalDateTime.now());
 
     appointmentRepository.save(appointment);
+
+    log.info(
+            "Appointment deleted: appointmentId={}, hospitalId={}",
+            appointmentId,
+            hospitalId
+    );
 
     return ApiResponse.<String>builder()
             .success(true)
@@ -817,6 +854,12 @@ public ApiResponse<String> restoreAppointment(
 
     appointmentRepository.save(appointment);
 
+    log.info(
+            "Appointment restored: appointmentId={}, hospitalId={}",
+            appointmentId,
+            hospitalId
+    );
+
     return ApiResponse.<String>builder()
             .success(true)
             .message("Appointment restored successfully")
@@ -865,6 +908,14 @@ public ApiResponse<AppointmentResponse> checkInAppointment(
 
     Appointment savedAppointment =
             appointmentRepository.save(appointment);
+
+    log.info(
+            "Patient checked in: appointmentId={}, hospitalId={}, doctorId={}, patientId={}",
+            appointmentId,
+            hospitalId,
+            appointment.getDoctor().getId(),
+            appointment.getPatient().getId()
+    );
 
     return ApiResponse.<AppointmentResponse>builder()
             .success(true)
