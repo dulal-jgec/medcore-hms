@@ -1,6 +1,8 @@
 package com.medcore.features.lab.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+
+
 import com.medcore.features.notification.service.NotificationService;
 import com.medcore.features.notification.enums.NotificationType;
 import com.medcore.common.exception.ResourceNotFoundException;
@@ -50,9 +52,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import com.medcore.common.cache.TenantCacheEvictService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 @Service
 @RequiredArgsConstructor
 public class LabOrderServiceImpl implements LabOrderService {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(LabOrderServiceImpl.class);
 
     private final LabOrderRepository labOrderRepository;
     private final LabOrderItemRepository labOrderItemRepository;
@@ -171,7 +181,16 @@ public class LabOrderServiceImpl implements LabOrderService {
                             .build();
 
             labOrderItemRepository.save(item);
-        }
+        }   
+            log.info(
+                    "Lab order created: labOrderId={}, appointmentId={}, doctorId={}, patientId={}, hospitalId={}",
+                    savedOrder.getId(),
+                    appointment.getId(),
+                    doctor.getId(),
+                    patient.getId(),
+                    hospital.getId()
+            );
+        
         
         notificationService.sendNotification(
                 patient.getUser().getId(),
@@ -290,6 +309,14 @@ public class LabOrderServiceImpl implements LabOrderService {
         LabOrderItem savedItem =
                 labOrderItemRepository.save(item);
         
+        log.info(
+                "Lab test added to order: labOrderId={}, labTestId={}, doctorId={}, hospitalId={}",
+                labOrderId,
+                request.getLabTestId(),
+                currentDoctor.getId(),
+                hospitalId
+        );
+        
         tenantCacheEvictService.evictLabOrders();
 
         return ApiResponse.<LabOrderItemResponse>builder()
@@ -313,8 +340,7 @@ public class LabOrderServiceImpl implements LabOrderService {
     public ApiResponse<LabOrderResponse> getLabOrderById(
             Long labOrderId) {
 
-        User currentUser = getCurrentUser();
-
+ 
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
 
@@ -380,7 +406,7 @@ public class LabOrderServiceImpl implements LabOrderService {
             Long labOrderId,
             LabOrderStatus status) {
 
-        User currentUser = getCurrentUser();
+         
 
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
@@ -441,6 +467,14 @@ public class LabOrderServiceImpl implements LabOrderService {
 
         LabOrder savedOrder =
                 labOrderRepository.save(labOrder);
+        
+        log.info(
+                "Lab order status updated: labOrderId={}, previousStatus={}, newStatus={}, hospitalId={}",
+                labOrderId,
+                currentStatus,
+                status,
+                hospitalId
+        );
 
         List<LabOrderItemResponse> items =
                 labOrderItemRepository
