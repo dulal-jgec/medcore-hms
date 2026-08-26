@@ -1,6 +1,7 @@
 package com.medcore.features.department.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+
 import com.medcore.common.cache.TenantCacheEvictService;
 import com.medcore.common.exception.DuplicateResourceException;
 import com.medcore.common.exception.ResourceNotFoundException;
@@ -30,13 +31,19 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 @RequiredArgsConstructor
 public class DepartmentServiceImpl
         implements DepartmentService {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(DepartmentServiceImpl.class);
 
     private final DepartmentRepository departmentRepository;
     private final HospitalRepository hospitalRepository;
@@ -124,6 +131,14 @@ public class DepartmentServiceImpl
                 departmentRepository.save(
                         department
                 );
+        
+        log.info(
+                "Department created: departmentId={}, hospitalId={}, name={}, code={}",
+                savedDepartment.getId(),
+                hospitalId,
+                savedDepartment.getName(),
+                savedDepartment.getCode()
+        );
         
         tenantCacheEvictService.evictDepartments();
 
@@ -277,6 +292,13 @@ public class DepartmentServiceImpl
                 departmentRepository.save(
                         department
                 );
+        
+        log.info(
+                "Department updated: departmentId={}, hospitalId={}",
+                departmentId,
+                hospitalId
+        );
+        
         tenantCacheEvictService.evictDepartments();
 
         return ApiResponse
@@ -327,6 +349,13 @@ public class DepartmentServiceImpl
                         department
             
                 		);
+        
+        log.info(
+                "Department status updated: departmentId={}, hospitalId={}, status={}",
+                departmentId,
+                hospitalId,
+                updatedDepartment.getStatus()
+        );
         
         tenantCacheEvictService.evictDepartments();
         
@@ -412,6 +441,12 @@ public class DepartmentServiceImpl
                 department
         );
         
+        log.info(
+                "Department deleted: departmentId={}, hospitalId={}",
+                departmentId,
+                hospitalId
+        );
+        
         tenantCacheEvictService.evictDepartments();
 
         return ApiResponse
@@ -458,6 +493,12 @@ public class DepartmentServiceImpl
 
         departmentRepository.save(
                 department
+        );
+        
+        log.info(
+                "Department restored: departmentId={}, hospitalId={}",
+                departmentId,
+                hospitalId
         );
         
         tenantCacheEvictService.evictDepartments();
