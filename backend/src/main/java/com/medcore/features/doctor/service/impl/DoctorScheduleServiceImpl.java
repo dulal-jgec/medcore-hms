@@ -18,12 +18,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class DoctorScheduleServiceImpl
         implements DoctorScheduleService {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(DoctorScheduleServiceImpl.class);
 
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository scheduleRepository;
@@ -112,6 +117,15 @@ public class DoctorScheduleServiceImpl
 
         DoctorSchedule savedSchedule =
                 scheduleRepository.save(schedule);
+        
+        log.info(
+                "Doctor schedule created: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}",
+                savedSchedule.getId(),
+                doctor.getId(),
+                savedSchedule.getDayOfWeek(),
+                savedSchedule.getStartTime(),
+                savedSchedule.getEndTime()
+        );
 
         return ApiResponse.<DoctorScheduleResponse>builder()
                 .success(true)

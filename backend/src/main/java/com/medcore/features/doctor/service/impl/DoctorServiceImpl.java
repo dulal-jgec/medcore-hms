@@ -33,11 +33,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class DoctorServiceImpl implements DoctorService {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(DoctorServiceImpl.class);
 
     private final DoctorRepository doctorRepository;
     private final UserRepository userRepository;
@@ -81,10 +86,6 @@ public class DoctorServiceImpl implements DoctorService {
             hospitalId = currentHospitalId;
         }
 
-  
-       
-         
-
         Hospital hospital = hospitalRepository
                 .findByIdAndDeletedAtIsNull(hospitalId)
                 .orElseThrow(() ->
@@ -93,9 +94,6 @@ public class DoctorServiceImpl implements DoctorService {
                         )
                 );
 
- 
-        
-       
 
         User user = userRepository
                 .findById(request.getUserId())
@@ -112,19 +110,12 @@ public class DoctorServiceImpl implements DoctorService {
             );
         }
 
-    
-         
-
         if (doctorRepository.existsByUserId(user.getId())) {
 
             throw new DuplicateResourceException(
                     "Doctor profile already exists for this user"
             );
-        }
-
-    
-        
-         
+        }  
 
         Department department = departmentRepository
                 .findByIdAndHospitalIdAndDeletedAtIsNull(
@@ -173,6 +164,14 @@ public class DoctorServiceImpl implements DoctorService {
 
         Doctor savedDoctor =
                 doctorRepository.save(doctor);
+        
+        log.info(
+                "Doctor created: doctorId={}, userId={}, hospitalId={}, departmentId={}",
+                savedDoctor.getId(),
+                user.getId(),
+                hospitalId,
+                department.getId()
+        );
 
         return ApiResponse.<DoctorResponse>builder()
                 .success(true)
@@ -391,6 +390,12 @@ public class DoctorServiceImpl implements DoctorService {
 
         Doctor updatedDoctor =
                 doctorRepository.save(doctor);
+        
+        log.info(
+                "Doctor updated: doctorId={}, hospitalId={}",
+                doctorId,
+                hospitalId
+        );
 
         return ApiResponse.<DoctorResponse>builder()
                 .success(true)
@@ -443,6 +448,13 @@ public class DoctorServiceImpl implements DoctorService {
 
         Doctor updatedDoctor =
                 doctorRepository.save(doctor);
+        
+        log.info(
+                "Doctor status updated: doctorId={}, hospitalId={}, status={}",
+                doctorId,
+                hospitalId,
+                updatedDoctor.getStatus()
+        );
 
         return ApiResponse.<DoctorResponse>builder()
                 .success(true)
@@ -595,6 +607,12 @@ public class DoctorServiceImpl implements DoctorService {
         );
 
         doctorRepository.save(doctor);
+        
+        log.info(
+                "Doctor deleted: doctorId={}, hospitalId={}",
+                doctorId,
+                hospitalId
+        );
 
         return ApiResponse.<String>builder()
                 .success(true)
@@ -652,6 +670,12 @@ public class DoctorServiceImpl implements DoctorService {
         doctor.setDeletedAt(null);
 
         doctorRepository.save(doctor);
+        
+        log.info(
+                "Doctor restored: doctorId={}, hospitalId={}",
+                doctorId,
+                hospitalId
+        );
 
         return ApiResponse.<String>builder()
                 .success(true)
