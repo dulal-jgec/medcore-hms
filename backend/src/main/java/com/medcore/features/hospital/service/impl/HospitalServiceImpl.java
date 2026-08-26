@@ -21,10 +21,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import java.time.LocalDateTime;
 import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class HospitalServiceImpl implements HospitalService {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(HospitalServiceImpl.class);
 
     private final HospitalRepository hospitalRepository;
     private final HospitalMapper hospitalMapper;
@@ -68,6 +75,13 @@ public ApiResponse<CreateHospitalResponse> createHospital(
     hospital.setPhone(phone);
 
     Hospital savedHospital = hospitalRepository.save(hospital);
+    
+    log.info(
+            "Hospital created: hospitalId={}, name={}, licenseNumber={}",
+            savedHospital.getId(),
+            savedHospital.getName(),
+            savedHospital.getLicenseNumber()
+    );
 
     CreateHospitalResponse response =
             hospitalMapper.toResponse(savedHospital);
@@ -183,6 +197,11 @@ public ApiResponse<CreateHospitalResponse> createHospital(
         hospitalMapper.updateEntity(hospital, request);
 
         Hospital updatedHospital = hospitalRepository.save(hospital);
+        
+        log.info(
+                "Hospital updated: hospitalId={}",
+                hospitalId
+        );
 
         CreateHospitalResponse response =
                 hospitalMapper.toResponse(updatedHospital);
@@ -208,6 +227,12 @@ public ApiResponse<CreateHospitalResponse> createHospital(
         hospital.setStatus(request.getStatus());
 
         Hospital updatedHospital = hospitalRepository.save(hospital);
+        
+        log.info(
+                "Hospital status updated: hospitalId={}, status={}",
+                hospitalId,
+                updatedHospital.getStatus()
+        );
 
         CreateHospitalResponse response =
                 hospitalMapper.toResponse(updatedHospital);
@@ -274,6 +299,11 @@ public ApiResponse<Page<CreateHospitalResponse>> searchHospitals(
         hospital.setDeletedAt(LocalDateTime.now());
 
         hospitalRepository.save(hospital);
+        
+        log.info(
+                "Hospital deleted: hospitalId={}",
+                hospitalId
+        );
 
         return ApiResponse.<String>builder()
                 .success(true)
@@ -298,6 +328,11 @@ public ApiResponse<Page<CreateHospitalResponse>> searchHospitals(
         hospital.setDeletedAt(null);
 
         hospitalRepository.save(hospital);
+        
+        log.info(
+                "Hospital restored: hospitalId={}",
+                hospitalId
+        );
 
         return ApiResponse.<String>builder()
                 .success(true)
