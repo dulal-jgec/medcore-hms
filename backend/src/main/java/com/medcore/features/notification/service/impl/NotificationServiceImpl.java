@@ -1,6 +1,8 @@
 package com.medcore.features.notification.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.medcore.features.notification.channel.SmsNotificationChannel;
 import com.medcore.features.notification.provider.NotificationDeliveryResult;
 import com.medcore.features.notification.channel.EmailNotificationChannel;
@@ -36,6 +38,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 @RequiredArgsConstructor
 public class NotificationServiceImpl
         implements NotificationService {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(NotificationServiceImpl.class);
 
     private final NotificationRepository notificationRepository;
 
@@ -57,6 +62,12 @@ public class NotificationServiceImpl
             NotificationType type,
             String title,
             String message) {
+    	
+    	log.info(
+    	        "Sending notification: recipientUserId={}, type={}",
+    	        recipientUserId,
+    	        type
+    	);
 
         Long hospitalId =
                 tenantContextService
@@ -117,10 +128,24 @@ public class NotificationServiceImpl
             );
 
             deliveryStatus = DeliveryStatus.SENT;
+            
+            log.info(
+                    "Email notification sent: recipientUserId={}, type={}",
+                    recipientUserId,
+                    type
+            );
 
         } catch (Exception e) {
+
             deliveryStatus = DeliveryStatus.FAILED;
             errorMessage = e.getMessage();
+
+            log.error(
+                    "Email notification failed: recipientUserId={}, type={}",
+                    recipientUserId,
+                    type,
+                    e
+            );
         }
         
         NotificationDeliveryResult smsResult =
@@ -312,6 +337,12 @@ public class NotificationServiceImpl
     public void sendRealtimeNotification(
             Long userId,
             NotificationResponse notification) {
+
+        log.info(
+                "Sending realtime notification: userId={}, notificationId={}",
+                userId,
+                notification.getId()
+        );
 
         messagingTemplate.convertAndSendToUser(
                 userId.toString(),
