@@ -93,19 +93,21 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleException(Exception ex) {
+public ResponseEntity<ErrorResponse> handleException(Exception ex) {
 
-        ErrorResponse response = ErrorResponse.builder()
-                .success(false)
-                .errorCode("INTERNAL_SERVER_ERROR")
-                .message("Something went wrong. Please try again later.")
-                .timestamp(LocalDateTime.now())
-                .build();
+    ex.printStackTrace();
 
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(response);
-    }
+    ErrorResponse response = ErrorResponse.builder()
+            .success(false)
+            .errorCode("INTERNAL_SERVER_ERROR")
+            .message("Something went wrong. Please try again later.")
+            .timestamp(LocalDateTime.now())
+            .build();
+
+    return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(response);
+}
     
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(

@@ -1,0 +1,40 @@
+services:
+
+  backend:
+    build: .
+    container_name: medcore-backend
+    ports:
+      - "8080:8080"
+
+    environment:
+      APP_NAME: ${APP_NAME}
+      SERVER_PORT: ${SERVER_PORT}
+
+      # PostgreSQL is running on Windows host
+      DB_URL: jdbc:postgresql://host.docker.internal:5432/medcore_hms
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # Redis is another Docker service
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION}
+      JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION}
+
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7
+    container_name: medcore-redis
+    ports:
+      - "6379:6379"
