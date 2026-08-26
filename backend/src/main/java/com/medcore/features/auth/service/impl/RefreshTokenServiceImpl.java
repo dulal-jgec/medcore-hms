@@ -112,7 +112,6 @@ public RefreshToken verifyRefreshToken(String token) {
         refreshToken.setRevoked(true);
         refreshTokenRepository.save(refreshToken);
         
-        refreshTokenRepository.save(refreshToken);
 
         log.debug(
                 "Refresh token revoked: tokenId={}, userId={}",

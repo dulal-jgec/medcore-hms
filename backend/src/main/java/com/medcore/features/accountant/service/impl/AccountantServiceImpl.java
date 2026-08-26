@@ -1,6 +1,7 @@
 package com.medcore.features.accountant.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
@@ -40,11 +41,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 public class AccountantServiceImpl
         implements AccountantService {
+	
+	private static final Logger log= 
+			LoggerFactory.getLogger(AccountantServiceImpl.class);
 
     private final AccountantRepository accountantRepository;
     private final UserRepository userRepository;
@@ -63,78 +69,12 @@ public class AccountantServiceImpl
                     "User is not associated with a hospital"
             );
         }
+        
+        
 
         return hospitalId;
     }
 
-    private User getCurrentUser() {
-
-        String email =
-                SecurityUtil.getCurrentUsername();
-
-        return userRepository
-                .findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Current user not found"
-                        ));
-    }
-
-    private Accountant getAccountant(
-            Long accountantId) {
-
-        Long hospitalId =
-                getCurrentHospitalId();
-
-        return accountantRepository
-                .findByIdAndHospitalIdAndDeletedAtIsNull(
-                        accountantId,
-                        hospitalId
-                )
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Accountant not found"
-                        ));
-    }
-
-    private Accountant getActiveAccountant() {
-
-        Long hospitalId =
-                getCurrentHospitalId();
-
-        User currentUser =
-                getCurrentUser();
-
-        Accountant accountant =
-                accountantRepository
-                        .findByUserIdAndDeletedAtIsNull(
-                                currentUser.getId()
-                        )
-                        .orElseThrow(() ->
-                                new BusinessException(
-                                        "Only accountants can access financial data"
-                                ));
-
-        if (accountant.getHospital() == null
-                || !accountant.getHospital()
-                .getId()
-                .equals(hospitalId)) {
-
-            throw new BusinessException(
-                    "You are not authorized to access this hospital data"
-            );
-        }
-
-        if (accountant.getStatus()
-                != AccountantStatus.ACTIVE) {
-
-            throw new BusinessException(
-                    "Inactive accountants cannot access financial data"
-            );
-        }
-
-        return accountant;
-    }
 
     @Override
     public ApiResponse<AccountantResponse> createAccountant(
@@ -194,6 +134,13 @@ public class AccountantServiceImpl
                 accountantRepository.save(
                         accountant
                 );
+        
+        log.info(
+                "Accountant created: accountantId={}, userId={}, hospitalId={}",
+                savedAccountant.getId(),
+                user.getId(),
+                hospitalId
+        );
 
         return ApiResponse.<AccountantResponse>builder()
                 .success(true)
@@ -301,6 +248,12 @@ public class AccountantServiceImpl
         accountantRepository.save(
                 accountant
         );
+        
+        log.info(
+                "Accountant deleted: accountantId={}, hospitalId={}",
+                accountantId,
+                getCurrentHospitalId()
+        );
 
         return ApiResponse.<Void>builder()
                 .success(true)
@@ -327,6 +280,12 @@ public class AccountantServiceImpl
                 accountantRepository.save(
                         accountant
                 );
+        
+        log.info(
+                "Accountant activated: accountantId={}, hospitalId={}",
+                accountantId,
+                getCurrentHospitalId()
+        );
 
         return ApiResponse.<AccountantResponse>builder()
                 .success(true)
@@ -357,6 +316,12 @@ public class AccountantServiceImpl
                 accountantRepository.save(
                         accountant
                 );
+        
+        log.info(
+                "Accountant deactivated: accountantId={}, hospitalId={}",
+                accountantId,
+                getCurrentHospitalId()
+        );
 
         return ApiResponse.<AccountantResponse>builder()
                 .success(true)
@@ -523,6 +488,13 @@ public class AccountantServiceImpl
                 totalBilledAmount.subtract(
                         totalPaidAmount
                 );
+        
+        log.info(
+                "Financial report requested: hospitalId={}, fromDate={}, toDate={}",
+                hospitalId,
+                fromDate,
+                toDate
+        );
 
         FinancialReportResponse response =
                 FinancialReportResponse.builder()
@@ -564,6 +536,8 @@ public class AccountantServiceImpl
                         hospitalId,
                         BillingStatus.CANCELLED
                 );
+        
+        
 
         List<PaymentMethodCollectionResponse>
                 response =
@@ -699,16 +673,95 @@ public class AccountantServiceImpl
     }
 
     @Override
-    public ApiResponse<PaymentResponse>
-    payBill(
+    public ApiResponse<PaymentResponse> payBill(
             Long billId,
             PaymentRequest request) {
 
         getActiveAccountant();
 
-        return billingService.payBill(
+        ApiResponse<PaymentResponse> response =
+                billingService.payBill(
+                        billId,
+                        request
+                );
+
+        log.info(
+                "Bill payment processed by accountant: billId={}, hospitalId={}",
                 billId,
-                request
+                getCurrentHospitalId()
         );
+
+        return response;
+    }
+    
+    
+    
+    private Accountant getAccountant(
+            Long accountantId) {
+
+        Long hospitalId =
+                getCurrentHospitalId();
+
+        return accountantRepository
+                .findByIdAndHospitalIdAndDeletedAtIsNull(
+                        accountantId,
+                        hospitalId
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Accountant not found"
+                        ));
+    }
+
+    private Accountant getActiveAccountant() {
+
+        Long hospitalId =
+                getCurrentHospitalId();
+
+        User currentUser =
+                getCurrentUser();
+
+        Accountant accountant =
+                accountantRepository
+                        .findByUserIdAndDeletedAtIsNull(
+                                currentUser.getId()
+                        )
+                        .orElseThrow(() ->
+                                new BusinessException(
+                                        "Only accountants can access financial data"
+                                ));
+
+        if (accountant.getHospital() == null
+                || !accountant.getHospital()
+                .getId()
+                .equals(hospitalId)) {
+
+            throw new BusinessException(
+                    "You are not authorized to access this hospital data"
+            );
+        }
+
+        if (accountant.getStatus()
+                != AccountantStatus.ACTIVE) {
+
+            throw new BusinessException(
+                    "Inactive accountants cannot access financial data"
+            );
+        }
+
+        return accountant;
+    }
+    
+    private User getCurrentUser() {
+
+        String email =
+                SecurityUtil.getCurrentUsername();
+
+        return userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Current user not found"
+                        ));
     }
 }
