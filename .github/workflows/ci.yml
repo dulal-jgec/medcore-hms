@@ -26,3 +26,7 @@ jobs:
       - name: Build
         working-directory: backend
         run: mvn clean package -DskipTests
+
+      - name: Build Docker image
+        working-directory: backend
+        run: docker build -t medcore-backend:ci .
