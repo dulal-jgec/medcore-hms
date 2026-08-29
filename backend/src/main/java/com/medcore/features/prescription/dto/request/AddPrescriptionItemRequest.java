@@ -11,8 +11,7 @@ import lombok.*;
 public class AddPrescriptionItemRequest {
 
     private Long medicineId;
-
-    @NotBlank(message = "Medicine name is required")
+    
     @Size(max = 150)
     private String medicineName;
 

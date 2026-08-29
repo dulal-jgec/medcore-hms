@@ -77,6 +77,7 @@ public class PrescriptionServiceImpl
 
 
     @Override
+    @Transactional
     public ApiResponse<PrescriptionResponse> createPrescription(
             CreatePrescriptionRequest request) {
 
