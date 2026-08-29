@@ -54,6 +54,14 @@ public class SuperAdminController {
         );
     }
     
+    @GetMapping("/hospitals/{hospitalId}")
+    public ApiResponse<CreateHospitalResponse>getHospitalById(
+    		@PathVariable Long hospitalId
+    		){
+    	return superAdminService.getHospitalById(hospitalId);
+    }
+    
+    
     @PutMapping("/hospitals/{hospitalId}")
     public ApiResponse<CreateHospitalResponse> updateHospital(
             @PathVariable Long hospitalId,

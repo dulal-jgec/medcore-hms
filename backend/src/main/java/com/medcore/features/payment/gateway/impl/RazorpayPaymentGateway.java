@@ -1,5 +1,6 @@
 package com.medcore.features.payment.gateway.impl;
 
+import com.medcore.common.exception.BusinessException;
 import com.medcore.features.payment.config.RazorpayProperties;
 import com.medcore.features.payment.gateway.PaymentGateway;
 import com.medcore.features.payment.gateway.dto.GatewayOrderResponse;
@@ -13,11 +14,16 @@ import org.json.JSONObject;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 @RequiredArgsConstructor
 public class RazorpayPaymentGateway
         implements PaymentGateway {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(RazorpayPaymentGateway.class);
 
     private final RazorpayProperties razorpayProperties;
 
@@ -72,10 +78,9 @@ public class RazorpayPaymentGateway
                     .build();
 
         } catch (Exception e) {
-
-            throw new RuntimeException(
-                    "Failed to create Razorpay order",
-                    e
+            log.error("Failed to create Razorpay order", e);
+            throw new BusinessException(
+                "Failed to create Razorpay order"
             );
         }
     }

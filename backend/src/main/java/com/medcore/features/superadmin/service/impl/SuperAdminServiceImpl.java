@@ -22,6 +22,7 @@ import com.medcore.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
+
 @Service
 @RequiredArgsConstructor
 public class SuperAdminServiceImpl implements SuperAdminService {
@@ -104,6 +105,7 @@ public class SuperAdminServiceImpl implements SuperAdminService {
                 hospitalId
         );
     }
+    
     
     @Override
     public ApiResponse<CreateHospitalResponse> updateHospital(

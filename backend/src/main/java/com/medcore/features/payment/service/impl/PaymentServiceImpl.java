@@ -27,6 +27,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -34,6 +37,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentServiceImpl
         implements PaymentService {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(PaymentServiceImpl.class);
 
     private final PaymentRepository paymentRepository;
     private final BillRepository billRepository;
@@ -242,9 +248,7 @@ public class PaymentServiceImpl
             String event =
                     webhook.getString("event");
 
-            System.out.println(
-                    "Razorpay event: " + event
-            );
+            log.info("Razorpay webhook received: event={}", event);
 
             switch (event) {
 
@@ -264,10 +268,10 @@ public class PaymentServiceImpl
 
                 default -> {
 
-                    System.out.println(
-                            "Ignoring unsupported Razorpay event: "
-                                    + event
-                    );
+                	log.warn(
+                		    "Ignoring unsupported Razorpay event: event={}",
+                		    event
+                		);
                 }
             }
 
