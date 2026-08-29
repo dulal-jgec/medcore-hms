@@ -12,7 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.medcore.features.pharmacy.entity.DispensingRequest;
 import java.util.List;
- 
+import com.medcore.common.response.PageResponse;
 
 @RestController
 @RequestMapping("/api/v1/pharmacies/inventory")
@@ -32,9 +32,18 @@ public class PharmacyInventoryController {
 
     @GetMapping
     @PreAuthorize("hasRole('PHARMACIST')")
-    public ApiResponse<List<PharmacyInventoryResponse>> getInventory() {
+    public ApiResponse<PageResponse<PharmacyInventoryResponse>> getInventory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "expiryDate") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
 
-        return inventoryService.getInventory();
+        return inventoryService.getInventory(
+                page,
+                size,
+                sortBy,
+                sortDir
+        );
     }
 
     @PatchMapping("/{inventoryId}/stock")
@@ -49,10 +58,5 @@ public class PharmacyInventoryController {
         );
     }
     
-    @GetMapping("/pending-dispensing")
-    @PreAuthorize("hasRole('PHARMACIST')")
-    public ApiResponse<List<DispensingRequest>> getPendingRequests() {
-
-        return inventoryService.getPendingRequests();
-    }
+   
 }

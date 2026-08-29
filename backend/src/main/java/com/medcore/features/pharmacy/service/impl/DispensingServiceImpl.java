@@ -3,6 +3,7 @@ package com.medcore.features.pharmacy.service.impl;
 import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
+import com.medcore.common.response.PageResponse;
 import com.medcore.common.security.SecurityUtil;
 import com.medcore.common.security.TenantContextService;
 
@@ -31,6 +32,14 @@ import com.medcore.features.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +51,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DispensingServiceImpl
         implements DispensingService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    DispensingServiceImpl.class
+            );
 
     private final UserRepository userRepository;
     private final PatientRepository patientRepository;
@@ -58,32 +72,8 @@ public class DispensingServiceImpl
 
     private final TenantContextService tenantContextService;
 
-    private User getCurrentUser() {
 
-        String email =
-                SecurityUtil.getCurrentUsername();
-
-        return userRepository
-                .findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Current user not found"
-                        ));
-    }
-
-    private Long getCurrentHospitalId() {
-
-        Long hospitalId =
-                tenantContextService.getCurrentHospitalId();
-
-        if (hospitalId == null) {
-            throw new BusinessException(
-                    "User is not associated with a hospital"
-            );
-        }
-
-        return hospitalId;
-    }
+     
 
     @Override
     @Transactional
@@ -128,6 +118,19 @@ public class DispensingServiceImpl
             );
         }
 
+        
+        if (prescription.getPatient() == null
+                || !prescription.getPatient()
+                .getId()
+                .equals(patient.getId())) {
+
+            throw new BusinessException(
+                    "You are not authorized to request dispensing for this prescription"
+            );
+        }
+
+         
+
         if (prescription.getStatus()
                 != PrescriptionStatus.FINALIZED) {
 
@@ -135,6 +138,8 @@ public class DispensingServiceImpl
                     "Only finalized prescriptions can be dispensed"
             );
         }
+
+        
 
         if (!Boolean.TRUE.equals(
                 prescription.getSharedWithPatient())) {
@@ -144,6 +149,7 @@ public class DispensingServiceImpl
             );
         }
 
+        
         if (dispensingRequestRepository
                 .existsByPrescriptionIdAndDeletedAtIsNull(
                         prescription.getId()
@@ -168,6 +174,15 @@ public class DispensingServiceImpl
                         dispensingRequest
                 );
 
+        
+        log.info(
+                "Dispensing request created: requestId={}, prescriptionId={}, patientId={}, hospitalId={}",
+                savedRequest.getId(),
+                prescription.getId(),
+                patient.getId(),
+                hospitalId
+        );
+
         return ApiResponse.<DispensingRequest>builder()
                 .success(true)
                 .message(
@@ -176,6 +191,9 @@ public class DispensingServiceImpl
                 .data(savedRequest)
                 .build();
     }
+
+
+    
 
     @Override
     @Transactional
@@ -198,6 +216,7 @@ public class DispensingServiceImpl
                                         "Dispensing request not found"
                                 ));
 
+         
         if (dispensingRequest.getStatus()
                 != DispensingStatus.PENDING) {
 
@@ -206,6 +225,7 @@ public class DispensingServiceImpl
             );
         }
 
+         
         if (dispensingRequest.getHospital() == null
                 || !dispensingRequest
                 .getHospital()
@@ -217,15 +237,17 @@ public class DispensingServiceImpl
             );
         }
 
+        
+
         pharmacistRepository
-        .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                currentUser.getId(),
-                hospitalId
-        )
-        .orElseThrow(() ->
-                new BusinessException(
-                        "Only pharmacists can dispense prescriptions"
-                ));
+                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                        currentUser.getId(),
+                        hospitalId
+                )
+                .orElseThrow(() ->
+                        new BusinessException(
+                                "Only pharmacists can dispense prescriptions"
+                        ));
 
         Pharmacy pharmacy =
                 pharmacyRepository
@@ -252,6 +274,8 @@ public class DispensingServiceImpl
                     "Prescription contains no medicines"
             );
         }
+
+        
 
         for (PrescriptionItem item : items) {
 
@@ -285,7 +309,17 @@ public class DispensingServiceImpl
                             )
                             .sum();
 
+             
             if (availableStock < requiredQuantity) {
+
+                log.warn(
+                        "Insufficient pharmacy stock: pharmacyId={}, medicineId={}, required={}, available={}, hospitalId={}",
+                        pharmacy.getId(),
+                        medicineId,
+                        requiredQuantity,
+                        availableStock,
+                        hospitalId
+                );
 
                 throw new BusinessException(
                         "Insufficient stock for medicine: "
@@ -299,6 +333,8 @@ public class DispensingServiceImpl
 
             int remaining =
                     requiredQuantity;
+
+            
 
             for (PharmacyInventory inventory :
                     inventories) {
@@ -345,6 +381,14 @@ public class DispensingServiceImpl
                         dispensingRequest
                 );
 
+         
+        log.info(
+                "Prescription dispensed successfully: requestId={}, prescriptionId={}, hospitalId={}",
+                savedRequest.getId(),
+                prescription.getId(),
+                hospitalId
+        );
+
         return ApiResponse.<DispensingRequest>builder()
                 .success(true)
                 .message(
@@ -354,38 +398,128 @@ public class DispensingServiceImpl
                 .build();
     }
 
-    @Override
-    public ApiResponse<List<DispensingRequest>> getPendingRequests() {
+ 
 
-        Long hospitalId =
-                getCurrentHospitalId();
+    @Override
+    public ApiResponse<PageResponse<DispensingRequest>> getPendingRequests(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
 
         User currentUser =
                 getCurrentUser();
 
-        pharmacistRepository
-        .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                currentUser.getId(),
-                hospitalId
-        )
-        .orElseThrow(() ->
-                new BusinessException(
-                        "Only pharmacists can view dispensing requests"
-                ));
+        Long hospitalId =
+                getCurrentHospitalId();
 
-        List<DispensingRequest> requests =
+       
+
+        pharmacistRepository
+                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                        currentUser.getId(),
+                        hospitalId
+                )
+                .orElseThrow(() ->
+                        new BusinessException(
+                                "Only pharmacists can view dispensing requests"
+                        ));
+
+        
+        Sort sort =
+                sortDir.equalsIgnoreCase("desc")
+                        ? Sort.by(sortBy).descending()
+                        : Sort.by(sortBy).ascending();
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        sort
+                );
+
+        Page<DispensingRequest> requestPage =
                 dispensingRequestRepository
                         .findByHospitalIdAndStatusAndDeletedAtIsNull(
                                 hospitalId,
-                                DispensingStatus.PENDING
+                                DispensingStatus.PENDING,
+                                pageable
                         );
 
-        return ApiResponse.<List<DispensingRequest>>builder()
+        PageResponse<DispensingRequest> pageResponse =
+                PageResponse.<DispensingRequest>builder()
+                        .items(requestPage.getContent())
+                        .page(requestPage.getNumber())
+                        .size(requestPage.getSize())
+                        .totalElements(
+                                requestPage.getTotalElements()
+                        )
+                        .totalPages(
+                                requestPage.getTotalPages()
+                        )
+                        .first(
+                                requestPage.isFirst()
+                        )
+                        .last(
+                                requestPage.isLast()
+                        )
+                        .hasNext(
+                                requestPage.hasNext()
+                        )
+                        .hasPrevious(
+                                requestPage.hasPrevious()
+                        )
+                        .build();
+
+        log.debug(
+                "Pending dispensing requests fetched: hospitalId={}, page={}, size={}, totalElements={}",
+                hospitalId,
+                page,
+                size,
+                requestPage.getTotalElements()
+        );
+
+        return ApiResponse
+                .<PageResponse<DispensingRequest>>builder()
                 .success(true)
                 .message(
                         "Pending dispensing requests fetched successfully"
                 )
-                .data(requests)
+                .data(pageResponse)
                 .build();
+    }
+
+ 
+
+    private User getCurrentUser() {
+
+        String email =
+                SecurityUtil.getCurrentUsername();
+
+        return userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Current user not found"
+                        ));
+    }
+
+
+ 
+
+    private Long getCurrentHospitalId() {
+
+        Long hospitalId =
+                tenantContextService
+                        .getCurrentHospitalId();
+
+        if (hospitalId == null) {
+
+            throw new BusinessException(
+                    "User is not associated with a hospital"
+            );
+        }
+
+        return hospitalId;
     }
 }

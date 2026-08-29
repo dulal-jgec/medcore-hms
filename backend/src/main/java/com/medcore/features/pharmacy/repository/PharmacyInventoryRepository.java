@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface PharmacyInventoryRepository
         extends JpaRepository<PharmacyInventory, Long> {
@@ -17,8 +19,10 @@ public interface PharmacyInventoryRepository
     Optional<PharmacyInventory>
     findByIdAndDeletedAtIsNull(Long id);
 
-    List<PharmacyInventory>
-    findByPharmacyIdAndDeletedAtIsNull(Long pharmacyId);
+    Page<PharmacyInventory> findByPharmacyIdAndDeletedAtIsNull(
+            Long pharmacyId,
+            Pageable pageable
+    );
 
     Optional<PharmacyInventory>
     findByPharmacyIdAndMedicineIdAndBatchNumberAndDeletedAtIsNull(
@@ -42,5 +46,16 @@ public interface PharmacyInventoryRepository
             @Param("pharmacyId") Long pharmacyId,
             @Param("medicineId") Long medicineId,
             @Param("today") LocalDate today
+    );
+    
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT i
+            FROM PharmacyInventory i
+            WHERE i.id = :inventoryId
+              AND i.deletedAt IS NULL
+            """)
+    Optional<PharmacyInventory> findByIdForUpdate(
+            @Param("inventoryId") Long inventoryId
     );
 }

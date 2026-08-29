@@ -3,6 +3,7 @@ package com.medcore.features.pharmacy.service.impl;
 import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
+import com.medcore.common.response.PageResponse;
 import com.medcore.common.security.SecurityUtil;
 import com.medcore.common.security.TenantContextService;
 
@@ -33,7 +34,16 @@ import com.medcore.features.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -42,6 +52,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PharmacyInventoryServiceImpl
         implements PharmacyInventoryService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    PharmacyInventoryServiceImpl.class
+            );
 
     private final PharmacyInventoryRepository inventoryRepository;
     private final PharmacyRepository pharmacyRepository;
@@ -58,6 +73,7 @@ public class PharmacyInventoryServiceImpl
 
 
     @Override
+    @Transactional
     public ApiResponse<PharmacyInventoryResponse> addInventory(
             AddInventoryRequest request) {
 
@@ -92,11 +108,46 @@ public class PharmacyInventoryServiceImpl
             );
         }
 
+        String batchNumber =
+                request.getBatchNumber().trim();
+
+        if (batchNumber.isEmpty()) {
+
+            throw new BusinessException(
+                    "Batch number cannot be empty"
+            );
+        }
+
+        if (request.getStockQuantity() == null
+                || request.getStockQuantity() < 0) {
+
+            throw new BusinessException(
+                    "Stock quantity cannot be negative"
+            );
+        }
+
+        if (request.getSellingPrice() == null
+                || request.getSellingPrice().signum() <= 0) {
+
+            throw new BusinessException(
+                    "Selling price must be greater than zero"
+            );
+        }
+
+        if (request.getExpiryDate() == null
+                || !request.getExpiryDate()
+                .isAfter(LocalDate.now())) {
+
+            throw new BusinessException(
+                    "Expiry date must be in the future"
+            );
+        }
+
         if (inventoryRepository
                 .findByPharmacyIdAndMedicineIdAndBatchNumberAndDeletedAtIsNull(
                         pharmacy.getId(),
                         medicine.getId(),
-                        request.getBatchNumber()
+                        batchNumber
                 )
                 .isPresent()) {
 
@@ -104,6 +155,8 @@ public class PharmacyInventoryServiceImpl
                     "This medicine batch already exists in inventory"
             );
         }
+
+        request.setBatchNumber(batchNumber);
 
         PharmacyInventory inventory =
                 inventoryMapper.toEntity(
@@ -116,6 +169,15 @@ public class PharmacyInventoryServiceImpl
                 inventoryRepository.save(
                         inventory
                 );
+
+        log.info(
+                "Inventory added: inventoryId={}, pharmacyId={}, medicineId={}, hospitalId={}, stockQuantity={}",
+                savedInventory.getId(),
+                pharmacy.getId(),
+                medicine.getId(),
+                hospitalId,
+                savedInventory.getStockQuantity()
+        );
 
         return ApiResponse
                 .<PharmacyInventoryResponse>builder()
@@ -133,8 +195,11 @@ public class PharmacyInventoryServiceImpl
 
 
     @Override
-    public ApiResponse<List<PharmacyInventoryResponse>>
-    getInventory() {
+    public ApiResponse<PageResponse<PharmacyInventoryResponse>> getInventory(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
 
         Long hospitalId =
                 getCurrentHospitalId();
@@ -149,33 +214,93 @@ public class PharmacyInventoryServiceImpl
                                         "Pharmacy not found"
                                 ));
 
-        List<PharmacyInventoryResponse> inventory =
+        Sort sort =
+                sortDir.equalsIgnoreCase("desc")
+                        ? Sort.by(sortBy).descending()
+                        : Sort.by(sortBy).ascending();
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        sort
+                );
+
+        Page<PharmacyInventory> inventoryPage =
                 inventoryRepository
                         .findByPharmacyIdAndDeletedAtIsNull(
-                                pharmacy.getId()
-                        )
+                                pharmacy.getId(),
+                                pageable
+                        );
+
+        List<PharmacyInventoryResponse> content =
+                inventoryPage
+                        .getContent()
                         .stream()
                         .map(inventoryMapper::toResponse)
                         .toList();
 
+        PageResponse<PharmacyInventoryResponse> pageResponse =
+                PageResponse.<PharmacyInventoryResponse>builder()
+                        .items(content)
+                        .page(inventoryPage.getNumber())
+                        .size(inventoryPage.getSize())
+                        .totalElements(
+                                inventoryPage.getTotalElements()
+                        )
+                        .totalPages(
+                                inventoryPage.getTotalPages()
+                        )
+                        .first(
+                                inventoryPage.isFirst()
+                        )
+                        .last(
+                                inventoryPage.isLast()
+                        )
+                        .hasNext(
+                                inventoryPage.hasNext()
+                        )
+                        .hasPrevious(
+                                inventoryPage.hasPrevious()
+                        )
+                        .build();
+
+        log.debug(
+                "Inventory fetched: pharmacyId={}, hospitalId={}, page={}, size={}, totalElements={}",
+                pharmacy.getId(),
+                hospitalId,
+                page,
+                size,
+                inventoryPage.getTotalElements()
+        );
+
         return ApiResponse
-                .<List<PharmacyInventoryResponse>>builder()
+                .<PageResponse<PharmacyInventoryResponse>>builder()
                 .success(true)
                 .message(
                         "Pharmacy inventory fetched successfully"
                 )
-                .data(inventory)
+                .data(pageResponse)
                 .build();
     }
 
 
     @Override
+    @Transactional
     public ApiResponse<PharmacyInventoryResponse> updateStock(
             Long inventoryId,
             UpdateInventoryStockRequest request) {
 
         Long hospitalId =
                 getCurrentHospitalId();
+
+        if (request.getQuantity() == null
+                || request.getQuantity() < 1) {
+
+            throw new BusinessException(
+                    "Stock quantity must be at least 1"
+            );
+        }
 
         Pharmacy pharmacy =
                 pharmacyRepository
@@ -189,15 +314,14 @@ public class PharmacyInventoryServiceImpl
 
         PharmacyInventory inventory =
                 inventoryRepository
-                        .findByIdAndDeletedAtIsNull(
-                                inventoryId
-                        )
+                        .findByIdForUpdate(inventoryId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Inventory item not found"
                                 ));
 
-        if (!inventory.getPharmacy()
+        if (inventory.getPharmacy() == null
+                || !inventory.getPharmacy()
                 .getId()
                 .equals(pharmacy.getId())) {
 
@@ -222,15 +346,37 @@ public class PharmacyInventoryServiceImpl
             );
         }
 
+        int oldStock =
+                inventory.getStockQuantity();
+
+        int newStock =
+                oldStock + request.getQuantity();
+
+        if (newStock < oldStock) {
+
+            throw new BusinessException(
+                    "Stock quantity overflow"
+            );
+        }
+
         inventory.setStockQuantity(
-                inventory.getStockQuantity()
-                        + request.getQuantity()
+                newStock
         );
 
         PharmacyInventory savedInventory =
                 inventoryRepository.save(
                         inventory
                 );
+
+        log.info(
+                "Inventory stock updated: inventoryId={}, pharmacyId={}, hospitalId={}, oldStock={}, addedQuantity={}, newStock={}",
+                savedInventory.getId(),
+                pharmacy.getId(),
+                hospitalId,
+                oldStock,
+                request.getQuantity(),
+                savedInventory.getStockQuantity()
+        );
 
         return ApiResponse
                 .<PharmacyInventoryResponse>builder()
@@ -246,43 +392,6 @@ public class PharmacyInventoryServiceImpl
                 .build();
     }
 
-
-    @Override
-    public ApiResponse<List<DispensingRequest>>
-    getPendingRequests() {
-
-        User currentUser =
-                getCurrentUser();
-
-        Long hospitalId =
-                getCurrentHospitalId();
-
-        pharmacistRepository
-        .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                currentUser.getId(),
-                hospitalId
-        )
-                .orElseThrow(() ->
-                        new BusinessException(
-                                "Only pharmacists can view dispensing requests"
-                        ));
-
-        List<DispensingRequest> requests =
-                dispensingRequestRepository
-                        .findByHospitalIdAndStatusAndDeletedAtIsNull(
-                                hospitalId,
-                                DispensingStatus.PENDING
-                        );
-
-        return ApiResponse
-                .<List<DispensingRequest>>builder()
-                .success(true)
-                .message(
-                        "Pending dispensing requests fetched successfully"
-                )
-                .data(requests)
-                .build();
-    }
 
 
     private User getCurrentUser() {
