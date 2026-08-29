@@ -32,6 +32,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import com.medcore.features.user.enums.RoleName;
 
 @Service
 @RequiredArgsConstructor
@@ -55,20 +60,30 @@ public class ReceptionistServiceImpl
 
         User user =
                 userRepository
-                        .findById(request.getUserId())
+                        .findByIdAndHospitalIdAndDeletedAtIsNull(
+                                request.getUserId(),
+                                hospitalId
+                        )
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
-                                        "User not found"
+                                        "User not found in this hospital"
                                 ));
 
-        if (user.getHospital() == null
-                || !user.getHospital()
-                .getId()
-                .equals(hospitalId)) {
+        if (user.getRole() == null
+                || user.getRole().getName() != RoleName.RECEPTIONIST) {
 
             throw new BusinessException(
-                    "User does not belong to the current hospital"
+                    "User does not have the RECEPTIONIST role"
             );
+        }
+        if (receptionistRepository
+                .existsByUserIdAndDeletedAtIsNull(
+                        user.getId()
+                )) {
+
+            throw new BusinessException(
+                    "Receptionist profile already exists for this user"
+                );
         }
 
         if (receptionistRepository
@@ -128,28 +143,59 @@ public class ReceptionistServiceImpl
     }
 
     @Override
-    public ApiResponse<List<ReceptionistResponse>>
-    getAllReceptionists() {
+    	public ApiResponse<PageResponse<ReceptionistResponse>> getAllReceptionists(
+        int page,
+        int size,
+        String sortBy,
+        String sortDir) {
 
-        Long hospitalId =
-                getCurrentHospitalId();
+    Long hospitalId = getCurrentHospitalId();
 
-        List<ReceptionistResponse> receptionists =
-                receptionistRepository
-                        .findByHospitalIdAndDeletedAtIsNull(
-                                hospitalId
-                        )
-                        .stream()
-                        .map(receptionistMapper::toResponse)
-                        .toList();
+    Sort.Direction direction =
+            sortDir.equalsIgnoreCase("desc")
+                    ? Sort.Direction.DESC
+                    : Sort.Direction.ASC;
 
-        return ApiResponse
-                .<List<ReceptionistResponse>>builder()
-                .success(true)
-                .message("Receptionists fetched successfully")
-                .data(receptionists)
-                .build();
-    }
+    Pageable pageable =
+            PageRequest.of(
+                    page,
+                    size,
+                    Sort.by(direction, sortBy)
+            );
+
+    Page<Receptionist> receptionistPage =
+            receptionistRepository
+                    .findByHospitalIdAndDeletedAtIsNull(
+                            hospitalId,
+                            pageable
+                    );
+
+    List<ReceptionistResponse> items =
+            receptionistPage.getContent()
+                    .stream()
+                    .map(receptionistMapper::toResponse)
+                    .toList();
+
+    PageResponse<ReceptionistResponse> pageResponse =
+            PageResponse.<ReceptionistResponse>builder()
+                    .items(items)
+                    .page(receptionistPage.getNumber())
+                    .size(receptionistPage.getSize())
+                    .totalElements(receptionistPage.getTotalElements())
+                    .totalPages(receptionistPage.getTotalPages())
+                    .first(receptionistPage.isFirst())
+                    .last(receptionistPage.isLast())
+                    .hasNext(receptionistPage.hasNext())
+                    .hasPrevious(receptionistPage.hasPrevious())
+                    .build();
+
+    return ApiResponse
+            .<PageResponse<ReceptionistResponse>>builder()
+            .success(true)
+            .message("Receptionists fetched successfully")
+            .data(pageResponse)
+            .build();
+}
 
     @Override
     public ApiResponse<ReceptionistResponse> updateReceptionist(

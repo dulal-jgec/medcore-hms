@@ -21,7 +21,13 @@ public interface ReceptionistService {
             Long receptionistId
     );
 
-    ApiResponse<List<ReceptionistResponse>> getAllReceptionists();
+    ApiResponse<PageResponse<ReceptionistResponse>>
+    getAllReceptionists(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
 
     ApiResponse<ReceptionistResponse> updateReceptionist(
             Long receptionistId,

@@ -47,12 +47,20 @@ public class ReceptionistController {
 
     @GetMapping
     @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
-    public ApiResponse<List<ReceptionistResponse>>
-    getAllReceptionists() {
+    public ApiResponse<PageResponse<ReceptionistResponse>>
+    getAllReceptionists(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
 
-        return receptionistService.getAllReceptionists();
+        return receptionistService.getAllReceptionists(
+                page,
+                size,
+                sortBy,
+                sortDir
+        );
     }
-
     @PutMapping("/{receptionistId}")
     @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     public ApiResponse<ReceptionistResponse> updateReceptionist(
