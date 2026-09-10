@@ -193,66 +193,69 @@ public class AuthServiceImpl implements AuthService {
 
     	
     @Override
-    @Transactional
-    public ApiResponse<AuthResponse> refreshToken(
-            RefreshTokenRequest request) {
+@Transactional
+public ApiResponse<AuthResponse> refreshToken(
+        String rawRefreshToken) {
 
-        RefreshToken refreshToken =
-                refreshTokenService.verifyRefreshToken(
-                        request.getRefreshToken()
-                );
-        
-        log.info(
-                "Refresh token verified: userId={}",
-                refreshToken.getUser().getId()
-        );
-
-        User user = refreshToken.getUser();
-
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new BusinessException(
-                    "User account is not active"
+    RefreshToken refreshToken =
+            refreshTokenService.verifyRefreshToken(
+                    rawRefreshToken
             );
-        }
 
-        refreshTokenService.revokeRefreshToken(
-                refreshToken
+    log.info(
+            "Refresh token verified: userId={}",
+            refreshToken.getUser().getId()
+    );
+
+    User user = refreshToken.getUser();
+
+    if (user.getStatus() != UserStatus.ACTIVE) {
+        throw new BusinessException(
+                "User account is not active"
         );
-
-        String accessToken =
-                jwtService.generateAccessToken(
-                        user.getEmail()
-                );
-
-        RefreshTokenResult refreshTokenResult =
-                refreshTokenService.createRefreshToken(user);
-        
-        log.info(
-                "Access token refreshed successfully: userId={}",
-                user.getId()
-        );
-
-        AuthResponse authResponse =
-                AuthResponse.builder()
-                        .accessToken(accessToken)
-                        .refreshToken(
-                                refreshTokenResult.getRawToken()
-                        )
-                        .tokenType("Bearer")
-                        .expiresIn(
-                                jwtProperties
-                                        .getAccessTokenExpiration()
-                        )
-                        .build();
-
-        return ApiResponse.<AuthResponse>builder()
-                .success(true)
-                .message(
-                        "Access token refreshed successfully"
-                )
-                .data(authResponse)
-                .build();
     }
+
+    // Revoke old refresh token
+    refreshTokenService.revokeRefreshToken(
+            refreshToken
+    );
+
+    // Generate new access token
+    String accessToken =
+            jwtService.generateAccessToken(
+                    user.getEmail()
+            );
+
+    // Generate new refresh token
+    RefreshTokenResult refreshTokenResult =
+            refreshTokenService.createRefreshToken(user);
+
+    log.info(
+            "Access token refreshed successfully: userId={}",
+            user.getId()
+    );
+
+    AuthResponse authResponse =
+            AuthResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(
+                            refreshTokenResult.getRawToken()
+                    )
+                    .tokenType("Bearer")
+                    .expiresIn(
+                            jwtProperties
+                                    .getAccessTokenExpiration()
+                    )
+                    .build();
+
+    return ApiResponse.<AuthResponse>builder()
+            .success(true)
+            .message(
+                    "Access token refreshed successfully"
+            )
+            .data(authResponse)
+            .build();
+}
     
     @Override
     public ApiResponse<String> logout() {
