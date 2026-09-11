@@ -1,26 +1,25 @@
-import "./globals.css";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/shared/theme-provider";
-import { AuthProvider } from "@/components/shared/auth-provider";
+import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata = {
-  title: "MedCore HMS",
-  description: "Hospital Management System",
+  title: {
+    default: "MedCore — Hospital Management System",
+    template: "%s | MedCore",
+  },
+  description:
+    "MedCore is a multi-tenant hospital management platform for patients, doctors, and hospital administrators.",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.variable}>
-       <ThemeProvider>
-  <AuthProvider>{children}</AuthProvider>
-</ThemeProvider>
+      <body className={`${inter.variable} font-sans antialiased`}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
