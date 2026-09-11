@@ -164,32 +164,35 @@ public class AuthServiceImpl implements AuthService {
     }
     
     @Override
-    public ApiResponse<UserProfileResponse> getCurrentUser() {
+@Transactional(readOnly = true)
+public ApiResponse<UserProfileResponse> getCurrentUser() {
 
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
+    Authentication authentication =
+            SecurityContextHolder.getContext().getAuthentication();
 
-        String email = authentication.getName();
+    String email = authentication.getName();
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found"));
+    User user = userRepository
+            .findWithRoleAndHospitalByEmail(email)
+            .orElseThrow(() ->
+                    new ResourceNotFoundException("User not found"));
 
-        UserProfileResponse response = UserProfileResponse.builder()
-                .id(user.getId())
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                .phone(user.getPhone())
-                .role(user.getRole().getName().name())
-                .hospitalName(user.getHospital().getName())
-                .build();
+    UserProfileResponse response =
+            UserProfileResponse.builder()
+                    .id(user.getId())
+                    .fullName(user.getFullName())
+                    .email(user.getEmail())
+                    .phone(user.getPhone())
+                    .role(user.getRole().getName().name())
+                    .hospitalName(user.getHospital().getName())
+                    .build();
 
-        return ApiResponse.<UserProfileResponse>builder()
-                .success(true)
-                .message("User profile fetched successfully")
-                .data(response)
-                .build();
-    }
+    return ApiResponse.<UserProfileResponse>builder()
+            .success(true)
+            .message("User profile fetched successfully")
+            .data(response)
+            .build();
+}
 
     	
     @Override

@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { login } from "@/services/auth.service";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAuthStore } from "@/store/auth.store";
 
 
 
@@ -24,6 +24,9 @@ const loginSchema = z.object({
 export default function LoginPage() {
 const router = useRouter();
 
+
+const loginUser = useAuthStore((state) => state.login);
+
   const {
     register,
     handleSubmit,
@@ -38,13 +41,7 @@ const router = useRouter();
 
   const onSubmit = async (data) => {
   try {
-    const result = await login(data);
-
-    console.log("Login successful:", result);
-
-    const accessToken = result.data.accessToken;
-
-    sessionStorage.setItem("accessToken", accessToken);
+    await loginUser(data);
 
     router.push("/dashboard");
   } catch (error) {
