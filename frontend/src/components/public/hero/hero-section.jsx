@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, PlayCircle } from "lucide-react";
+import { PlayCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { HeroTrustBadges } from "./hero-trust-badges";
@@ -37,15 +37,9 @@ export function HeroSection() {
 
             {/* CTAs */}
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button
-                asChild
-                className="h-11 px-6 whitespace-nowrap bg-primary hover:bg-primary/90"
-              >
-                <Link href="/for-hospitals">
-                  <span>Get Started</span>
-                  <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
-                </Link>
-              </Button>
+              <Button asChild className="h-11 px-6 whitespace-nowrap">
+  <Link href="/for-hospitals">Get Started</Link>
+</Button>
               <Button
                 asChild
                 variant="outline"

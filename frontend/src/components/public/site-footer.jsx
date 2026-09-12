@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Phone, Mail, MapPin, ArrowRight } from "lucide-react";
+import { Phone, Mail, MapPin } from "lucide-react";
 
 /* ─── Brand icons (lucide removed them; we inline them) ─── */
 function LinkedInIcon(props) {
@@ -135,12 +135,11 @@ export function SiteFooter() {
                   {group.links.map((link) => (
                     <li key={link.label}>
                       <Link
-                        href={link.href}
-                        className="group inline-flex items-center gap-1 text-sm opacity-70 transition-all hover:opacity-100"
-                      >
-                        <span>{link.label}</span>
-                        <ArrowRight className="h-3 w-3 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
-                      </Link>
+  href={link.href}
+  className="text-sm opacity-70 transition-all hover:opacity-100"
+>
+  {link.label}
+</Link>
                     </li>
                   ))}
                 </ul>

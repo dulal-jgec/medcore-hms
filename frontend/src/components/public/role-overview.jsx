@@ -7,7 +7,6 @@ import {
   ClipboardList,
   ShieldCheck,
   UserRound,
-  ArrowRight,
   Calendar,
   FileText,
   Pill,
@@ -148,9 +147,6 @@ export function RoleOverview() {
                     <span className="whitespace-nowrap lg:whitespace-normal">
                       {label}
                     </span>
-                    {isActive && (
-                      <ArrowRight className="ml-auto hidden h-4 w-4 lg:block" />
-                    )}
                   </button>
                 );
               })}
@@ -217,14 +213,8 @@ export function RoleOverview() {
 
                 {/* CTA */}
                 <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-6">
-                  <Button
-                    asChild
-                    className="h-11 px-6 whitespace-nowrap bg-primary hover:bg-primary/90"
-                  >
-                    <Link href="/login">
-                      <span>Sign in as {active.label}</span>
-                      <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
-                    </Link>
+                  <Button asChild size="sm">
+                    <Link href="/login">Sign in as {active.label}</Link>
                   </Button>
                   <p className="text-xs text-muted-foreground">
                     Access is granted by your hospital.

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, LogIn, LayoutDashboard, ArrowRight } from "lucide-react";
+import { Search, LogIn, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const STEPS = [
@@ -90,14 +90,8 @@ export function HowItWorks() {
 
         {/* Bottom CTA */}
         <div className="mt-16 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button
-            asChild
-            className="h-12 px-7 whitespace-nowrap bg-primary hover:bg-primary/90"
-          >
-            <Link href="/hospitals">
-              <span>Find your hospital</span>
-              <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
-            </Link>
+          <Button asChild size="lg">
+            <Link href="/hospitals">Find your hospital</Link>
           </Button>
           <Button
             asChild

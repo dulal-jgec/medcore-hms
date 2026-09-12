@@ -7,7 +7,7 @@ import {
   Building2,
   ServerCog,
   CheckCircle2,
-  ArrowRight,
+  ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -95,10 +95,7 @@ export function SecuritySection() {
                 size="lg"
                 className="bg-brand text-brand-foreground hover:bg-brand/90"
               >
-                <Link href="/about">
-                  Read our security approach
-                  <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Link>
+                <Link href="/about">Read our security approach</Link>
               </Button>
             </div>
           </div>
