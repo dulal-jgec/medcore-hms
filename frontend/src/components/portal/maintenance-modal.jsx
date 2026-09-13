@@ -45,7 +45,7 @@ export function MaintenanceModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -53,11 +53,11 @@ export function MaintenanceModal() {
         aria-hidden
       />
 
-      {/* Modal */}
-      <div className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-border bg-card shadow-2xl sm:max-h-none sm:rounded-3xl">
-        {/* Top warning strip */}
+      {/* Modal — compact on mobile */}
+      <div className="relative max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl sm:max-w-lg sm:rounded-3xl">
+        {/* Warning strip */}
         <div
-          className="h-1.5 w-full"
+          className="h-1 w-full sm:h-1.5"
           style={{
             backgroundImage:
               "repeating-linear-gradient(45deg, #F59E0B 0, #F59E0B 12px, #18181B 12px, #18181B 24px)",
@@ -68,58 +68,54 @@ export function MaintenanceModal() {
         <button
           type="button"
           onClick={dismiss}
-          className="absolute right-3 top-5 z-10 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:right-4 sm:top-6"
+          className="absolute right-2.5 top-3 z-10 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:right-4 sm:top-5 sm:p-1.5"
           aria-label="Close"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </button>
 
-        <div className="px-5 pb-6 pt-8 text-center sm:px-10 sm:pb-8 sm:pt-10">
-          {/* Animated icon */}
-          <div className="relative mx-auto flex h-20 w-20 items-center justify-center sm:h-24 sm:w-24">
+        <div className="px-4 pb-4 pt-6 text-center sm:px-10 sm:pb-8 sm:pt-10">
+          {/* Animated icon — smaller on mobile */}
+          <div className="relative mx-auto flex h-14 w-14 items-center justify-center sm:h-24 sm:w-24">
             <span className="absolute inset-0 animate-ping rounded-full bg-highlight/20" />
             <span
-              className="absolute inset-2 animate-pulse rounded-full bg-highlight/10"
+              className="absolute inset-1 animate-pulse rounded-full bg-highlight/10 sm:inset-2"
               style={{ animationDuration: "2s" }}
             />
-            <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-highlight text-highlight-foreground shadow-lg sm:h-20 sm:w-20">
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-highlight text-highlight-foreground shadow-lg sm:h-20 sm:w-20">
               <AlertTriangle
-                className="h-8 w-8 sm:h-10 sm:w-10"
+                className="h-6 w-6 sm:h-10 sm:w-10"
                 strokeWidth={2.5}
               />
             </div>
           </div>
 
           {/* Title */}
-          <h2 className="mt-5 text-xl font-bold tracking-tight sm:mt-6 sm:text-2xl">
-            Demo Mode — Final Integration in Progress
+          <h2 className="mt-3 text-base font-bold leading-tight tracking-tight sm:mt-6 sm:text-2xl">
+            Demo Mode — Integration in Progress
           </h2>
 
-          {/* Description */}
-          <p className="mx-auto mt-3 max-w-md text-[13px] leading-5 text-muted-foreground sm:text-sm sm:leading-6">
-            MedCore HMS is{" "}
+          {/* Description — shorter on mobile */}
+          <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground sm:mt-3 sm:text-sm sm:leading-6">
+            MedCore is{" "}
             <span className="font-medium text-foreground">
-              fully built on both frontend and backend
+              fully built on frontend &amp; backend
             </span>
-            . We are currently completing the{" "}
-            <span className="font-medium text-foreground">
-              integration between frontend, backend, and database
-            </span>{" "}
-            — after which everything goes live.
+            . Integration with the database is in progress.
           </p>
 
-          {/* Status cards */}
-          <div className="mt-5 grid grid-cols-2 gap-2.5 sm:mt-6 sm:grid-cols-4 sm:gap-3">
+          {/* Status cards — 4 columns always on mobile, tighter */}
+          <div className="mt-3 grid grid-cols-4 gap-1.5 sm:mt-6 sm:gap-3">
             <StatusCard
               icon={Code2}
               label="Frontend"
-              value="Complete"
+              value="Done"
               status="done"
             />
             <StatusCard
               icon={Server}
               label="Backend"
-              value="Complete"
+              value="Done"
               status="done"
             />
             <StatusCard
@@ -130,45 +126,40 @@ export function MaintenanceModal() {
             />
             <StatusCard
               icon={Plug}
-              label="Integration"
-              value="In progress"
+              label="Integrate"
+              value="WIP"
               status="progress"
             />
           </div>
 
-          {/* Info note */}
-          <div className="mt-5 flex items-start gap-3 rounded-xl border border-highlight-soft-foreground/20 bg-highlight-soft/40 p-3.5 text-left sm:mt-6 sm:p-4">
-            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-highlight-soft-foreground" />
-            <p className="text-xs leading-5 text-muted-foreground">
-              No real patient data is stored. Every action you take here is
-              local to your browser session and resets when you close the tab.
+          {/* Info note — compact */}
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-highlight-soft-foreground/20 bg-highlight-soft/40 p-2.5 text-left sm:mt-6 sm:gap-3 sm:rounded-xl sm:p-4">
+            <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-highlight-soft-foreground sm:h-4 sm:w-4" />
+            <p className="text-[11px] leading-4 text-muted-foreground sm:text-xs sm:leading-5">
+              No real patient data. Sample data only for demonstration.
             </p>
           </div>
 
-          {/* CTAs */}
-          <div className="mt-6 flex flex-col gap-2 sm:mt-7 sm:flex-row sm:justify-center">
+          {/* CTAs — stack on mobile */}
+          <div className="mt-4 flex flex-col gap-2 sm:mt-7 sm:flex-row sm:justify-center">
             <Button
               onClick={dismiss}
-              size="lg"
-              className="w-full sm:w-auto"
+              size="sm"
+              className="w-full sm:h-11 sm:w-auto sm:px-6"
             >
-              <Sparkles className="mr-2 h-4 w-4" />
+              <Sparkles className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
               Continue to Demo
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5 sm:ml-2 sm:h-4 sm:w-4" />
             </Button>
             <Button
               asChild
               variant="outline"
-              size="lg"
-              className="w-full sm:w-auto"
+              size="sm"
+              className="w-full sm:h-11 sm:w-auto sm:px-6"
             >
               <Link href="/">Back to home</Link>
             </Button>
           </div>
-
-          <p className="mt-4 text-[11px] text-muted-foreground sm:mt-5">
-            You can continue exploring the demos after this.
-          </p>
         </div>
       </div>
     </div>
@@ -182,25 +173,25 @@ function StatusCard({ icon: Icon, label, value, status }) {
     <div
       className={
         isDone
-          ? "rounded-xl border border-brand/30 bg-brand-soft/40 p-2.5 text-center sm:p-3"
-          : "rounded-xl border border-highlight-soft-foreground/20 bg-highlight-soft/30 p-2.5 text-center sm:p-3"
+          ? "rounded-lg border border-brand/30 bg-brand-soft/40 p-1.5 text-center sm:rounded-xl sm:p-3"
+          : "rounded-lg border border-highlight-soft-foreground/20 bg-highlight-soft/30 p-1.5 text-center sm:rounded-xl sm:p-3"
       }
     >
       <Icon
         className={
           isDone
-            ? "mx-auto h-4 w-4 text-brand"
-            : "mx-auto h-4 w-4 text-highlight-soft-foreground"
+            ? "mx-auto h-3 w-3 text-brand sm:h-4 sm:w-4"
+            : "mx-auto h-3 w-3 text-highlight-soft-foreground sm:h-4 sm:w-4"
         }
       />
-      <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:mt-2">
+      <p className="mt-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground sm:mt-2 sm:text-[10px]">
         {label}
       </p>
       <p
         className={
           isDone
-            ? "mt-0.5 text-[11px] font-semibold text-brand sm:text-xs"
-            : "mt-0.5 text-[11px] font-semibold text-highlight-soft-foreground sm:text-xs"
+            ? "text-[9px] font-semibold text-brand sm:text-xs"
+            : "text-[9px] font-semibold text-highlight-soft-foreground sm:text-xs"
         }
       >
         {value}
