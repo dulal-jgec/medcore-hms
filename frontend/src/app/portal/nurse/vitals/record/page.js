@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -15,9 +15,7 @@ import {
   MessageSquare,
   CheckCircle2,
   AlertCircle,
-  User,
   BedDouble,
-  Clock,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,28 +24,17 @@ import { cn } from "@/lib/utils";
 import { ASSIGNED_PATIENTS } from "@/lib/nurse-mock-data";
 
 const schema = z.object({
-  systolic: z.coerce
-    .number()
-    .min(50, "Too low")
-    .max(250, "Too high"),
-  diastolic: z.coerce
-    .number()
-    .min(30, "Too low")
-    .max(150, "Too high"),
+  systolic: z.coerce.number().min(50, "Too low").max(250, "Too high"),
+  diastolic: z.coerce.number().min(30, "Too low").max(150, "Too high"),
   pulse: z.coerce.number().min(30, "Too low").max(220, "Too high"),
-  temperature: z.coerce
-    .number()
-    .min(94, "Too low")
-    .max(108, "Too high"),
+  temperature: z.coerce.number().min(94, "Too low").max(108, "Too high"),
   spo2: z.coerce.number().min(60, "Too low").max(100, "Too high"),
-  respiratoryRate: z.coerce
-    .number()
-    .min(5, "Too low")
-    .max(60, "Too high"),
+  respiratoryRate: z.coerce.number().min(5, "Too low").max(60, "Too high"),
   notes: z.string().max(300, "Keep it under 300 characters").optional(),
 });
 
-export default function RecordVitalsPage() {
+/* ══════════ Content (uses useSearchParams) ══════════ */
+function RecordVitalsContent() {
   const router = useRouter();
   const params = useSearchParams();
   const patientId = Number(params.get("patientId"));
@@ -72,7 +59,6 @@ export default function RecordVitalsPage() {
     },
   });
 
-  // TODO: POST /api/v1/patients/:id/vitals
   async function onSubmit(data) {
     await new Promise((r) => setTimeout(r, 800));
     console.log("Vitals recorded:", { patientId, ...data });
@@ -125,7 +111,6 @@ export default function RecordVitalsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-      {/* Back */}
       <Link
         href={`/portal/nurse/patients/${patient.id}`}
         className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -134,7 +119,6 @@ export default function RecordVitalsPage() {
         Back to patient
       </Link>
 
-      {/* Header */}
       <div className="mt-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-brand">
           Vitals
@@ -147,7 +131,6 @@ export default function RecordVitalsPage() {
         </p>
       </div>
 
-      {/* Patient card */}
       <div className="mt-6 flex items-center gap-4 rounded-2xl border border-border bg-card p-5">
         <div
           className={cn(
@@ -182,9 +165,7 @@ export default function RecordVitalsPage() {
         </div>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
-        {/* Blood Pressure */}
         <SectionCard title="Blood Pressure">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
@@ -220,7 +201,6 @@ export default function RecordVitalsPage() {
           </div>
         </SectionCard>
 
-        {/* Other vitals */}
         <SectionCard title="Other measurements">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Pulse (bpm)" required error={errors.pulse?.message}>
@@ -252,11 +232,7 @@ export default function RecordVitalsPage() {
               </div>
             </Field>
 
-            <Field
-              label="SpO₂ (%)"
-              required
-              error={errors.spo2?.message}
-            >
+            <Field label="SpO₂ (%)" required error={errors.spo2?.message}>
               <div className="relative">
                 <Wind className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -283,7 +259,6 @@ export default function RecordVitalsPage() {
           </div>
         </SectionCard>
 
-        {/* Notes */}
         <SectionCard
           title="Nursing notes"
           desc="Optional — any observations or complaints from the patient."
@@ -294,14 +269,13 @@ export default function RecordVitalsPage() {
               <textarea
                 {...register("notes")}
                 rows={4}
-                placeholder="e.g. Patient reports mild headache. Ate breakfast fully."
+                placeholder="e.g. Patient reports mild headache."
                 className="w-full rounded-lg border border-input bg-background px-3 py-2.5 pl-10 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
               />
             </div>
           </Field>
         </SectionCard>
 
-        {/* Info banner */}
         <div className="flex items-start gap-3 rounded-xl border border-brand/20 bg-brand-soft/40 p-4">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
           <p className="text-xs leading-5 text-muted-foreground">
@@ -310,7 +284,6 @@ export default function RecordVitalsPage() {
           </p>
         </div>
 
-        {/* Actions */}
         <div className="flex flex-wrap justify-end gap-3">
           <Button type="button" variant="outline" asChild>
             <Link href="/portal/nurse/vitals">Cancel</Link>
@@ -350,5 +323,24 @@ function Field({ label, required, error, className, children }) {
       {children}
       {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
     </div>
+  );
+}
+
+/* ══════════ Default export wraps in Suspense ══════════ */
+export default function RecordVitalsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 w-32 rounded bg-muted" />
+            <div className="h-8 w-64 rounded bg-muted" />
+            <div className="mt-8 h-40 rounded-2xl bg-muted" />
+          </div>
+        </div>
+      }
+    >
+      <RecordVitalsContent />
+    </Suspense>
   );
 }
