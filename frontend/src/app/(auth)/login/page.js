@@ -1,5 +1,8 @@
+// src/app/(auth)/login/page.js
+
 "use client";
 
+import { Suspense } from 'react';
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -14,12 +17,8 @@ import { Input } from "@/components/ui/input";
 import { login } from "@/lib/auth-service";
 import { useAuthStore } from "@/store/auth-store";
 
-const loginSchema = z.object({
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-export default function LoginPage() {
+// ------------------- Your existing logic, now safely inside a component -------------------
+function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
   const hospitalId = params.get("hospitalId");
@@ -28,6 +27,11 @@ export default function LoginPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
+
+  const loginSchema = z.object({
+    email: z.string().email("Enter a valid email"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+  });
 
   const {
     register,
@@ -247,5 +251,14 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ------------------- The default export wraps the content in Suspense -------------------
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <LoginContent />
+    </Suspense>
   );
 }
