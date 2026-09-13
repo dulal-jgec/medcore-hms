@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -37,7 +38,8 @@ const PRIORITY_TABS = [
   { id: "NORMAL", label: "Normal only" },
 ];
 
-export default function LabOrdersPage() {
+// ------------------- Your existing logic, now safely inside a component -------------------
+function LabOrdersContent() {
   const params = useSearchParams();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState(params.get("status") || "all");
@@ -300,7 +302,7 @@ function OrderRow({ order }) {
           {isPending && (
             <Button size="sm" asChild>
               <Link href={`/portal/lab/orders/${order.id}`}>
-                 
+                <TestTube className="mr-1.5 h-3.5 w-3.5" />
                 Collect sample
               </Link>
             </Button>
@@ -309,7 +311,7 @@ function OrderRow({ order }) {
           {order.status === "SAMPLE_COLLECTED" && (
             <Button size="sm" variant="outline" asChild>
               <Link href={`/portal/lab/orders/${order.id}`}>
-                
+                <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
                 Start processing
               </Link>
             </Button>
@@ -318,7 +320,7 @@ function OrderRow({ order }) {
           {order.status === "PROCESSING" && (
             <Button size="sm" variant="outline" asChild>
               <Link href={`/portal/lab/orders/${order.id}`}>
-                 
+                <Microscope className="mr-1.5 h-3.5 w-3.5" />
                 Add results
               </Link>
             </Button>
@@ -327,7 +329,7 @@ function OrderRow({ order }) {
           {isReady && (
             <Button size="sm" asChild>
               <Link href={`/portal/lab/orders/${order.id}`}>
-                 
+                <FileText className="mr-1.5 h-3.5 w-3.5" />
                 Review & publish
               </Link>
             </Button>
@@ -343,5 +345,24 @@ function OrderRow({ order }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ------------------- The default export wraps the content in Suspense -------------------
+export default function LabOrdersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 w-48 rounded bg-muted" />
+            <div className="h-4 w-72 rounded bg-muted" />
+            <div className="mt-8 h-64 rounded-2xl bg-muted" />
+          </div>
+        </div>
+      }
+    >
+      <LabOrdersContent />
+    </Suspense>
   );
 }
