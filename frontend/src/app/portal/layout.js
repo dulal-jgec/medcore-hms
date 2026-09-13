@@ -12,7 +12,7 @@ export default function PortalLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-muted/20">
+    <div className="flex min-h-screen overflow-x-hidden bg-muted/20">
       <aside className="hidden w-64 shrink-0 border-r border-border bg-card lg:block">
         <div className="sticky top-0 h-screen">
           <PortalSidebar />
@@ -25,10 +25,10 @@ export default function PortalLayout({ children }) {
         </SheetContent>
       </Sheet>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <MaintenanceTopBar />
         <PortalTopbar onOpenSidebar={() => setMobileOpen(true)} />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 overflow-x-hidden">{children}</main>
       </div>
 
       <DemoNavigator />

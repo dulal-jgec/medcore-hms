@@ -6,10 +6,10 @@ import { DemoNavigator } from "@/components/portal/demo-navigator";
 
 export default function PublicLayout({ children }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-hidden">
       <TopBar />
       <SiteHeader />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 overflow-x-hidden">{children}</main>
       <SiteFooter />
       <DemoNavigator />
       <MaintenanceModal />
