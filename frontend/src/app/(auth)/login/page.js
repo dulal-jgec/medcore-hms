@@ -1,31 +1,33 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuthStore } from "@/store/auth.store";
+import { z } from "zod";
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, CheckCircle2 } from "lucide-react";
 
-
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { login } from "@/lib/auth-service";
+import { useAuthStore } from "@/store/auth-store";
 
 const loginSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .min(1, "Email address is required")
-    .email("Please enter a valid email address"),
-
-  password: z
-    .string()
-    .min(1, "Password is required"),
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export default function LoginPage() {
-const router = useRouter();
+  const router = useRouter();
+  const params = useSearchParams();
+  const hospitalId = params.get("hospitalId");
 
+  const setAuth = useAuthStore((s) => s.setAuth);
 
-const loginUser = useAuthStore((state) => state.login);
+  const [showPassword, setShowPassword] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const {
     register,
@@ -33,268 +35,216 @@ const loginUser = useAuthStore((state) => state.login);
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
-  const onSubmit = async (data) => {
-  try {
-    await loginUser(data);
-
-    router.push("/dashboard");
-  } catch (error) {
-    console.error("Login failed:", error);
+  async function onSubmit(data) {
+    setServerError("");
+    try {
+      const result = await login(data);
+      setAuth({ user: result.user, accessToken: result.accessToken });
+      router.push("/portal");
+    } catch (err) {
+      setServerError(err.message || "Login failed. Please try again.");
+    }
   }
-};
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="grid min-h-screen lg:grid-cols-2">
-
-        {/* LEFT SIDE */}
-        <section className="relative hidden overflow-hidden bg-muted/40 lg:block">
-          <div className="absolute inset-0">
-            <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
-            <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
+    <div className="grid min-h-screen lg:grid-cols-2">
+      {/* LEFT — form */}
+      <div className="flex flex-col px-6 py-10 sm:px-10 lg:px-16">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-lg font-bold text-brand-foreground">
+            M
           </div>
+          <span className="text-xl font-bold tracking-tight">
+            Med<span className="text-brand">Core</span>
+          </span>
+        </Link>
 
-          <div className="relative flex min-h-screen flex-col justify-between p-10 xl:p-14">
+        {/* Form panel */}
+        <div className="my-auto w-full max-w-md py-10">
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+            Welcome back
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+            Sign in to your account
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {hospitalId
+              ? "Sign in to access your hospital portal."
+              : "Enter your credentials to continue."}
+          </p>
 
-            {/* Brand */}
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-lg font-semibold">
-                  M
-                </span>
-              </div>
-
-              <div>
-                <h1 className="text-lg font-semibold tracking-tight">
-                  MedCore
-                </h1>
-
-                <p className="text-xs text-muted-foreground">
-                  Hospital Management System
-                </p>
-              </div>
-            </div>
-
-            {/* Main message */}
-            <div className="max-w-xl">
-              <div className="mb-5 flex items-center gap-2">
-                <span className="h-px w-8 bg-primary" />
-
-                <span className="text-sm font-medium text-primary">
-                  Healthcare operations, connected
-                </span>
-              </div>
-
-              <h2 className="text-4xl font-semibold leading-[1.15] tracking-tight xl:text-5xl">
-                A smarter way to manage
-                <span className="block text-muted-foreground">
-                  modern healthcare.
-                </span>
-              </h2>
-
-              <p className="mt-6 max-w-lg text-base leading-7 text-muted-foreground">
-                MedCore brings hospital administration, clinical
-                workflows, patient management, billing, laboratory
-                services and pharmacy operations together in one
-                secure platform.
-              </p>
-
-              <div className="mt-10 grid max-w-lg grid-cols-3 gap-6 border-t border-border pt-6">
-                <div>
-                  <p className="text-sm font-semibold">
-                    Secure
-                  </p>
-
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Role-based access
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm font-semibold">
-                    Connected
-                  </p>
-
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Unified workflows
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm font-semibold">
-                    Scalable
-                  </p>
-
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Built for hospitals
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>© 2026 MedCore HMS</span>
-              <span>Secure healthcare platform</span>
-            </div>
-          </div>
-        </section>
-
-        {/* RIGHT SIDE */}
-        <section className="flex min-h-screen items-center justify-center px-6 py-10 sm:px-10 lg:px-14 xl:px-20">
-
-          <div className="w-full max-w-md">
-
-            {/* Mobile brand */}
-            <div className="mb-12 lg:hidden">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <span className="text-lg font-semibold">
-                    M
-                  </span>
-                </div>
-
-                <div>
-                  <h1 className="text-lg font-semibold tracking-tight">
-                    MedCore
-                  </h1>
-
-                  <p className="text-xs text-muted-foreground">
-                    Hospital Management System
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Heading */}
-            <div className="mb-8">
-              <p className="mb-2 text-sm font-medium text-primary">
-                Welcome back
-              </p>
-
-              <h2 className="text-3xl font-semibold tracking-tight">
-                Sign in to MedCore
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Enter your credentials to access your hospital
-                workspace.
-              </p>
-            </div>
-
-            {/* FORM */}
-            <form
-              onSubmit={handleSubmit(onSubmit)}
-              className="space-y-5"
-            >
-
-              {/* EMAIL */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="email"
-                  className="text-sm font-medium"
-                >
-                  Email address
-                </label>
-
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="you@hospital.com"
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
+            {/* Email */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">
+                Email address
+              </label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
                   {...register("email")}
-                  className={`h-11 w-full rounded-md border bg-background px-3 text-sm outline-none transition-all placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/15 ${
-                    errors.email
-                      ? "border-destructive focus:border-destructive"
-                      : "border-input focus:border-primary"
-                  }`}
+                  type="email"
+                  placeholder="you@example.com"
+                  className="h-11 pl-10"
                 />
-
-                {errors.email && (
-                  <p className="text-xs text-destructive">
-                    {errors.email.message}
-                  </p>
-                )}
               </div>
+              {errors.email && (
+                <p className="mt-1.5 text-xs text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
-              {/* PASSWORD */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor="password"
-                    className="text-sm font-medium"
-                  >
-                    Password
-                  </label>
-
-                  <Link
-                    href="/forgot-password"
-                    className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="Enter your password"
-                  {...register("password")}
-                  className={`h-11 w-full rounded-md border bg-background px-3 text-sm outline-none transition-all placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/15 ${
-                    errors.password
-                      ? "border-destructive focus:border-destructive"
-                      : "border-input focus:border-primary"
-                  }`}
-                />
-
-                {errors.password && (
-                  <p className="text-xs text-destructive">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              {/* SUBMIT */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="h-11 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-              >
-                {isSubmitting ? "Signing in..." : "Sign in"}
-              </button>
-            </form>
-
-            {/* REGISTER */}
-            <div className="mt-8 border-t border-border pt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Don't have an account?{" "}
+            {/* Password */}
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="text-sm font-medium">Password</label>
                 <Link
-                  href="/register"
-                  className="font-medium text-primary transition-colors hover:text-primary/80"
+                  href="/forgot-password"
+                  className="text-xs font-medium text-brand hover:underline"
                 >
-                  Create an account
+                  Forgot password?
                 </Link>
-              </p>
+              </div>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  {...register("password")}
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className="h-11 pl-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground hover:bg-muted"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="mt-1.5 text-xs text-destructive">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
-            {/* SECURITY */}
-            <div className="mt-8 rounded-md border border-border bg-muted/30 px-4 py-3">
-              <p className="text-xs leading-5 text-muted-foreground">
-                MedCore access is restricted to authorized users.
-                Hospital information is protected through role-based
-                access controls.
-              </p>
-            </div>
+            {/* Server error */}
+            {serverError && (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {serverError}
+              </div>
+            )}
 
+            {/* Submit */}
+            <Button
+              type="submit"
+              size="lg"
+              disabled={isSubmitting}
+              className="h-11 w-full"
+            >
+              {isSubmitting ? "Signing in..." : "Sign in"}
+            </Button>
+          </form>
+
+          {/* Divider */}
+          <div className="my-7 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              New to MedCore?
+            </span>
+            <div className="h-px flex-1 bg-border" />
           </div>
-        </section>
+
+          <Button asChild variant="outline" size="lg" className="h-11 w-full">
+            <Link href="/register">Create a patient account</Link>
+          </Button>
+
+          {/* Demo hint */}
+          <div className="mt-8 rounded-lg border border-border bg-muted/30 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Demo tip
+            </p>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Try prefixes to see different roles:
+              <br />
+              <span className="font-mono text-foreground">doctor@x.com</span>{" "}
+              ·{" "}
+              <span className="font-mono text-foreground">nurse@x.com</span>{" "}
+              ·{" "}
+              <span className="font-mono text-foreground">admin@x.com</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="text-xs text-muted-foreground">
+          © {new Date().getFullYear()} MedCore. All rights reserved.
+        </p>
+      </div>
+
+      {/* RIGHT — image panel */}
+      <div className="relative hidden lg:block">
+        <Image
+          src="/images/hero-doctor.jpg"
+          alt="Healthcare professional using MedCore"
+          fill
+          priority
+          sizes="50vw"
+          className="object-cover"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-primary/40"
+        />
+
+        {/* Overlay content */}
+        <div className="relative flex h-full flex-col justify-between p-12 text-white">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
+            <ShieldCheck className="h-4 w-4 text-brand" />
+            Secure hospital platform
+          </div>
+
+          <div>
+            <h2 className="max-w-lg text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+              Connected care for{" "}
+              <span className="text-brand">every hospital role.</span>
+            </h2>
+            <p className="mt-5 max-w-md text-sm leading-7 text-white/80">
+              One platform for patients, doctors, nurses, and administrators —
+              with complete data isolation and role-based access.
+            </p>
+
+            <ul className="mt-8 space-y-3">
+              {[
+                "Multi-tenant secure architecture",
+                "Role-aware dashboards",
+                "Real-time updates",
+              ].map((item) => (
+                <li
+                  key={item}
+                  className="flex items-center gap-2 text-sm text-white/85"
+                >
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-brand" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-xs text-white/60">
+            Trusted by hospitals across India
+          </p>
+        </div>
       </div>
     </div>
   );
