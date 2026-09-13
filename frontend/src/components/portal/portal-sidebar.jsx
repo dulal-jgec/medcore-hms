@@ -24,6 +24,7 @@ import {
   AlertCircle,
   FlaskConical,
   Microscope,
+  Activity,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -128,6 +129,16 @@ LAB_TECHNICIAN: [
   { href: "/portal/lab/reports", label: "Reports", icon: FileText },
   { href: "/portal/lab/profile", label: "My Profile", icon: User },
 ],
+NURSE: [
+  { href: "/portal/nurse", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/portal/nurse/patients", label: "My Patients", icon: Users },
+  { href: "/portal/nurse/vitals", label: "Record Vitals", icon: Activity },
+  { href: "/portal/nurse/medications", label: "Medication Rounds", icon: Pill },
+  { href: "/portal/nurse/tasks", label: "My Tasks", icon: ClipboardList },
+  { href: "/portal/nurse/shifts", label: "My Shifts", icon: Clock },
+  { href: "/portal/nurse/profile", label: "My Profile", icon: User },
+],
+
 };
 
 /* URL slug → role name */

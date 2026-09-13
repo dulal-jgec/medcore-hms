@@ -1,0 +1,371 @@
+// Mock data — swap for API calls later
+// GET /api/v1/nurses/me
+// GET /api/v1/nurses/me/patients
+// GET /api/v1/nurses/me/vitals-queue
+// GET /api/v1/nurses/me/medications
+// GET /api/v1/nurses/me/tasks
+
+export const NURSE_PROFILE = {
+  id: 1,
+  fullName: "Sunita Kumari",
+  email: "sunita.kumari@medcore.health",
+  phone: "+91 98100 11111",
+  employeeId: "NUR-2023-042",
+  hospitalName: "North Bengal Medical Centre",
+  hospitalId: 1,
+  department: "Cardiology",
+  ward: "Ward A — 3rd Floor",
+  shift: "Morning",
+  shiftHours: "07:00 AM – 03:00 PM",
+  qualification: "B.Sc Nursing, GNM",
+  registrationNo: "WB-NUR-45120",
+  joinedOn: "2023-08-15",
+  status: "ACTIVE",
+  gender: "Female",
+};
+
+/* ─── Assigned patients for the shift ─── */
+export const ASSIGNED_PATIENTS = [
+  {
+    id: 1,
+    name: "Rohit Sharma",
+    age: 34,
+    gender: "Male",
+    bed: "A-101",
+    ward: "Ward A",
+    condition: "Hypertension — stable",
+    admittedOn: "2026-09-12",
+    primaryDoctor: "Dr. Ananya Sharma",
+    status: "STABLE",
+    lastVitalsAt: "2026-09-13 08:30 AM",
+    nextVitalsDue: "2026-09-13 10:30 AM",
+    medicationsDue: 2,
+    bloodGroup: "O+",
+    allergies: ["Penicillin"],
+  },
+  {
+    id: 2,
+    name: "Sunita Devi",
+    age: 58,
+    gender: "Female",
+    bed: "A-105",
+    ward: "Ward A",
+    condition: "Angina — under treatment",
+    admittedOn: "2026-09-10",
+    primaryDoctor: "Dr. Ananya Sharma",
+    status: "CRITICAL",
+    lastVitalsAt: "2026-09-13 08:00 AM",
+    nextVitalsDue: "2026-09-13 10:00 AM",
+    medicationsDue: 4,
+    bloodGroup: "B+",
+    allergies: [],
+  },
+  {
+    id: 3,
+    name: "Arvind Kumar",
+    age: 45,
+    gender: "Male",
+    bed: "A-108",
+    ward: "Ward A",
+    condition: "Post-angioplasty",
+    admittedOn: "2026-09-11",
+    primaryDoctor: "Dr. Ananya Sharma",
+    status: "CRITICAL",
+    lastVitalsAt: "2026-09-13 07:45 AM",
+    nextVitalsDue: "2026-09-13 09:45 AM",
+    medicationsDue: 3,
+    bloodGroup: "A+",
+    allergies: ["Aspirin"],
+  },
+  {
+    id: 4,
+    name: "Meera Joshi",
+    age: 62,
+    gender: "Female",
+    bed: "A-112",
+    ward: "Ward A",
+    condition: "Hypertension — stage 2",
+    admittedOn: "2026-09-09",
+    primaryDoctor: "Dr. Ananya Sharma",
+    status: "STABLE",
+    lastVitalsAt: "2026-09-13 08:15 AM",
+    nextVitalsDue: "2026-09-13 12:15 PM",
+    medicationsDue: 2,
+    bloodGroup: "AB+",
+    allergies: [],
+  },
+  {
+    id: 5,
+    name: "Karan Mehta",
+    age: 51,
+    gender: "Male",
+    bed: "A-115",
+    ward: "Ward A",
+    condition: "Arrhythmia — monitoring",
+    admittedOn: "2026-09-08",
+    primaryDoctor: "Dr. Ananya Sharma",
+    status: "STABLE",
+    lastVitalsAt: "2026-09-13 07:30 AM",
+    nextVitalsDue: "2026-09-13 11:30 AM",
+    medicationsDue: 1,
+    bloodGroup: "O-",
+    allergies: ["Sulfa drugs"],
+  },
+];
+
+/* ─── Vitals queue (who needs vitals recorded) ─── */
+export const VITALS_QUEUE = [
+  {
+    id: 1,
+    patientId: 3,
+    patientName: "Arvind Kumar",
+    bed: "A-108",
+    dueAt: "09:45 AM",
+    priority: "URGENT",
+    lastRecorded: {
+      bp: "138/88",
+      pulse: "92",
+      temp: "98.6",
+      spo2: "96",
+    },
+    overdue: true,
+  },
+  {
+    id: 2,
+    patientId: 2,
+    patientName: "Sunita Devi",
+    bed: "A-105",
+    dueAt: "10:00 AM",
+    priority: "URGENT",
+    lastRecorded: {
+      bp: "142/90",
+      pulse: "88",
+      temp: "98.4",
+      spo2: "97",
+    },
+    overdue: false,
+  },
+  {
+    id: 3,
+    patientId: 1,
+    patientName: "Rohit Sharma",
+    bed: "A-101",
+    dueAt: "10:30 AM",
+    priority: "NORMAL",
+    lastRecorded: {
+      bp: "122/80",
+      pulse: "72",
+      temp: "98.2",
+      spo2: "98",
+    },
+    overdue: false,
+  },
+  {
+    id: 4,
+    patientId: 5,
+    patientName: "Karan Mehta",
+    bed: "A-115",
+    dueAt: "11:30 AM",
+    priority: "NORMAL",
+    lastRecorded: {
+      bp: "128/84",
+      pulse: "76",
+      temp: "98.5",
+      spo2: "97",
+    },
+    overdue: false,
+  },
+  {
+    id: 5,
+    patientId: 4,
+    patientName: "Meera Joshi",
+    bed: "A-112",
+    dueAt: "12:15 PM",
+    priority: "NORMAL",
+    lastRecorded: {
+      bp: "134/86",
+      pulse: "80",
+      temp: "98.3",
+      spo2: "98",
+    },
+    overdue: false,
+  },
+];
+
+/* ─── Medication rounds ─── */
+export const MEDICATION_ROUNDS = [
+  {
+    id: 1,
+    patientId: 3,
+    patientName: "Arvind Kumar",
+    bed: "A-108",
+    timeSlot: "08:00 AM",
+    status: "OVERDUE",
+    medications: [
+      { name: "Clopidogrel 75mg", dose: "1 tablet", route: "Oral", notes: "After breakfast" },
+      { name: "Atorvastatin 40mg", dose: "1 tablet", route: "Oral", notes: "" },
+      { name: "Metoprolol 25mg", dose: "1 tablet", route: "Oral", notes: "Monitor BP" },
+    ],
+  },
+  {
+    id: 2,
+    patientId: 2,
+    patientName: "Sunita Devi",
+    bed: "A-105",
+    timeSlot: "09:00 AM",
+    status: "IN_PROGRESS",
+    medications: [
+      { name: "Metoprolol 50mg", dose: "1 tablet", route: "Oral", notes: "" },
+      { name: "Nitroglycerin 0.5mg SL", dose: "SOS", route: "Sublingual", notes: "For chest pain" },
+      { name: "Rosuvastatin 10mg", dose: "1 tablet", route: "Oral", notes: "" },
+      { name: "Aspirin 75mg", dose: "1 tablet", route: "Oral", notes: "" },
+    ],
+  },
+  {
+    id: 3,
+    patientId: 1,
+    patientName: "Rohit Sharma",
+    bed: "A-101",
+    timeSlot: "10:00 AM",
+    status: "PENDING",
+    medications: [
+      { name: "Amlodipine 5mg", dose: "1 tablet", route: "Oral", notes: "" },
+      { name: "Aspirin 75mg", dose: "1 tablet", route: "Oral", notes: "" },
+    ],
+  },
+  {
+    id: 4,
+    patientId: 4,
+    patientName: "Meera Joshi",
+    bed: "A-112",
+    timeSlot: "11:00 AM",
+    status: "PENDING",
+    medications: [
+      { name: "Telmisartan 40mg", dose: "1 tablet", route: "Oral", notes: "" },
+      { name: "Hydrochlorothiazide 12.5mg", dose: "1 tablet", route: "Oral", notes: "" },
+    ],
+  },
+  {
+    id: 5,
+    patientId: 5,
+    patientName: "Karan Mehta",
+    bed: "A-115",
+    timeSlot: "02:00 PM",
+    status: "PENDING",
+    medications: [
+      { name: "Bisoprolol 2.5mg", dose: "1 tablet", route: "Oral", notes: "" },
+    ],
+  },
+];
+
+/* ─── Nursing tasks ─── */
+export const NURSING_TASKS = [
+  {
+    id: 1,
+    title: "Change dressing — Arvind Kumar",
+    description: "Post-angioplasty femoral site dressing change",
+    patientName: "Arvind Kumar",
+    bed: "A-108",
+    priority: "HIGH",
+    dueAt: "09:30 AM",
+    status: "PENDING",
+    category: "PROCEDURE",
+  },
+  {
+    id: 2,
+    title: "Assist Dr. Ananya Sharma — Ward Round",
+    description: "Join doctor for morning rounds in Ward A",
+    patientName: null,
+    bed: null,
+    priority: "HIGH",
+    dueAt: "10:00 AM",
+    status: "IN_PROGRESS",
+    category: "ASSIST",
+  },
+  {
+    id: 3,
+    title: "Collect urine sample — Sunita Devi",
+    description: "Routine urinalysis collection",
+    patientName: "Sunita Devi",
+    bed: "A-105",
+    priority: "MEDIUM",
+    dueAt: "10:30 AM",
+    status: "PENDING",
+    category: "SAMPLE",
+  },
+  {
+    id: 4,
+    title: "Ambulate patient — Karan Mehta",
+    description: "Assisted walking — 10 minutes",
+    patientName: "Karan Mehta",
+    bed: "A-115",
+    priority: "LOW",
+    dueAt: "11:00 AM",
+    status: "PENDING",
+    category: "CARE",
+  },
+  {
+    id: 5,
+    title: "Update intake-output chart",
+    description: "Record fluid balance for all Ward A patients",
+    patientName: null,
+    bed: null,
+    priority: "MEDIUM",
+    dueAt: "12:00 PM",
+    status: "PENDING",
+    category: "DOCUMENTATION",
+  },
+  {
+    id: 6,
+    title: "Discharge paperwork — Rohit Sharma",
+    description: "Prepare discharge summary for doctor signature",
+    patientName: "Rohit Sharma",
+    bed: "A-101",
+    priority: "MEDIUM",
+    dueAt: "01:00 PM",
+    status: "PENDING",
+    category: "DISCHARGE",
+  },
+];
+
+/* ─── Doctor requests / messages ─── */
+export const DOCTOR_REQUESTS = [
+  {
+    id: 1,
+    doctorName: "Dr. Ananya Sharma",
+    message: "Check Arvind Kumar's BP every hour for next 4 hours",
+    patientName: "Arvind Kumar",
+    bed: "A-108",
+    time: "5 min ago",
+    priority: "URGENT",
+  },
+  {
+    id: 2,
+    doctorName: "Dr. Rajesh Verma",
+    message: "Inform family about MRI report timing",
+    patientName: "Suresh Chandra",
+    bed: "A-201",
+    time: "22 min ago",
+    priority: "NORMAL",
+  },
+];
+
+export function getNurseStats() {
+  return {
+    assignedPatients: ASSIGNED_PATIENTS.length,
+    criticalPatients: ASSIGNED_PATIENTS.filter((p) => p.status === "CRITICAL").length,
+    vitalsPending: VITALS_QUEUE.filter((v) => v.overdue || !v.overdue).length,
+    vitalsOverdue: VITALS_QUEUE.filter((v) => v.overdue).length,
+    medicationsDue: MEDICATION_ROUNDS.filter(
+      (m) => m.status === "PENDING" || m.status === "IN_PROGRESS" || m.status === "OVERDUE"
+    ).length,
+    medicationsOverdue: MEDICATION_ROUNDS.filter((m) => m.status === "OVERDUE").length,
+    tasksPending: NURSING_TASKS.filter(
+      (t) => t.status === "PENDING" || t.status === "IN_PROGRESS"
+    ).length,
+    tasksHighPriority: NURSING_TASKS.filter(
+      (t) => t.priority === "HIGH" && t.status !== "COMPLETED"
+    ).length,
+    doctorRequests: DOCTOR_REQUESTS.length,
+  };
+}

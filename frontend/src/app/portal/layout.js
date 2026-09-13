@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { PortalSidebar } from "@/components/portal/portal-sidebar";
 import { PortalTopbar } from "@/components/portal/portal-topbar";
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet";
+import { MaintenanceModal } from "@/components/portal/maintenance-modal";
+import { MaintenanceTopBar } from "@/components/portal/maintenance-top-bar";
+import { DemoNavigator } from "@/components/portal/demo-navigator";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export default function PortalLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -26,9 +26,13 @@ export default function PortalLayout({ children }) {
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <MaintenanceTopBar />
         <PortalTopbar onOpenSidebar={() => setMobileOpen(true)} />
         <main className="flex-1">{children}</main>
       </div>
+
+      <DemoNavigator />
+      <MaintenanceModal />
     </div>
   );
 }
