@@ -14,7 +14,11 @@ import { Mail, Lock, Eye, EyeOff, ShieldCheck, CheckCircle2 } from "lucide-react
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { login } from "@/lib/auth-service";
+import {
+  login,
+  getCurrentUser,
+} from "@/services/auth.service";
+
 import { useAuthStore } from "@/store/auth-store";
 
 // ------------------- Your existing logic, now safely inside a component -------------------
@@ -42,16 +46,34 @@ function LoginContent() {
     defaultValues: { email: "", password: "" },
   });
 
-  async function onSubmit(data) {
-    setServerError("");
-    try {
-      const result = await login(data);
-      setAuth({ user: result.user, accessToken: result.accessToken });
-      router.push("/portal");
-    } catch (err) {
-      setServerError(err.message || "Login failed. Please try again.");
-    }
+ async function onSubmit(data) {
+  setServerError("");
+
+  try {
+    // Step 1: Login and get access token
+    const loginResult = await login(data);
+
+    const accessToken = loginResult.data.accessToken;
+
+    // Step 2: Get currently authenticated user's information
+    const userResult = await getCurrentUser(accessToken);
+
+    const user = userResult.data;
+
+    // Step 3: Store authentication data
+    setAuth({
+      user,
+      accessToken,
+    });
+
+    // Step 4: Go to portal
+    router.push("/portal");
+  } catch (err) {
+    setServerError(
+      err.message || "Login failed. Please try again."
+    );
   }
+}
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">

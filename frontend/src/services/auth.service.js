@@ -10,6 +10,10 @@ async function handleResponse(response) {
   return result;
 }
 
+// =========================
+// LOGIN
+// =========================
+
 export async function login(credentials) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
@@ -23,14 +27,25 @@ export async function login(credentials) {
   return handleResponse(response);
 }
 
-export async function refreshToken() {
-  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+// =========================
+// REGISTER
+// =========================
+
+export async function register(userData) {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: "POST",
-    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(userData),
   });
 
   return handleResponse(response);
 }
+
+// =========================
+// CURRENT USER
+// =========================
 
 export async function getCurrentUser(accessToken) {
   const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -43,6 +58,23 @@ export async function getCurrentUser(accessToken) {
 
   return handleResponse(response);
 }
+
+// =========================
+// REFRESH TOKEN
+// =========================
+
+export async function refreshToken() {
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  return handleResponse(response);
+}
+
+// =========================
+// LOGOUT
+// =========================
 
 export async function logout(accessToken) {
   const response = await fetch(`${API_BASE_URL}/auth/logout`, {
