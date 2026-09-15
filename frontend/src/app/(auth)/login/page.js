@@ -14,20 +14,16 @@ import { Mail, Lock, Eye, EyeOff, ShieldCheck, CheckCircle2 } from "lucide-react
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  login,
-  getCurrentUser,
-} from "@/services/auth.service";
-
 import { useAuthStore } from "@/store/auth-store";
 
+ 
 // ------------------- Your existing logic, now safely inside a component -------------------
 function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
   const hospitalId = params.get("hospitalId");
 
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const login = useAuthStore((state) => state.login);
 
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
@@ -50,23 +46,8 @@ function LoginContent() {
   setServerError("");
 
   try {
-    // Step 1: Login and get access token
-    const loginResult = await login(data);
+    await login(data);
 
-    const accessToken = loginResult.data.accessToken;
-
-    // Step 2: Get currently authenticated user's information
-    const userResult = await getCurrentUser(accessToken);
-
-    const user = userResult.data;
-
-    // Step 3: Store authentication data
-    setAuth({
-      user,
-      accessToken,
-    });
-
-    // Step 4: Go to portal
     router.push("/portal");
   } catch (err) {
     setServerError(
@@ -278,6 +259,7 @@ function LoginContent() {
 
 // ------------------- The default export wraps the content in Suspense -------------------
 export default function LoginPage() {
+   
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
       <LoginContent />

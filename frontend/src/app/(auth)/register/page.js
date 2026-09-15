@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HOSPITALS } from "@/lib/hospitals";
-import { register as registerUser } from "@/lib/auth-service";
+import { register as registerUser } from "@/services/auth.service";
 
 const registerSchema = z
   .object({
@@ -30,18 +30,26 @@ const registerSchema = z
       .string()
       .min(2, "Enter your full name")
       .max(80, "Name is too long"),
+
     email: z.string().email("Enter a valid email"),
+
     phone: z
       .string()
-      .min(10, "Enter a valid phone number")
-      .max(15)
-      .regex(/^[0-9+\-\s()]+$/, "Only digits and + - ( ) allowed"),
+      .regex(
+        /^[6-9]\d{9}$/,
+        "Enter a valid 10-digit Indian mobile number"
+      ),
+
     hospitalId: z.string().min(1, "Select your hospital"),
+
     password: z
       .string()
-      .min(6, "Password must be at least 6 characters")
-      .max(50, "Password is too long"),
-    confirmPassword: z.string().min(6, "Please confirm your password"),
+      .min(8, "Password must be at least 8 characters")
+      .max(20, "Password must be at most 20 characters"),
+
+    confirmPassword: z
+      .string()
+      .min(8, "Please confirm your password"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -166,7 +174,7 @@ export default function RegisterPage() {
                   <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     {...register("phone")}
-                    placeholder="+91 90000 00000"
+                   placeholder="9876543210"
                     className="h-11 pl-10"
                   />
                 </div>
