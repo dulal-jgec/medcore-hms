@@ -18,7 +18,8 @@ public class CorsConfig {
                 new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of("http://localhost:3000")
+                List.of("http://localhost:3000",
+                		"https://medcore-hms-eight.vercel.app")
         );
 
         configuration.setAllowedMethods(
