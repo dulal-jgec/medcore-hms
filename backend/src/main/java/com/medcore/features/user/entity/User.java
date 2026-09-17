@@ -2,6 +2,8 @@ package com.medcore.features.user.entity;
 
 import com.medcore.common.entity.BaseEntity;
 import com.medcore.features.hospital.entity.Hospital;
+import com.medcore.features.user.enums.Gender;
+import com.medcore.features.user.enums.MaritalStatus;
 import com.medcore.features.user.enums.RoleName;
 import com.medcore.features.user.enums.UserStatus;
 import jakarta.persistence.*;
@@ -33,8 +35,7 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, length = 15)
-    private String phone;
+     
 
     private String profileImage;
     
@@ -57,6 +58,28 @@ public class User extends BaseEntity {
     private Boolean phoneVerified = false;
 
     private LocalDateTime lastLogin;
+    
+    @Column(length = 15)
+    private String phone;
+
+
+    @Column(length = 100)
+    private String city;
+
+    @Column(length = 100)
+    private String state;
+
+    @Column(length = 10)
+    private String pincode;
+
+    @Column(length = 100)
+    private String occupation;
+
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
+
+    @Enumerated(EnumType.STRING)
+    private MaritalStatus maritalStatus;
 
 	 
 }

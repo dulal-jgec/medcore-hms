@@ -1,0 +1,8 @@
+ALTER TABLE users
+    ADD COLUMN address VARCHAR(255),
+    ADD COLUMN city VARCHAR(100),
+    ADD COLUMN state VARCHAR(100),
+    ADD COLUMN pincode VARCHAR(10),
+    ADD COLUMN occupation VARCHAR(100),
+    ADD COLUMN gender VARCHAR(30),
+    ADD COLUMN marital_status VARCHAR(30);

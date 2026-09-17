@@ -2,6 +2,7 @@ package com.medcore.features.patient.service;
 
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
+import com.medcore.features.patient.dto.request.CreatePatientMeRequest;
 import com.medcore.features.patient.dto.request.CreatePatientRequest;
 import com.medcore.features.patient.dto.request.UpdatePatientRequest;
 import com.medcore.features.patient.dto.request.UpdatePatientStatusRequest;
@@ -44,5 +45,13 @@ public interface PatientService {
 
     ApiResponse<String> restorePatient(Long patientId);
     
-    
+    ApiResponse<PatientResponse> createMyProfile(
+            CreatePatientMeRequest request
+    );
+
+    ApiResponse<PatientResponse> getMyProfile();
+
+    ApiResponse<PatientResponse> updateMyProfile(
+            UpdatePatientRequest request
+    );
 }

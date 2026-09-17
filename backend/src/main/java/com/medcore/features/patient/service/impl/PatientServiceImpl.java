@@ -15,6 +15,7 @@ import com.medcore.features.patient.dto.request.UpdatePatientRequest;
 import com.medcore.features.patient.dto.request.UpdatePatientStatusRequest;
 import com.medcore.features.patient.dto.response.PatientResponse;
 import com.medcore.features.patient.entity.Patient;
+import com.medcore.features.patient.enums.PatientStatus;
 import com.medcore.features.patient.mapper.PatientMapper;
 import com.medcore.features.patient.repository.PatientRepository;
 import com.medcore.features.patient.service.PatientService;
@@ -30,11 +31,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
-
+import com.medcore.features.patient.dto.request.CreatePatientMeRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 @Service
 @RequiredArgsConstructor
 public class PatientServiceImpl
@@ -517,4 +521,159 @@ public class PatientServiceImpl
                 .data(response)
                 .build();
     }
+    
+    @Override
+    public ApiResponse<PatientResponse> createMyProfile(
+            CreatePatientMeRequest request) {
+
+        Long hospitalId = getCurrentHospitalId();
+
+        User user = getCurrentUser();
+
+        if (user.getRole() == null
+                || user.getRole().getName() != RoleName.PATIENT) {
+
+            throw new BusinessException(
+                    "Only patients can create a patient profile"
+            );
+        }
+
+        if (user.getHospital() == null
+                || !user.getHospital().getId().equals(hospitalId)) {
+
+            throw new BusinessException(
+                    "User does not belong to the current hospital"
+            );
+        }
+
+        if (patientRepository.existsByUserIdAndHospitalId(
+                user.getId(),
+                hospitalId)) {
+
+            throw new DuplicateResourceException(
+                    "Patient profile already exists"
+            );
+        }
+
+        Hospital hospital =
+                hospitalRepository
+                        .findByIdAndDeletedAtIsNull(hospitalId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Hospital not found"
+                                ));
+
+        Patient patient = Patient.builder()
+                .user(user)
+                .hospital(hospital)
+                .dateOfBirth(request.getDateOfBirth())
+                .bloodGroup(request.getBloodGroup())
+                .emergencyContactName(
+                        request.getEmergencyContactName().trim()
+                )
+                .emergencyContactPhone(
+                        request.getEmergencyContactPhone().trim()
+                )
+                .emergencyContactRelation(
+                        request.getEmergencyContactRelation().trim()
+                )
+                .allergies(request.getAllergies())
+                .chronicConditions(request.getChronicConditions())
+                .status(PatientStatus.ACTIVE)
+                .build();
+
+        Patient savedPatient =
+                patientRepository.save(patient);
+
+        return ApiResponse.<PatientResponse>builder()
+                .success(true)
+                .message("Patient profile created successfully")
+                .data(patientMapper.toResponse(savedPatient))
+                .build();
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<PatientResponse> getMyProfile() {
+
+        Long hospitalId = getCurrentHospitalId();
+
+        User user = getCurrentUser();
+
+        Patient patient =
+                patientRepository
+                        .findMyProfile(
+                                user.getId(),
+                                hospitalId
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Patient profile not found"
+                                ));
+
+        return ApiResponse.<PatientResponse>builder()
+                .success(true)
+                .message("Patient profile fetched successfully")
+                .data(patientMapper.toResponse(patient))
+                .build();
+    }
+    
+    @Override
+    public ApiResponse<PatientResponse> updateMyProfile(
+            UpdatePatientRequest request) {
+
+        Long hospitalId = getCurrentHospitalId();
+
+        User user = getCurrentUser();
+
+        Patient patient =
+                patientRepository
+                        .findByUserIdAndHospitalIdAndDeletedAtIsNull(
+                                user.getId(),
+                                hospitalId
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Patient profile not found"
+                                ));
+
+        patientMapper.updateEntity(
+                patient,
+                request
+        );
+
+        Patient updatedPatient =
+                patientRepository.save(patient);
+
+        return ApiResponse.<PatientResponse>builder()
+                .success(true)
+                .message("Patient profile updated successfully")
+                .data(patientMapper.toResponse(updatedPatient))
+                .build();
+    }
+    
+    private User getCurrentUser() {
+
+    Authentication authentication =
+            SecurityContextHolder
+                    .getContext()
+                    .getAuthentication();
+
+    if (authentication == null
+            || !authentication.isAuthenticated()) {
+
+        throw new BusinessException(
+                "User is not authenticated"
+        );
+    }
+
+    String email = authentication.getName();
+
+    return userRepository
+            .findByEmailWithRole(email)
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Current user not found"
+                    ));
+}
 }

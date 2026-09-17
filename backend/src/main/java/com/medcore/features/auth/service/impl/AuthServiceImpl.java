@@ -1,6 +1,7 @@
 package com.medcore.features.auth.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,6 +20,9 @@ import com.medcore.features.auth.service.AuthService;
 import com.medcore.features.auth.service.RefreshTokenService;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.repository.HospitalRepository;
+import com.medcore.features.patient.entity.Patient;
+import com.medcore.features.patient.enums.PatientStatus;
+import com.medcore.features.patient.repository.PatientRepository;
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
@@ -35,6 +39,10 @@ import com.medcore.features.auth.dto.response.UserProfileResponse;
 import com.medcore.features.auth.entity.RefreshToken;
 import com.medcore.features.auth.dto.request.RefreshTokenRequest;
 import com.medcore.features.hospital.enums.HospitalStatus;
+import org.springframework.transaction.annotation.Transactional;
+
+
+
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -50,7 +58,10 @@ public class AuthServiceImpl implements AuthService {
     private final JwtProperties jwtProperties;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
-
+    private final PatientRepository patientRepository;
+    
+    
+    @Transactional
     @Override
     public ApiResponse<String> register(RegisterRequest request) {
 
@@ -103,6 +114,29 @@ public class AuthServiceImpl implements AuthService {
 
         // Save User
         userRepository.save(user);
+        
+        Patient patient = Patient.builder()
+                .user(user)
+                .hospital(hospital)
+                .dateOfBirth(request.getDateOfBirth())
+                .bloodGroup(request.getBloodGroup())
+                .emergencyContactName(
+                        request.getEmergencyContactName().trim()
+                )
+                .emergencyContactPhone(
+                        request.getEmergencyContactPhone().trim()
+                )
+                .emergencyContactRelation(
+                        request.getEmergencyContactRelation().trim()
+                )
+                .allergies(request.getAllergies())
+                .chronicConditions(request.getChronicConditions())
+                .status(PatientStatus.ACTIVE)
+                .build();
+
+        patientRepository.save(patient);
+
+        patientRepository.save(patient);
         
         log.info(
         		"User registered successfully: userId={}, role={}",

@@ -22,6 +22,15 @@ public class AuthMapper {
                 .fullName(request.getFullName().trim())
                 .email(email)
                 .phone(request.getPhone().trim())
+
+                // Common user profile information
+                .city(request.getCity())
+                .state(request.getState())
+                .pincode(request.getPincode())
+                .occupation(request.getOccupation())
+                .gender(request.getGender())
+                .maritalStatus(request.getMaritalStatus())
+
                 .password(encodedPassword)
                 .hospital(hospital)
                 .role(role)
@@ -30,5 +39,4 @@ public class AuthMapper {
                 .phoneVerified(false)
                 .build();
     }
-
 }

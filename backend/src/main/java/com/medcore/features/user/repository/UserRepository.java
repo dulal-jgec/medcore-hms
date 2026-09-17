@@ -5,8 +5,10 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
-
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 public interface UserRepository extends JpaRepository<User, Long> {
+	
 
     Optional<User> findByEmail(String email);
 
@@ -26,4 +28,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
             Long userId,
             Long hospitalId
     );
+    
+    @Query("""
+    	    SELECT u
+    	    FROM User u
+    	    JOIN FETCH u.role
+    	    WHERE u.email = :email
+    	""")
+    	Optional<User> findByEmailWithRole(@Param("email") String email);
 }

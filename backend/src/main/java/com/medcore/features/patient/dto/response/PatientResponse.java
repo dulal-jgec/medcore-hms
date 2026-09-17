@@ -2,41 +2,50 @@ package com.medcore.features.patient.dto.response;
 
 import com.medcore.features.patient.enums.BloodGroup;
 import com.medcore.features.patient.enums.PatientStatus;
-import lombok.AllArgsConstructor;
+import com.medcore.features.user.enums.Gender;
+import com.medcore.features.user.enums.MaritalStatus;
+
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
 @Builder
-@AllArgsConstructor
 public class PatientResponse {
 
-    private Long id;
+	private Long id;
+	private Long userId;
 
-    private Long userId;
+	private String patientName;
+	private String email;
+	private String phone;
 
-    private String patientName;
+	private String city;
+	private String state;
+	private String pincode;
+	private String occupation;
 
-    private String email;
+	private Gender gender;
+	private MaritalStatus maritalStatus;
 
-    private Long hospitalId;
+	private Long hospitalId;
+	private String hospitalName;
 
-    private String hospitalName;
+	private LocalDate dateOfBirth;
+	private BloodGroup bloodGroup;
 
-    private LocalDate dateOfBirth;
+	private String emergencyContactName;
+	private String emergencyContactPhone;
+	private String emergencyContactRelation;
 
-    private BloodGroup bloodGroup;
+	private List<String> allergies;
+	private List<String> chronicConditions;
 
-    private String emergencyContactName;
-
-    private String emergencyContactPhone;
-
-    private PatientStatus status;
-
-    private LocalDateTime createdAt;
+	private PatientStatus status;
+	private LocalDateTime createdAt;
 }

@@ -1,5 +1,6 @@
 package com.medcore.features.patient.dto.request;
 
+import com.medcore.features.patient.enums.BloodGroup;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -7,8 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
-
-import com.medcore.features.patient.enums.BloodGroup;
+import java.util.List;
 
 @Getter
 @Setter
@@ -23,10 +23,17 @@ public class UpdatePatientRequest {
     @NotBlank(message = "Emergency contact name is required")
     private String emergencyContactName;
 
+    @NotBlank(message = "Emergency contact relation is required")
+    private String emergencyContactRelation;
+
     @NotBlank(message = "Emergency contact phone is required")
     @Pattern(
             regexp = "^[6-9]\\d{9}$",
             message = "Invalid Indian phone number"
     )
     private String emergencyContactPhone;
+
+    private List<String> allergies;
+
+    private List<String> chronicConditions;
 }

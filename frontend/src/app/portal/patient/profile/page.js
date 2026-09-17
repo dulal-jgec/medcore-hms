@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,15 +19,17 @@ import {
   X,
   Save,
   CheckCircle2,
-  Plus,
+  Loader2,
 } from "lucide-react";
+
+import { useAuthStore } from "@/store/auth-store";
+import { getMyProfile } from "@/services/patient.service";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { PATIENT } from "@/lib/patient-mock-data";
 
-/* ─── Validation schema for edit mode ─── */
+/* ─── Validation schemas ─── */
 const profileSchema = z.object({
   fullName: z.string().min(2, "Name is required").max(80),
   email: z.string().email("Enter a valid email"),
@@ -57,6 +59,15 @@ export default function PatientProfilePage() {
   const [editingEmergency, setEditingEmergency] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const user = useAuthStore((state) => state.user);
+  const initialized = useAuthStore((state) => state.initialized);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  const [patientProfile, setPatientProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState("");
+
   const {
     register,
     handleSubmit,
@@ -65,14 +76,14 @@ export default function PatientProfilePage() {
   } = useForm({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      fullName: PATIENT.fullName,
-      email: PATIENT.email,
-      phone: PATIENT.phone,
-      address: PATIENT.address,
-      city: PATIENT.city,
-      state: PATIENT.state,
-      pincode: PATIENT.pincode,
-      occupation: PATIENT.occupation,
+      fullName: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      state: "",
+      pincode: "",
+      occupation: "",
     },
   });
 
@@ -80,15 +91,70 @@ export default function PatientProfilePage() {
     register: registerEmergency,
     handleSubmit: handleEmergencySubmit,
     reset: resetEmergency,
-    formState: { errors: emergencyErrors, isSubmitting: isSubmittingEmergency },
+    formState: {
+      errors: emergencyErrors,
+      isSubmitting: isSubmittingEmergency,
+    },
   } = useForm({
     resolver: zodResolver(emergencySchema),
     defaultValues: {
-      emergencyName: PATIENT.emergencyContact.name,
-      emergencyRelation: PATIENT.emergencyContact.relation,
-      emergencyPhone: PATIENT.emergencyContact.phone,
+      emergencyName: "",
+      emergencyRelation: "",
+      emergencyPhone: "",
     },
   });
+
+  /* ─── Load profile ─── */
+  useEffect(() => {
+  if (!initialized) return;
+
+  if (!isAuthenticated || !accessToken) {
+    setProfileError("You are not authenticated.");
+    setLoadingProfile(false);
+    return;
+  }
+
+  async function loadPatientProfile() {
+    try {
+      setLoadingProfile(true);
+      setProfileError("");
+
+      const result = await getMyProfile(accessToken);
+
+      setPatientProfile(result.data);
+    } catch (error) {
+      setProfileError(
+        error.message || "Failed to load patient profile"
+      );
+    } finally {
+      setLoadingProfile(false);
+    }
+  }
+
+  loadPatientProfile();
+}, [initialized, isAuthenticated, accessToken]);
+
+  /* ─── Reset forms when profile loads ─── */
+  useEffect(() => {
+    if (!patientProfile) return;
+
+    reset({
+      fullName: patientProfile.patientName || "",
+      email: patientProfile.email || "",
+      phone: patientProfile.phone || "",
+      address: patientProfile.address || "",
+      city: patientProfile.city || "",
+      state: patientProfile.state || "",
+      pincode: patientProfile.pincode || "",
+      occupation: patientProfile.occupation || "",
+    });
+
+    resetEmergency({
+      emergencyName: patientProfile.emergencyContactName || "",
+      emergencyRelation: patientProfile.emergencyContactRelation || "",
+      emergencyPhone: patientProfile.emergencyContactPhone || "",
+    });
+  }, [patientProfile, reset, resetEmergency]);
 
   // TODO: PUT /api/v1/patients/me
   async function onSubmit(data) {
@@ -108,13 +174,76 @@ export default function PatientProfilePage() {
   }
 
   function cancelEdit() {
-    reset();
+    if (patientProfile) {
+      reset({
+        fullName: patientProfile.patientName || "",
+        email: patientProfile.email || "",
+        phone: patientProfile.phone || "",
+        address: patientProfile.address || "",
+        city: patientProfile.city || "",
+        state: patientProfile.state || "",
+        pincode: patientProfile.pincode || "",
+        occupation: patientProfile.occupation || "",
+      });
+    }
     setEditing(false);
   }
 
   function cancelEmergencyEdit() {
-    resetEmergency();
+    if (patientProfile) {
+      resetEmergency({
+        emergencyName: patientProfile.emergencyContactName || "",
+        emergencyRelation: patientProfile.emergencyContactRelation || "",
+        emergencyPhone: patientProfile.emergencyContactPhone || "",
+      });
+    }
     setEditingEmergency(false);
+  }
+
+  /* ─── Loading state ─── */
+  if (loadingProfile) {
+    return (
+      <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-24 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-brand" />
+          <p className="text-sm text-muted-foreground">
+            Loading your profile...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── Error state ─── */
+  if (profileError) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-md rounded-2xl border border-destructive/20 bg-destructive/5 p-6 text-center">
+          <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
+          <p className="mt-4 text-sm font-medium text-destructive">
+            {profileError}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Please try again or contact support.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── Empty state ─── */
+  if (!patientProfile) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-md rounded-2xl border border-dashed border-border py-16 text-center">
+          <User className="mx-auto h-8 w-8 text-muted-foreground" />
+          <p className="mt-4 text-sm font-medium">No profile found</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Your patient profile is not set up yet.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -152,7 +281,9 @@ export default function PatientProfilePage() {
             <div className="flex flex-col items-center text-center">
               <div className="relative">
                 <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-brand text-4xl font-bold text-brand-foreground">
-                  {PATIENT.fullName.charAt(0)}
+                  {(patientProfile.patientName ||
+                    user?.fullName ||
+                    "P").charAt(0)}
                 </div>
                 <button
                   className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-foreground text-background transition-transform hover:scale-105"
@@ -163,59 +294,89 @@ export default function PatientProfilePage() {
               </div>
 
               <h2 className="mt-4 text-lg font-bold tracking-tight">
-                {PATIENT.fullName}
+                {patientProfile.patientName ||
+                  user?.fullName ||
+                  "Patient"}
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                MC-{String(PATIENT.id).padStart(5, "0")}
+                MC-{String(patientProfile.id || 0).padStart(5, "0")}
               </p>
 
               <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-brand-soft-foreground">
                 <ShieldCheck className="h-3 w-3" />
-                Verified Patient
+                {patientProfile.status === "ACTIVE"
+                  ? "Verified Patient"
+                  : patientProfile.status || "Patient"}
               </span>
             </div>
 
             {/* Quick facts */}
             <dl className="mt-6 space-y-3 border-t border-border pt-5 text-sm">
-              <Row icon={Droplets} label="Blood group" value={PATIENT.bloodGroup} accent />
-              <Row icon={Calendar} label="Date of birth" value={PATIENT.dateOfBirth} />
-              <Row icon={User} label="Gender" value={PATIENT.gender} />
-              <Row icon={Heart} label="Marital status" value={PATIENT.maritalStatus} />
-              <Row icon={MapPin} label="Hospital" value={PATIENT.hospitalName} />
+              <Row
+                icon={Droplets}
+                label="Blood group"
+                value={patientProfile.bloodGroup || "—"}
+                accent
+              />
+              <Row
+                icon={Calendar}
+                label="Date of birth"
+                value={patientProfile.dateOfBirth || "—"}
+              />
+              <Row
+                icon={User}
+                label="Gender"
+                value={patientProfile.gender || "—"}
+              />
+              <Row
+                icon={Heart}
+                label="Marital status"
+                value={patientProfile.maritalStatus || "—"}
+              />
+              <Row
+                icon={MapPin}
+                label="Hospital"
+                value={patientProfile.hospitalName || "—"}
+              />
             </dl>
 
-            {/* Medical flags */}
-            <div className="mt-6 border-t border-border pt-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Allergies
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {PATIENT.allergies.map((a) => (
-                  <span
-                    key={a}
-                    className="rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive"
-                  >
-                    {a}
-                  </span>
-                ))}
+            {/* Allergies */}
+            {patientProfile.allergies?.length > 0 && (
+              <div className="mt-6 border-t border-border pt-5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Allergies
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {patientProfile.allergies.map((a) => (
+                    <span
+                      key={a}
+                      className="rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive"
+                    >
+                      {a}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="mt-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Chronic conditions
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {PATIENT.chronicConditions.map((c) => (
-                  <span
-                    key={c}
-                    className="rounded-full bg-highlight-soft px-2.5 py-1 text-[11px] font-medium text-highlight-soft-foreground"
-                  >
-                    {c}
-                  </span>
-                ))}
+            {/* Chronic conditions */}
+            {patientProfile.chronicConditions?.length > 0 && (
+              <div className="mt-5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Chronic conditions
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {patientProfile.chronicConditions.map((c) => (
+                    <span
+                      key={c}
+                      className="rounded-full bg-highlight-soft px-2.5 py-1 text-[11px] font-medium text-highlight-soft-foreground"
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </aside>
 
@@ -244,15 +405,27 @@ export default function PatientProfilePage() {
                 className="mt-5 space-y-5"
               >
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <Field label="Full name" error={errors.fullName?.message} required>
+                  <Field
+                    label="Full name"
+                    error={errors.fullName?.message}
+                    required
+                  >
                     <Input {...register("fullName")} className="h-11" />
                   </Field>
 
-                  <Field label="Occupation" error={errors.occupation?.message} required>
+                  <Field
+                    label="Occupation"
+                    error={errors.occupation?.message}
+                    required
+                  >
                     <Input {...register("occupation")} className="h-11" />
                   </Field>
 
-                  <Field label="Email" error={errors.email?.message} required>
+                  <Field
+                    label="Email"
+                    error={errors.email?.message}
+                    required
+                  >
                     <Input
                       {...register("email")}
                       type="email"
@@ -260,7 +433,11 @@ export default function PatientProfilePage() {
                     />
                   </Field>
 
-                  <Field label="Phone" error={errors.phone?.message} required>
+                  <Field
+                    label="Phone"
+                    error={errors.phone?.message}
+                    required
+                  >
                     <Input {...register("phone")} className="h-11" />
                   </Field>
 
@@ -273,15 +450,27 @@ export default function PatientProfilePage() {
                     <Input {...register("address")} className="h-11" />
                   </Field>
 
-                  <Field label="City" error={errors.city?.message} required>
+                  <Field
+                    label="City"
+                    error={errors.city?.message}
+                    required
+                  >
                     <Input {...register("city")} className="h-11" />
                   </Field>
 
-                  <Field label="State" error={errors.state?.message} required>
+                  <Field
+                    label="State"
+                    error={errors.state?.message}
+                    required
+                  >
                     <Input {...register("state")} className="h-11" />
                   </Field>
 
-                  <Field label="Pincode" error={errors.pincode?.message} required>
+                  <Field
+                    label="Pincode"
+                    error={errors.pincode?.message}
+                    required
+                  >
                     <Input {...register("pincode")} className="h-11" />
                   </Field>
                 </div>
@@ -303,24 +492,45 @@ export default function PatientProfilePage() {
               </form>
             ) : (
               <dl className="mt-5 grid gap-5 sm:grid-cols-2">
-                <InfoRow icon={User} label="Full name" value={PATIENT.fullName} />
+                <InfoRow
+                  icon={User}
+                  label="Full name"
+                  value={patientProfile.patientName || "—"}
+                />
                 <InfoRow
                   icon={Briefcase}
                   label="Occupation"
-                  value={PATIENT.occupation}
+                  value={patientProfile.occupation || "—"}
                 />
-                <InfoRow icon={Mail} label="Email" value={PATIENT.email} />
-                <InfoRow icon={Phone} label="Phone" value={PATIENT.phone} />
+                <InfoRow
+                  icon={Mail}
+                  label="Email"
+                  value={patientProfile.email || "—"}
+                />
+                <InfoRow
+                  icon={Phone}
+                  label="Phone"
+                  value={patientProfile.phone || "—"}
+                />
                 <InfoRow
                   icon={MapPin}
                   label="Address"
-                  value={`${PATIENT.address}, ${PATIENT.city}, ${PATIENT.state} — ${PATIENT.pincode}`}
+                  value={
+                    [
+                      patientProfile.address,
+                      patientProfile.city,
+                      patientProfile.state,
+                      patientProfile.pincode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "—"
+                  }
                   className="sm:col-span-2"
                 />
                 <InfoRow
                   icon={Calendar}
                   label="Registered on"
-                  value={PATIENT.registeredOn}
+                  value={patientProfile.registeredOn || "—"}
                 />
               </dl>
             )}
@@ -390,7 +600,10 @@ export default function PatientProfilePage() {
                     <X className="mr-1.5 h-4 w-4" />
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isSubmittingEmergency}>
+                  <Button
+                    type="submit"
+                    disabled={isSubmittingEmergency}
+                  >
                     <Save className="mr-1.5 h-4 w-4" />
                     {isSubmittingEmergency ? "Saving..." : "Save changes"}
                   </Button>
@@ -403,17 +616,18 @@ export default function PatientProfilePage() {
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">
-                    {PATIENT.emergencyContact.name}
+                    {patientProfile.emergencyContactName || "Not provided"}
                   </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {PATIENT.emergencyContact.relation}
-                  </p>
-                  <p className="mt-2 text-sm">
-                    {PATIENT.emergencyContact.phone}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {PATIENT.emergencyContact.email}
-                  </p>
+                  {patientProfile.emergencyContactRelation && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {patientProfile.emergencyContactRelation}
+                    </p>
+                  )}
+                  {patientProfile.emergencyContactPhone && (
+                    <p className="mt-2 text-sm">
+                      {patientProfile.emergencyContactPhone}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -433,7 +647,7 @@ export default function PatientProfilePage() {
                   </p>
                 </div>
                 <p className="mt-2 text-2xl font-bold tracking-tight">
-                  {PATIENT.bloodGroup}
+                  {patientProfile.bloodGroup || "—"}
                 </p>
               </div>
 
@@ -441,11 +655,11 @@ export default function PatientProfilePage() {
                 <div className="flex items-center gap-2 text-brand">
                   <Calendar className="h-4 w-4" />
                   <p className="text-[11px] font-semibold uppercase tracking-wider">
-                    Age
+                    Date of birth
                   </p>
                 </div>
                 <p className="mt-2 text-2xl font-bold tracking-tight">
-                  {PATIENT.age} years
+                  {patientProfile.dateOfBirth || "—"}
                 </p>
               </div>
             </div>

@@ -2,6 +2,7 @@ package com.medcore.features.patient.controller;
 
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
+import com.medcore.features.patient.dto.request.CreatePatientMeRequest;
 import com.medcore.features.patient.dto.request.CreatePatientRequest;
 import com.medcore.features.patient.dto.request.UpdatePatientRequest;
 import com.medcore.features.patient.dto.request.UpdatePatientStatusRequest;
@@ -88,6 +89,34 @@ public class PatientController {
                         patientId,
                         request
                 )
+        );
+    }
+    @PostMapping("/me")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<ApiResponse<PatientResponse>> createMyProfile(
+            @Valid @RequestBody CreatePatientMeRequest request) {
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(patientService.createMyProfile(request));
+    }
+    
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<ApiResponse<PatientResponse>> getMyProfile() {
+
+        return ResponseEntity.ok(
+                patientService.getMyProfile()
+        );
+    }
+    
+    @PutMapping("/me")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<ApiResponse<PatientResponse>> updateMyProfile(
+            @Valid @RequestBody UpdatePatientRequest request) {
+
+        return ResponseEntity.ok(
+                patientService.updateMyProfile(request)
         );
     }
 }

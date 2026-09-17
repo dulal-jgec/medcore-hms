@@ -6,7 +6,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
-
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 public interface PatientRepository
         extends JpaRepository<Patient, Long> {
 
@@ -47,4 +48,19 @@ public interface PatientRepository
             Long patientId,
             Long hospitalId
     );
+    
+    
+    @Query("""
+    	    SELECT p
+    	    FROM Patient p
+    	    JOIN FETCH p.user
+    	    JOIN FETCH p.hospital
+    	    WHERE p.user.id = :userId
+    	      AND p.hospital.id = :hospitalId
+    	      AND p.deletedAt IS NULL
+    	""")
+    	Optional<Patient> findMyProfile(
+    	        @Param("userId") Long userId,
+    	        @Param("hospitalId") Long hospitalId
+    	);
 }

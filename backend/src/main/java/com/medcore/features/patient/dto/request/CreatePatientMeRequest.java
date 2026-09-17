@@ -12,27 +12,24 @@ import java.util.List;
 
 @Getter
 @Setter
-public class CreatePatientRequest {
+public class CreatePatientMeRequest {
 
-    @NotNull(message = "User id is required")
-    private Long userId;
-
-    @NotNull(message = "Date of birth is required")
+    @NotNull
     private LocalDate dateOfBirth;
 
-    @NotNull(message = "Blood group is required")
+    @NotNull
     private BloodGroup bloodGroup;
 
-    @NotBlank(message = "Emergency contact name is required")
+    @NotBlank
     private String emergencyContactName;
 
-    @NotBlank(message = "Emergency contact relation is required")
+    @NotBlank
     private String emergencyContactRelation;
 
-    @NotBlank(message = "Emergency contact phone is required")
+    @NotBlank
     @Pattern(
-            regexp = "^[6-9]\\d{9}$",
-            message = "Invalid Indian phone number"
+        regexp = "^[6-9]\\d{9}$",
+        message = "Invalid Indian phone number"
     )
     private String emergencyContactPhone;
 

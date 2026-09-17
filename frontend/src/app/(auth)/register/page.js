@@ -17,6 +17,12 @@ import {
   Building2,
   ShieldCheck,
   CheckCircle2,
+  Droplets,
+  Heart,
+  MapPin,
+  Briefcase,
+  Users,
+  AlertCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +32,7 @@ import { register as registerUser } from "@/services/auth.service";
 
 const registerSchema = z
   .object({
+    // ── User: basic ──
     fullName: z
       .string()
       .min(2, "Enter your full name")
@@ -40,6 +47,22 @@ const registerSchema = z
         "Enter a valid 10-digit Indian mobile number"
       ),
 
+    // ── User: personal ──
+    city: z.string().min(2, "City is required"),
+
+    state: z.string().min(2, "State is required"),
+
+    pincode: z
+      .string()
+      .regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
+
+    occupation: z.string().min(2, "Occupation is required"),
+
+    gender: z.string().min(1, "Gender is required"),
+
+    maritalStatus: z.string().min(1, "Marital status is required"),
+
+    // ── User: auth ──
     hospitalId: z.string().min(1, "Select your hospital"),
 
     password: z
@@ -47,9 +70,31 @@ const registerSchema = z
       .min(8, "Password must be at least 8 characters")
       .max(20, "Password must be at most 20 characters"),
 
-    confirmPassword: z
+    confirmPassword: z.string().min(8, "Please confirm your password"),
+
+    // ── Patient: medical ──
+    dateOfBirth: z.string().min(1, "Date of birth is required"),
+
+    bloodGroup: z.string().min(1, "Blood group is required"),
+
+    emergencyContactName: z
       .string()
-      .min(8, "Please confirm your password"),
+      .min(2, "Emergency contact name is required"),
+
+    emergencyContactRelation: z
+      .string()
+      .min(2, "Relationship is required"),
+
+    emergencyContactPhone: z
+      .string()
+      .regex(
+        /^[6-9]\d{9}$/,
+        "Enter a valid 10-digit Indian mobile number"
+      ),
+
+    allergies: z.string().optional(),
+
+    chronicConditions: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -74,9 +119,22 @@ export default function RegisterPage() {
       fullName: "",
       email: "",
       phone: "",
+      city: "",
+      state: "",
+      pincode: "",
+      occupation: "",
+      gender: "",
+      maritalStatus: "",
       hospitalId: "",
       password: "",
       confirmPassword: "",
+      dateOfBirth: "",
+      bloodGroup: "",
+      emergencyContactName: "",
+      emergencyContactRelation: "",
+      emergencyContactPhone: "",
+      allergies: "",
+      chronicConditions: "",
     },
   });
 
@@ -84,13 +142,45 @@ export default function RegisterPage() {
     setServerError("");
     try {
       await registerUser({
+        // User
         fullName: data.fullName,
         email: data.email,
         phone: data.phone,
+        hospitalId: Number(data.hospitalId),
+
+        city: data.city,
+        state: data.state,
+        pincode: data.pincode,
+        occupation: data.occupation,
+        gender: data.gender,
+        maritalStatus: data.maritalStatus,
+
         password: data.password,
         confirmPassword: data.confirmPassword,
-        hospitalId: Number(data.hospitalId),
+
+        // Patient
+        dateOfBirth: data.dateOfBirth,
+        bloodGroup: data.bloodGroup,
+
+        emergencyContactName: data.emergencyContactName,
+        emergencyContactRelation: data.emergencyContactRelation,
+        emergencyContactPhone: data.emergencyContactPhone,
+
+        allergies: data.allergies
+          ? data.allergies
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean)
+          : [],
+
+        chronicConditions: data.chronicConditions
+          ? data.chronicConditions
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean)
+          : [],
       });
+
       setSuccess(true);
       setTimeout(() => router.push("/login"), 1800);
     } catch (err) {
@@ -98,7 +188,7 @@ export default function RegisterPage() {
     }
   }
 
-  // Success screen
+  // ── Success screen ──
   if (success) {
     return (
       <div className="flex min-h-screen items-center justify-center px-6">
@@ -142,7 +232,10 @@ export default function RegisterPage() {
             lab reports, and billing — all in one place.
           </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
+            {/* ══════════ PERSONAL INFORMATION ══════════ */}
+            <SectionTitle>Personal information</SectionTitle>
+
             {/* Full name */}
             <FormField label="Full name" required error={errors.fullName?.message}>
               <div className="relative">
@@ -174,14 +267,173 @@ export default function RegisterPage() {
                   <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     {...register("phone")}
-                   placeholder="9876543210"
+                    placeholder="9876543210"
+                    inputMode="numeric"
+                    maxLength={10}
                     className="h-11 pl-10"
                   />
                 </div>
               </FormField>
             </div>
 
-            {/* Hospital */}
+            {/* City + State */}
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField label="City" required error={errors.city?.message}>
+                <div className="relative">
+                  <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    {...register("city")}
+                    placeholder="e.g. Jalpaiguri"
+                    className="h-11 pl-10"
+                  />
+                </div>
+              </FormField>
+
+              <FormField label="State" required error={errors.state?.message}>
+                <Input
+                  {...register("state")}
+                  placeholder="e.g. West Bengal"
+                  className="h-11"
+                />
+              </FormField>
+            </div>
+
+            {/* Pincode + Occupation */}
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField label="Pincode" required error={errors.pincode?.message}>
+                <Input
+                  {...register("pincode")}
+                  placeholder="735101"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className="h-11"
+                />
+              </FormField>
+
+              <FormField
+                label="Occupation"
+                required
+                error={errors.occupation?.message}
+              >
+                <div className="relative">
+                  <Briefcase className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    {...register("occupation")}
+                    placeholder="e.g. Student"
+                    className="h-11 pl-10"
+                  />
+                </div>
+              </FormField>
+            </div>
+
+            {/* Gender + Marital status */}
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField label="Gender" required error={errors.gender?.message}>
+                <select
+                  {...register("gender")}
+                  className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                >
+                  <option value="">Select gender</option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                  <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                </select>
+              </FormField>
+
+              <FormField
+                label="Marital status"
+                required
+                error={errors.maritalStatus?.message}
+              >
+                <select
+                  {...register("maritalStatus")}
+                  className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                >
+                  <option value="">Select marital status</option>
+                  <option value="SINGLE">Single</option>
+                  <option value="MARRIED">Married</option>
+                  <option value="DIVORCED">Divorced</option>
+                  <option value="WIDOWED">Widowed</option>
+                  <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                </select>
+              </FormField>
+            </div>
+
+            {/* ══════════ MEDICAL INFORMATION ══════════ */}
+            <SectionTitle>Medical information</SectionTitle>
+
+            {/* DOB + Blood group */}
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField
+                label="Date of birth"
+                required
+                error={errors.dateOfBirth?.message}
+              >
+                <Input
+                  {...register("dateOfBirth")}
+                  type="date"
+                  max={new Date().toISOString().split("T")[0]}
+                  className="h-11"
+                />
+              </FormField>
+
+              <FormField
+                label="Blood group"
+                required
+                error={errors.bloodGroup?.message}
+              >
+                <div className="relative">
+                  <Droplets className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <select
+                    {...register("bloodGroup")}
+                    className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  >
+                    <option value="">Select blood group</option>
+                    <option value="A_POSITIVE">A+</option>
+                    <option value="A_NEGATIVE">A-</option>
+                    <option value="B_POSITIVE">B+</option>
+                    <option value="B_NEGATIVE">B-</option>
+                    <option value="AB_POSITIVE">AB+</option>
+                    <option value="AB_NEGATIVE">AB-</option>
+                    <option value="O_POSITIVE">O+</option>
+                    <option value="O_NEGATIVE">O-</option>
+                  </select>
+                </div>
+              </FormField>
+            </div>
+
+            {/* Allergies + Chronic conditions */}
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField label="Allergies" error={errors.allergies?.message}>
+                <Input
+                  {...register("allergies")}
+                  placeholder="e.g. Penicillin, Dust"
+                  className="h-11"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Separate multiple with commas
+                </p>
+              </FormField>
+
+              <FormField
+                label="Chronic conditions"
+                error={errors.chronicConditions?.message}
+              >
+                <Input
+                  {...register("chronicConditions")}
+                  placeholder="e.g. Asthma, Diabetes"
+                  className="h-11"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Separate multiple with commas
+                </p>
+              </FormField>
+            </div>
+
+            {/* ══════════ HOSPITAL ══════════ */}
+            <SectionTitle>Hospital</SectionTitle>
+
             <FormField
               label="Your hospital"
               required
@@ -203,7 +455,59 @@ export default function RegisterPage() {
               </div>
             </FormField>
 
-            {/* Password */}
+            {/* ══════════ EMERGENCY CONTACT ══════════ */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Heart className="h-4 w-4 text-brand" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Emergency contact
+                </p>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-3">
+                <FormField
+                  label="Contact name"
+                  required
+                  error={errors.emergencyContactName?.message}
+                >
+                  <Input
+                    {...register("emergencyContactName")}
+                    placeholder="Full name"
+                    className="h-11"
+                  />
+                </FormField>
+
+                <FormField
+                  label="Relationship"
+                  required
+                  error={errors.emergencyContactRelation?.message}
+                >
+                  <Input
+                    {...register("emergencyContactRelation")}
+                    placeholder="e.g. Father"
+                    className="h-11"
+                  />
+                </FormField>
+
+                <FormField
+                  label="Contact phone"
+                  required
+                  error={errors.emergencyContactPhone?.message}
+                >
+                  <Input
+                    {...register("emergencyContactPhone")}
+                    placeholder="9876543210"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className="h-11"
+                  />
+                </FormField>
+              </div>
+            </div>
+
+            {/* ══════════ SECURITY ══════════ */}
+            <SectionTitle>Security</SectionTitle>
+
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField
                 label="Password"
@@ -287,7 +591,9 @@ export default function RegisterPage() {
           </form>
 
           <div className="mt-8 text-center text-sm">
-            <span className="text-muted-foreground">Already have an account? </span>
+            <span className="text-muted-foreground">
+              Already have an account?{" "}
+            </span>
             <Link href="/login" className="font-medium text-brand hover:underline">
               Sign in
             </Link>
@@ -348,6 +654,18 @@ export default function RegisterPage() {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ══════════ Sub-components ══════════ */
+
+function SectionTitle({ children }) {
+  return (
+    <div className="border-b border-border pb-2">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-brand">
+        {children}
+      </h2>
     </div>
   );
 }
