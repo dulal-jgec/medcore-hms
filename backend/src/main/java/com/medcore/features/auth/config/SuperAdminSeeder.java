@@ -3,6 +3,9 @@ package com.medcore.features.auth.config;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
+import com.medcore.features.superadmin.entity.SuperAdmin;
+import com.medcore.features.superadmin.enums.SuperAdminStatus;
+import com.medcore.features.superadmin.repository.SuperAdminRepository;
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
@@ -24,13 +27,10 @@ public class SuperAdminSeeder implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final HospitalRepository hospitalRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SuperAdminRepository superAdminRepository;
 
     @Override
     public void run(String... args) {
-
-        if (userRepository.existsByEmail("admin@medcore.com")) {
-            return;
-        }
 
         Role superAdminRole =
                 roleRepository.findByName(RoleName.SUPER_ADMIN)
@@ -39,6 +39,7 @@ public class SuperAdminSeeder implements CommandLineRunner {
                                         "SUPER_ADMIN role not found"
                                 )
                         );
+
         Hospital headOffice =
                 hospitalRepository
                         .findByEmailAndDeletedAtIsNull("hq@medcore.com")
@@ -57,22 +58,39 @@ public class SuperAdminSeeder implements CommandLineRunner {
                             return hospitalRepository.save(hospital);
                         });
 
-        User superAdmin = User.builder()
-                .fullName("Super Admin")
-                .email("admin@medcore.com")
-                .password(
-                        passwordEncoder.encode("Admin@123")
-                )
-                .phone("9999999999")
-                .hospital(headOffice)
-                .role(superAdminRole)
-                .status(UserStatus.ACTIVE)
-                .emailVerified(true)
-                .phoneVerified(true)
-                .build();
+        User superAdmin =
+                userRepository.findByEmail("admin@medcore.com")
+                        .orElseGet(() -> {
 
-        userRepository.save(superAdmin);
+                            User user = User.builder()
+                                    .fullName("Super Admin")
+                                    .email("admin@medcore.com")
+                                    .password(
+                                            passwordEncoder.encode("Admin@123")
+                                    )
+                                    .phone("9999999999")
+                                    .hospital(headOffice)
+                                    .role(superAdminRole)
+                                    .status(UserStatus.ACTIVE)
+                                    .emailVerified(true)
+                                    .phoneVerified(true)
+                                    .build();
 
-        System.out.println("Super Admin Created Successfully");
+                            return userRepository.save(user);
+                        });
+
+        if (!superAdminRepository
+                .existsByUserIdAndDeletedAtIsNull(superAdmin.getId())) {
+
+            SuperAdmin superAdminProfile =
+                    SuperAdmin.builder()
+                            .user(superAdmin)
+                            .status(SuperAdminStatus.ACTIVE)
+                            .build();
+
+            superAdminRepository.save(superAdminProfile);
+        }
+
+        System.out.println("Super Admin Seeder Completed");
     }
 }

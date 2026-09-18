@@ -46,9 +46,13 @@ function LoginContent() {
   setServerError("");
 
   try {
-    await login(data);
+    const user = await login(data);
 
-    router.push("/portal");
+    if (user.role === "SUPER_ADMIN") {
+      router.push("/super-admin");
+    } else {
+      router.push("/portal");
+    }
   } catch (err) {
     setServerError(
       err.message || "Login failed. Please try again."

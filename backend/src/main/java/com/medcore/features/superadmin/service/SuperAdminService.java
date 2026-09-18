@@ -7,6 +7,8 @@ import com.medcore.features.hospital.dto.request.CreateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalStatusRequest;
 import com.medcore.features.hospital.dto.response.CreateHospitalResponse;
+import com.medcore.features.superadmin.dto.request.CreateHospitalAdminRequest;
+import com.medcore.features.superadmin.dto.response.CreateHospitalAdminResponse;
 import com.medcore.features.superadmin.dto.response.SuperAdminDashboardResponse;
 import com.medcore.features.superadmin.dto.response.SuperAdminResponse;
 
@@ -53,4 +55,13 @@ public interface SuperAdminService {
     
     ApiResponse<SuperAdminDashboardResponse>
     getDashboard();
+    
+    ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
+            CreateHospitalAdminRequest request
+    );
+    
+    ApiResponse<Page<CreateHospitalAdminResponse>> getAllHospitalAdmins(
+            int page,
+            int size
+    );
 }

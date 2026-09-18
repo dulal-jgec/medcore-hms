@@ -15,6 +15,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.medcore.features.superadmin.dto.request.CreateHospitalAdminRequest;
+import com.medcore.features.superadmin.dto.response.CreateHospitalAdminResponse;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/super-admin")
@@ -119,5 +122,20 @@ public class SuperAdminController {
     public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
 
         return superAdminService.getDashboard();
+    }
+    
+    @PostMapping("/admins")
+    public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
+            @Valid @RequestBody CreateHospitalAdminRequest request) {
+
+        return superAdminService.createHospitalAdmin(request);
+    }
+    
+    @GetMapping("/admins")
+    public ApiResponse<Page<CreateHospitalAdminResponse>> getAllHospitalAdmins(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        return superAdminService.getAllHospitalAdmins(page, size);
     }
 }

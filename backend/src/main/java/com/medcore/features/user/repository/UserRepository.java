@@ -1,12 +1,17 @@
 package com.medcore.features.user.repository;
 
 import com.medcore.features.user.entity.User;
+
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import com.medcore.features.user.enums.RoleName;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface UserRepository extends JpaRepository<User, Long> {
 	
 
@@ -27,6 +32,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByIdAndHospitalIdAndDeletedAtIsNull(
             Long userId,
             Long hospitalId
+    );
+    
+    @EntityGraph(attributePaths = {"hospital", "role"})
+    Page<User> findByRoleNameAndDeletedAtIsNull(
+            RoleName roleName,
+            Pageable pageable
     );
     
     @Query("""
