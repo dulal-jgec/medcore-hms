@@ -106,9 +106,7 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        request.setUserId(100L);
-        request.setHospitalId(1L);
-        request.setDepartmentId(10L);
+         request.setDepartmentId(10L);
         request.setSpecialization("Cardiology");
         request.setExperienceYears(10);
         request.setConsultationFee(
@@ -192,8 +190,7 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        request.setHospitalId(2L);
-
+ 
         when(tenantContextService
                 .getCurrentHospitalId())
                 .thenReturn(1L);
@@ -212,8 +209,7 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        request.setHospitalId(1L);
-
+ 
         when(tenantContextService
                 .getCurrentHospitalId())
                 .thenReturn(1L);
@@ -234,8 +230,7 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        request.setHospitalId(1L);
-        request.setUserId(100L);
+      
 
         when(tenantContextService
                 .getCurrentHospitalId())
@@ -260,8 +255,7 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        request.setHospitalId(1L);
-        request.setUserId(100L);
+         
 
         when(tenantContextService
                 .getCurrentHospitalId())
@@ -292,8 +286,7 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        request.setHospitalId(1L);
-        request.setUserId(100L);
+        
 
         when(tenantContextService
                 .getCurrentHospitalId())
@@ -330,8 +323,7 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        request.setHospitalId(1L);
-        request.setUserId(100L);
+        
         request.setDepartmentId(10L);
 
         when(tenantContextService
@@ -377,8 +369,7 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        request.setHospitalId(1L);
-        request.setUserId(100L);
+         
         request.setDepartmentId(10L);
 
         Hospital anotherHospital =
@@ -433,8 +424,7 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        request.setHospitalId(1L);
-        request.setUserId(100L);
+         
         request.setDepartmentId(10L);
 
         Hospital anotherHospital =

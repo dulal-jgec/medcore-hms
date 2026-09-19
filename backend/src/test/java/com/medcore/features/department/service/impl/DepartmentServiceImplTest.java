@@ -100,8 +100,7 @@ class DepartmentServiceImplTest {
     void createDepartment_shouldCreateSuccessfully() {
 
         CreateDepartmentRequest request = new CreateDepartmentRequest();
-        request.setHospitalId(1L);
-        request.setName("Cardiology");
+         request.setName("Cardiology");
         request.setCode("CARD");
         request.setDescription("Heart department");
 
@@ -142,8 +141,7 @@ class DepartmentServiceImplTest {
     void createDepartment_shouldRejectDifferentHospital() {
 
         CreateDepartmentRequest request = new CreateDepartmentRequest();
-        request.setHospitalId(2L);
-
+ 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
 
@@ -159,8 +157,7 @@ class DepartmentServiceImplTest {
     void createDepartment_shouldRejectDuplicateName() {
 
         CreateDepartmentRequest request = new CreateDepartmentRequest();
-        request.setHospitalId(1L);
-        request.setName("Cardiology");
+         request.setName("Cardiology");
         request.setCode("CARD");
 
         when(tenantContextService.getCurrentHospitalId())
@@ -185,8 +182,7 @@ class DepartmentServiceImplTest {
     void createDepartment_shouldRejectDuplicateCode() {
 
         CreateDepartmentRequest request = new CreateDepartmentRequest();
-        request.setHospitalId(1L);
-        request.setName("Cardiology");
+         request.setName("Cardiology");
         request.setCode("CARD");
 
         when(tenantContextService.getCurrentHospitalId())
@@ -215,8 +211,7 @@ class DepartmentServiceImplTest {
     void createDepartment_shouldThrowWhenHospitalNotFound() {
 
         CreateDepartmentRequest request = new CreateDepartmentRequest();
-        request.setHospitalId(1L);
-
+ 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
 
