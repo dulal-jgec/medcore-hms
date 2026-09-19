@@ -3,6 +3,7 @@ package com.medcore.features.hospital.mapper;
 import com.medcore.features.hospital.dto.request.CreateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalRequest;
 import com.medcore.features.hospital.dto.response.CreateHospitalResponse;
+import com.medcore.features.hospital.dto.response.HospitalProfileResponse;
 import com.medcore.features.hospital.entity.Hospital;
 import org.springframework.stereotype.Component;
 import com.medcore.features.hospital.enums.HospitalStatus;
@@ -34,6 +35,11 @@ public class HospitalMapper {
                 .logo(hospital.getLogoUrl())
                 .status(hospital.getStatus())
                 .createdAt(hospital.getCreatedAt())
+                .state(hospital.getState())
+                .address(hospital.getAddress())
+                .pincode(hospital.getPincode())
+                .emergencyPhone(hospital.getEmergencyPhone())
+                .description(hospital.getDescription())
                 .build();
     }
     
@@ -47,5 +53,24 @@ public class HospitalMapper {
         hospital.setLicenseNumber(request.getLicenseNumber().trim());
         hospital.setCity(request.getCity().trim());
         hospital.setLogoUrl(request.getLogo());
+    }
+    
+    public HospitalProfileResponse toProfileResponse(Hospital hospital) {
+        return HospitalProfileResponse.builder()
+                .id(hospital.getId())
+                .name(hospital.getName())
+                .email(hospital.getEmail())
+                .phone(hospital.getPhone())
+                .licenseNumber(hospital.getLicenseNumber())
+                .city(hospital.getCity())
+                .state(hospital.getState())
+                .address(hospital.getAddress())
+                .pincode(hospital.getPincode())
+                .emergencyPhone(hospital.getEmergencyPhone())
+                .description(hospital.getDescription())
+                .logoUrl(hospital.getLogoUrl())
+                .bannerUrl(hospital.getBannerUrl())
+                .website(hospital.getWebsite())
+                .build();
     }
 }

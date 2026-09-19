@@ -46,18 +46,23 @@ function LoginContent() {
   setServerError("");
 
   try {
-    const user = await login(data);
+  const user = await login(data);
 
-    if (user.role === "SUPER_ADMIN") {
-      router.push("/super-admin");
-    } else {
-      router.push("/portal");
-    }
-  } catch (err) {
-    setServerError(
-      err.message || "Login failed. Please try again."
-    );
+  console.log("Logged in user:", user);
+  console.log("Role:", user.role);
+
+  if (user.role === "SUPER_ADMIN") {
+    router.push("/super-admin");
+  } else if (user.role === "HOSPITAL_ADMIN") {
+    router.push("/portal/admin");
+  } else {
+    router.push("/portal");
   }
+} catch (err) {
+  setServerError(
+    err.message || "Login failed. Please try again."
+  );
+}
 }
 
   return (

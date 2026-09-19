@@ -1,17 +1,11 @@
 package com.medcore.features.hospital.dto.response;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
 
-import java.time.LocalDateTime;
-import com.medcore.features.hospital.enums.HospitalStatus;
 @Getter
-@Setter
 @Builder
-@AllArgsConstructor
-public class CreateHospitalResponse {
+public class HospitalProfileResponse {
 
     private Long id;
 
@@ -25,15 +19,19 @@ public class CreateHospitalResponse {
 
     private String city;
 
-    private String logo;
-
-    private HospitalStatus status;
-
-    private LocalDateTime createdAt;
-    
     private String state;
+
     private String address;
+
     private String pincode;
+
     private String emergencyPhone;
+
     private String description;
+
+    private String logoUrl;
+
+    private String bannerUrl;
+
+    private String website;
 }
