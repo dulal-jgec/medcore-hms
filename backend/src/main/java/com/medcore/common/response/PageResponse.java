@@ -3,6 +3,7 @@ package com.medcore.common.response;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.List;
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class PageResponse<T> {
 
@@ -30,5 +32,4 @@ public class PageResponse<T> {
     private boolean hasNext;
 
     private boolean hasPrevious;
-
 }

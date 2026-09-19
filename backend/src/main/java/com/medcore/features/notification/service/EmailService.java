@@ -8,4 +8,11 @@ public interface EmailService {
             String temporaryPassword,
             String hospitalName
     );
+
+    void sendDoctorCredentials(
+            String email,
+            String fullName,
+            String temporaryPassword,
+            String hospitalName
+    );
 }

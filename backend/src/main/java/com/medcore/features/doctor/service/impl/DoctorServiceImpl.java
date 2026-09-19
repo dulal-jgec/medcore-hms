@@ -17,6 +17,7 @@ import com.medcore.features.doctor.mapper.DoctorMapper;
 import com.medcore.features.doctor.repository.DoctorRepository;
 import com.medcore.features.doctor.service.DoctorService;
 import com.medcore.features.hospital.entity.Hospital;
+import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
@@ -35,6 +36,11 @@ import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.medcore.features.notification.service.EmailService;
+import com.medcore.features.user.entity.Role;
+import com.medcore.features.user.enums.UserStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.medcore.features.user.repository.RoleRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -50,6 +56,11 @@ public class DoctorServiceImpl implements DoctorService {
     private final DepartmentRepository departmentRepository;
     private final DoctorMapper doctorMapper;
     private final TenantContextService tenantContextService;
+    
+    private final RoleRepository roleRepository;
+    
+    private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     private static final Set<String> ALLOWED_SORT_FIELDS =
             Set.of(
@@ -63,125 +74,143 @@ public class DoctorServiceImpl implements DoctorService {
     
 
     @Override
-    public ApiResponse<DoctorResponse> createDoctor(
-            CreateDoctorRequest request) {
+public ApiResponse<DoctorResponse> createDoctor(
+        CreateDoctorRequest request) {
 
-        Long currentHospitalId =
-                tenantContextService.getCurrentHospitalId();
+    // 1. Get the currently authenticated hospital
+    Long hospitalId =
+            tenantContextService.getCurrentHospitalId();
 
-        Long hospitalId;
- 
-        if (currentHospitalId == null) {
+    Hospital hospital =
+            hospitalRepository
+                    .findByIdAndDeletedAtIsNull(hospitalId)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Hospital not found"
+                            )
+                    );
 
-            hospitalId = request.getHospitalId();
-
-        } else {
-
-            if (!request.getHospitalId().equals(currentHospitalId)) {
-                throw new BusinessException(
-                        "You cannot create a doctor for another hospital"
-                );
-            }
-
-            hospitalId = currentHospitalId;
-        }
-
-        Hospital hospital = hospitalRepository
-                .findByIdAndDeletedAtIsNull(hospitalId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Hospital not found"
-                        )
-                );
-
-
-        User user = userRepository
-                .findById(request.getUserId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found"
-                        )
-                );
-
-        if (user.getRole().getName() != RoleName.DOCTOR) {
-
-            throw new BusinessException(
-                    "Selected user is not assigned the DOCTOR role"
-            );
-        }
-
-        if (doctorRepository.existsByUserId(user.getId())) {
-
-            throw new DuplicateResourceException(
-                    "Doctor profile already exists for this user"
-            );
-        }  
-
-        Department department = departmentRepository
-                .findByIdAndHospitalIdAndDeletedAtIsNull(
-                        request.getDepartmentId(),
-                        request.getHospitalId()
-                )
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Department not found"
-                        )
-                );
-
-        // Department must belong to selected hospital
-        if (!department.getHospital()
-                .getId()
-                .equals(hospitalId)) {
-
-            throw new BusinessException(
-                    "Department does not belong to the selected hospital"
-            );
-        }
-
-    
-        // Validate user's hospital
-        
-        if (user.getHospital() == null ||
-                !user.getHospital()
-                        .getId()
-                        .equals(hospitalId)) {
-
-            throw new BusinessException(
-                    "User does not belong to the selected hospital"
-            );
-        }
-
-      
-        // Create doctor
-        
-
-        Doctor doctor = doctorMapper.toEntity(
-                request,
-                user,
-                hospital,
-                department
+    // 2. Hospital must be active
+    if (hospital.getStatus() != HospitalStatus.ACTIVE) {
+        throw new BusinessException(
+                "Hospital is not active"
         );
-
-        Doctor savedDoctor =
-                doctorRepository.save(doctor);
-        
-        log.info(
-                "Doctor created: doctorId={}, userId={}, hospitalId={}, departmentId={}",
-                savedDoctor.getId(),
-                user.getId(),
-                hospitalId,
-                department.getId()
-        );
-
-        return ApiResponse.<DoctorResponse>builder()
-                .success(true)
-                .message("Doctor created successfully")
-                .data(doctorMapper.toResponse(savedDoctor))
-                .build();
     }
 
+    // 3. Normalize email and phone
+    String email =
+            request.getEmail().trim().toLowerCase();
+
+    String phone =
+            request.getPhone().trim();
+
+    // 4. Check email uniqueness
+    if (userRepository.existsByEmail(email)) {
+        throw new DuplicateResourceException(
+                "Email already exists"
+        );
+    }
+
+    // 5. Check phone uniqueness
+    if (userRepository.existsByPhone(phone)) {
+        throw new DuplicateResourceException(
+                "Phone number already exists"
+        );
+    }
+
+    // 6. Find DOCTOR role
+    Role doctorRole =
+            roleRepository.findByName(RoleName.DOCTOR)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Doctor role not found"
+                            )
+                    );
+
+    // 7. Find department inside CURRENT hospital
+    Department department =
+            departmentRepository
+                    .findByIdAndHospitalIdAndDeletedAtIsNull(
+                            request.getDepartmentId(),
+                            hospitalId
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Department not found"
+                            )
+                    );
+
+    // 8. Generate temporary password
+    String temporaryPassword =
+            generateTemporaryPassword();
+
+    // 9. Create User account
+    User doctorUser = User.builder()
+            .fullName(request.getFullName().trim())
+            .email(email)
+            .phone(phone)
+            .password(
+                    passwordEncoder.encode(
+                            temporaryPassword
+                    )
+            )
+            .hospital(hospital)
+            .role(doctorRole)
+            .status(UserStatus.ACTIVE)
+            .emailVerified(false)
+            .phoneVerified(false)
+            .build();
+
+    User savedUser =
+            userRepository.save(doctorUser);
+
+    // 10. Create Doctor profile
+    Doctor doctor =
+            doctorMapper.toEntity(
+                    request,
+                    savedUser,
+                    hospital,
+                    department
+            );
+
+    Doctor savedDoctor =
+            doctorRepository.save(doctor);
+
+    // 11. Send login credentials
+    emailService.sendDoctorCredentials(
+            savedUser.getEmail(),
+            savedUser.getFullName(),
+            temporaryPassword,
+            hospital.getName()
+    );
+
+    log.info(
+            "Doctor created: doctorId={}, userId={}, hospitalId={}, departmentId={}",
+            savedDoctor.getId(),
+            savedUser.getId(),
+            hospitalId,
+            department.getId()
+    );
+
+    return ApiResponse.<DoctorResponse>builder()
+            .success(true)
+            .message("Doctor created successfully")
+            .data(
+                    doctorMapper.toResponse(
+                            savedDoctor
+                    )
+            )
+            .build();
+}
+
   
-    // GET ALL DOCTORS
+    private String generateTemporaryPassword() {
+
+        return "Temp@" +
+                java.util.UUID.randomUUID()
+                        .toString()
+                        .substring(0, 8);
+    }
     
 
     @Override

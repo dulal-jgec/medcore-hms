@@ -10,11 +10,21 @@ import java.math.BigDecimal;
 @Setter
 public class CreateDoctorRequest {
 
-    @NotNull(message = "User id is required")
-    private Long userId;
+    @NotBlank(message = "Full name is required")
+    @Size(min = 2, max = 100)
+    private String fullName;
 
-    @NotNull(message = "Hospital id is required")
-    private Long hospitalId;
+    @NotBlank(message = "Email is required")
+    @Email(message = "Invalid email address")
+    @Size(max = 100)
+    private String email;
+
+    @NotBlank(message = "Phone is required")
+    @Pattern(
+            regexp = "^[6-9]\\d{9}$",
+            message = "Invalid Indian phone number"
+    )
+    private String phone;
 
     @NotNull(message = "Department id is required")
     private Long departmentId;

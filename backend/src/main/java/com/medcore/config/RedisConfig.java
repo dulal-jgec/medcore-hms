@@ -1,5 +1,11 @@
 package com.medcore.config;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,19 +27,32 @@ public class RedisConfig {
     public RedisCacheManager cacheManager(
             RedisConnectionFactory redisConnectionFactory) {
 
+        // Custom ObjectMapper with:
+        //    - JavaTimeModule for LocalDateTime
+        //    - Default typing so @class is stored (needed for deserialization)
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(
+                SerializationFeature.WRITE_DATES_AS_TIMESTAMPS
+        );
+        objectMapper.activateDefaultTyping(
+                LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.NON_FINAL,
+                JsonTypeInfo.As.PROPERTY
+        );
+
+        GenericJackson2JsonRedisSerializer serializer =
+                new GenericJackson2JsonRedisSerializer(objectMapper);
+
         RedisCacheConfiguration cacheConfiguration =
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofMinutes(30))
                         .serializeValuesWith(
                                 RedisSerializationContext.SerializationPair
-                                        .fromSerializer(
-                                                new GenericJackson2JsonRedisSerializer()
-                                        )
+                                        .fromSerializer(serializer)
                         );
 
-        return RedisCacheManager.builder(
-                        redisConnectionFactory
-                )
+        return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(cacheConfiguration)
                 .build();
     }
@@ -42,13 +61,8 @@ public class RedisConfig {
     public RedisTemplate<String, Object> redisTemplate(
             RedisConnectionFactory redisConnectionFactory) {
 
-        RedisTemplate<String, Object> template =
-                new RedisTemplate<>();
-
-        template.setConnectionFactory(
-                redisConnectionFactory
-        );
-
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
         return template;
     }
 }
