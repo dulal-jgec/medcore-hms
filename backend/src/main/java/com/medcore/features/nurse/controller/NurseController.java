@@ -2,7 +2,9 @@ package com.medcore.features.nurse.controller;
 
 import com.medcore.common.response.ApiResponse;
 import com.medcore.features.nurse.dto.request.CreateNurseRequest;
+import com.medcore.features.nurse.dto.request.UpdateMyNurseProfileRequest;
 import com.medcore.features.nurse.dto.request.UpdateNurseRequest;
+import com.medcore.features.nurse.dto.response.NurseProfileResponse;
 import com.medcore.features.nurse.dto.response.NurseResponse;
 import com.medcore.features.nurse.service.NurseService;
 
@@ -12,13 +14,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/nurses")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
+@PreAuthorize("hasRole('HOSPITAL_ADMIN')")
 public class NurseController {
 
     private final NurseService nurseService;
@@ -75,4 +78,31 @@ public class NurseController {
 
         return nurseService.deactivateNurse(nurseId);
     }
+    
+    @PreAuthorize("hasRole('NURSE')")
+    @GetMapping("/me")
+    public ApiResponse<NurseProfileResponse> getMyProfile() {
+
+        return nurseService.getMyProfile();
+    }
+    
+    @PreAuthorize("hasRole('NURSE')")
+    @PutMapping("/me")
+    public ApiResponse<NurseProfileResponse> updateMyProfile(
+            @Valid @RequestBody UpdateMyNurseProfileRequest request) {
+
+        return nurseService.updateMyProfile(request);
+    }
+    
+    @PreAuthorize("hasRole('NURSE')")
+    @PostMapping(
+            value = "/me/profile-image",
+            consumes = "multipart/form-data"
+    )
+    public ApiResponse<NurseProfileResponse> uploadMyProfileImage(
+            @RequestParam("file") MultipartFile file) {
+
+        return nurseService.uploadMyProfileImage(file);
+    }
+    
 }

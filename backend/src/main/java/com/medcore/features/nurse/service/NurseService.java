@@ -6,6 +6,9 @@ import com.medcore.features.nurse.dto.request.UpdateNurseRequest;
 import com.medcore.features.nurse.dto.response.NurseResponse;
 
 import java.util.List;
+import com.medcore.features.nurse.dto.request.UpdateMyNurseProfileRequest;
+import com.medcore.features.nurse.dto.response.NurseProfileResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface NurseService {
 
@@ -34,5 +37,15 @@ public interface NurseService {
 
     ApiResponse<NurseResponse> deactivateNurse(
             Long nurseId
+    );
+    
+    ApiResponse<NurseProfileResponse> getMyProfile();
+
+    ApiResponse<NurseProfileResponse> updateMyProfile(
+            UpdateMyNurseProfileRequest request
+    );
+
+    ApiResponse<NurseProfileResponse> uploadMyProfileImage(
+            MultipartFile file
     );
 }

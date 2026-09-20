@@ -15,4 +15,11 @@ public interface EmailService {
             String temporaryPassword,
             String hospitalName
     );
+    
+    void sendNurseCredentials(
+            String email,
+            String fullName,
+            String temporaryPassword,
+            String hospitalName
+    );
 }

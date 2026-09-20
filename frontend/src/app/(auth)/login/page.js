@@ -57,6 +57,8 @@ function LoginContent() {
   router.push("/portal/admin");
 } else if (user.role === "DOCTOR") {
   router.push("/portal/doctor");
+  } else if (user.role === "NURSE") {
+  router.push("/portal/nurse");
 } else {
   router.push("/portal");
 }

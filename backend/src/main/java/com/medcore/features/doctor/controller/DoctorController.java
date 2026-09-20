@@ -27,7 +27,7 @@ public class DoctorController {
     private final DoctorService doctorService;
 
 
-     // ADMIN APIs
+    
     // SUPER_ADMIN + HOSPITAL_ADMIN
  
     @PostMapping
@@ -140,7 +140,7 @@ public class DoctorController {
     }
 
 
-     // DOCTOR SELF PROFILE APIs
+    
     // DOCTOR ONLY
  
     @GetMapping("/me")

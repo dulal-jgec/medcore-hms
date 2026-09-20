@@ -54,6 +54,18 @@ public class Nurse extends BaseEntity {
 
     @Column(length = 50)
     private String licenseNumber;
+    
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
+    @Column(length = 500)
+    private String languages;
+
+    @Column(length = 15)
+    private String emergencyContact;
+    
+    @Column(length = 500)
+    private String profileImageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

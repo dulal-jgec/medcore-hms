@@ -1,7 +1,6 @@
 package com.medcore.features.nurse.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,11 +9,23 @@ import lombok.Setter;
 @Setter
 public class CreateNurseRequest {
 
-    @NotNull(message = "Hospital ID is required")
-    private Long hospitalId;
+    @NotBlank(message = "Full name is required")
+    @Size(min = 2, max = 100)
+    private String fullName;
 
-    @NotNull(message = "User ID is required")
-    private Long userId;
+    @NotBlank(message = "Email is required")
+    @jakarta.validation.constraints.Email(
+            message = "Invalid email address"
+    )
+    @Size(max = 100)
+    private String email;
+
+    @NotBlank(message = "Phone is required")
+    @jakarta.validation.constraints.Pattern(
+            regexp = "^[6-9]\\d{9}$",
+            message = "Invalid Indian phone number"
+    )
+    private String phone;
 
     @NotBlank(message = "Department is required")
     @Size(max = 100)

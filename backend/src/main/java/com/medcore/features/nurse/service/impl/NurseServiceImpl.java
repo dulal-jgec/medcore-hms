@@ -1,10 +1,13 @@
 package com.medcore.features.nurse.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.features.nurse.dto.request.CreateNurseRequest;
+import com.medcore.features.nurse.dto.request.UpdateMyNurseProfileRequest;
 import com.medcore.features.nurse.dto.request.UpdateNurseRequest;
+import com.medcore.features.nurse.dto.response.NurseProfileResponse;
 import com.medcore.features.nurse.dto.response.NurseResponse;
 import com.medcore.features.nurse.entity.Nurse;
 import com.medcore.features.nurse.enums.NurseStatus;
@@ -12,16 +15,31 @@ import com.medcore.features.nurse.mapper.NurseMapper;
 import com.medcore.features.nurse.repository.NurseRepository;
 import com.medcore.features.nurse.service.NurseService;
 import com.medcore.features.user.entity.User;
+import com.medcore.features.user.enums.UserStatus;
+import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.medcore.common.security.SecurityUtil;
 import com.medcore.common.security.TenantContextService;
+import com.medcore.common.storage.FileStorageService;
+import com.medcore.common.storage.FileValidationService;
+import com.medcore.common.util.PasswordGenerator;
 import com.medcore.features.hospital.entity.Hospital;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import com.medcore.features.hospital.repository.HospitalRepository;
+import com.medcore.features.notification.service.EmailService;
+import com.medcore.features.user.entity.Role;
+import com.medcore.features.user.enums.RoleName;
+
+
 @Service
 @RequiredArgsConstructor
 public class NurseServiceImpl implements NurseService {
@@ -31,36 +49,21 @@ public class NurseServiceImpl implements NurseService {
     private final NurseMapper nurseMapper;
     private final HospitalRepository hospitalRepository;
     private final TenantContextService tenantContextService;
-     
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+    private final FileStorageService fileStorageService;
+    private final FileValidationService fileValidationService; 
+    
 @Override
 @Transactional
 public ApiResponse<NurseResponse> createNurse(
         CreateNurseRequest request) {
 
-    Long currentHospitalId =
+    //  Get current hospital from logged-in Hospital Admin
+    Long hospitalId =
             tenantContextService.getCurrentHospitalId();
 
-    Long hospitalId;
-
-     
-    if (currentHospitalId == null) {
-
-        hospitalId = request.getHospitalId();
-
-    } else {
-
-         
-        if (!request.getHospitalId().equals(currentHospitalId)) {
-
-            throw new BusinessException(
-                    "You cannot create a nurse for another hospital"
-            );
-        }
-
-        hospitalId = currentHospitalId;
-    }
-
- 
     Hospital hospital =
             hospitalRepository
                     .findByIdAndDeletedAtIsNull(hospitalId)
@@ -69,55 +72,71 @@ public ApiResponse<NurseResponse> createNurse(
                                     "Hospital not found"
                             ));
 
-    User user =
-            userRepository
-                    .findById(request.getUserId())
+    //  Check email uniqueness
+    if (userRepository.existsByEmail(request.getEmail())) {
+        throw new BusinessException(
+                "Email already exists"
+        );
+    }
+
+    //  Check phone uniqueness
+    if (userRepository.existsByPhone(request.getPhone())) {
+        throw new BusinessException(
+                "Phone number already exists"
+        );
+    }
+
+     
+    Role nurseRole =
+            roleRepository
+                    .findByName(RoleName.NURSE)
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
-                                    "User not found"
+                                    "Nurse role not found"
                             ));
 
-    if (user.getHospital() == null
-            || !user.getHospital()
-                    .getId()
-                    .equals(hospitalId)) {
+    //  Generate temporary password
+    String temporaryPassword =
+            PasswordGenerator.generate();
 
-        throw new BusinessException(
-                "User does not belong to the selected hospital"
-        );
-    }
+    // Create User
+    User user = User.builder()
+            .fullName(request.getFullName().trim())
+            .email(request.getEmail().trim().toLowerCase())
+            .phone(request.getPhone().trim())
+            .password(passwordEncoder.encode(temporaryPassword))
+            .hospital(hospital)
+            .role(nurseRole)
+            .status(UserStatus.ACTIVE)
+            .emailVerified(false)
+            .phoneVerified(false)
+            .build();
 
- 
-    if (nurseRepository
-            .existsByUserIdAndHospitalIdAndDeletedAtIsNull(
-                    user.getId(),
-                    hospitalId
-            )) {
+    User savedUser =
+            userRepository.save(user);
 
-        throw new BusinessException(
-                "Nurse profile already exists for this user"
-        );
-    }
-
- 
+    // Create Nurse profile
     Nurse nurse =
             nurseMapper.toEntity(
                     request,
-                    user
+                    savedUser
             );
 
- 
     nurse.setHospital(hospital);
-
-    nurse.setStatus(
-            NurseStatus.ACTIVE
-    );
-
+    nurse.setStatus(NurseStatus.ACTIVE);
 
     Nurse savedNurse =
             nurseRepository.save(nurse);
 
+    //  Send login credentials
+    emailService.sendNurseCredentials(
+            savedUser.getEmail(),
+            savedUser.getFullName(),
+            temporaryPassword,
+            hospital.getName()
+    );
 
+    //  Return response
     return ApiResponse.<NurseResponse>builder()
             .success(true)
             .message("Nurse created successfully")
@@ -129,7 +148,6 @@ public ApiResponse<NurseResponse> createNurse(
             .build();
 }
 
-     
 @Override
 @Transactional(readOnly = true)
 public ApiResponse<NurseResponse> getNurseById(
@@ -138,31 +156,16 @@ public ApiResponse<NurseResponse> getNurseById(
     Long hospitalId =
             tenantContextService.getCurrentHospitalId();
 
-    Nurse nurse;
-
-    if (hospitalId == null) {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndDeletedAtIsNull(nurseId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-
-    } else {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndHospitalIdAndDeletedAtIsNull(
-                                nurseId,
-                                hospitalId
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-    }
+    Nurse nurse =
+            nurseRepository
+                    .findByIdAndHospitalIdAndDeletedAtIsNull(
+                            nurseId,
+                            hospitalId
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Nurse not found"
+                            ));
 
     return ApiResponse.<NurseResponse>builder()
             .success(true)
@@ -180,27 +183,11 @@ public ApiResponse<List<NurseResponse>> getAllNurses() {
     Long hospitalId =
             tenantContextService.getCurrentHospitalId();
 
-    List<Nurse> nurses;
-
-    if (hospitalId == null) {
-
-        nurses =
-                nurseRepository
-                        .findAll()
-                        .stream()
-                        .filter(nurse ->
-                                nurse.getDeletedAt() == null
-                        )
-                        .toList();
-
-    } else {
-
-        nurses =
-                nurseRepository
-                        .findByHospitalIdAndDeletedAtIsNull(
-                                hospitalId
-                        );
-    }
+    List<Nurse> nurses =
+            nurseRepository
+                    .findByHospitalIdAndDeletedAtIsNull(
+                            hospitalId
+                    );
 
     List<NurseResponse> responses =
             nurses.stream()
@@ -216,7 +203,7 @@ public ApiResponse<List<NurseResponse>> getAllNurses() {
 
      
 
- @Override
+@Override
 @Transactional
 public ApiResponse<NurseResponse> updateNurse(
         Long nurseId,
@@ -225,31 +212,16 @@ public ApiResponse<NurseResponse> updateNurse(
     Long hospitalId =
             tenantContextService.getCurrentHospitalId();
 
-    Nurse nurse;
-
-    if (hospitalId == null) {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndDeletedAtIsNull(nurseId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-
-    } else {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndHospitalIdAndDeletedAtIsNull(
-                                nurseId,
-                                hospitalId
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-    }
+    Nurse nurse =
+            nurseRepository
+                    .findByIdAndHospitalIdAndDeletedAtIsNull(
+                            nurseId,
+                            hospitalId
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Nurse not found"
+                            ));
 
     nurseMapper.updateEntity(
             nurse,
@@ -277,31 +249,16 @@ public ApiResponse<Void> deleteNurse(
     Long hospitalId =
             tenantContextService.getCurrentHospitalId();
 
-    Nurse nurse;
-
-    if (hospitalId == null) {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndDeletedAtIsNull(nurseId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-
-    } else {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndHospitalIdAndDeletedAtIsNull(
-                                nurseId,
-                                hospitalId
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-    }
+    Nurse nurse =
+            nurseRepository
+                    .findByIdAndHospitalIdAndDeletedAtIsNull(
+                            nurseId,
+                            hospitalId
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Nurse not found"
+                            ));
 
     nurse.setDeletedAt(LocalDateTime.now());
 
@@ -323,31 +280,16 @@ public ApiResponse<NurseResponse> activateNurse(
     Long hospitalId =
             tenantContextService.getCurrentHospitalId();
 
-    Nurse nurse;
-
-    if (hospitalId == null) {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndDeletedAtIsNull(nurseId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-
-    } else {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndHospitalIdAndDeletedAtIsNull(
-                                nurseId,
-                                hospitalId
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-    }
+    Nurse nurse =
+            nurseRepository
+                    .findByIdAndHospitalIdAndDeletedAtIsNull(
+                            nurseId,
+                            hospitalId
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Nurse not found"
+                            ));
 
     if (nurse.getStatus() == NurseStatus.ACTIVE) {
         throw new BusinessException(
@@ -379,31 +321,16 @@ public ApiResponse<NurseResponse> deactivateNurse(
     Long hospitalId =
             tenantContextService.getCurrentHospitalId();
 
-    Nurse nurse;
-
-    if (hospitalId == null) {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndDeletedAtIsNull(nurseId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-
-    } else {
-
-        nurse =
-                nurseRepository
-                        .findByIdAndHospitalIdAndDeletedAtIsNull(
-                                nurseId,
-                                hospitalId
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Nurse not found"
-                                ));
-    }
+    Nurse nurse =
+            nurseRepository
+                    .findByIdAndHospitalIdAndDeletedAtIsNull(
+                            nurseId,
+                            hospitalId
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Nurse not found"
+                            ));
 
     if (nurse.getStatus() == NurseStatus.INACTIVE) {
         throw new BusinessException(
@@ -424,7 +351,132 @@ public ApiResponse<NurseResponse> deactivateNurse(
             )
             .build();
 }
+	
 
+@Override
+@Transactional(readOnly = true)
+public ApiResponse<NurseProfileResponse> getMyProfile() {
+
+    String email = SecurityUtil.getCurrentUsername();
+
+    User user =
+            userRepository
+                    .findByEmail(email)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "User not found"
+                            ));
+
+    Nurse nurse =
+            nurseRepository
+                    .findByUserIdAndDeletedAtIsNull(
+                            user.getId()
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Nurse profile not found"
+                            ));
+
+    return ApiResponse.<NurseProfileResponse>builder()
+            .success(true)
+            .message("Nurse profile fetched successfully")
+            .data(
+                    nurseMapper.toProfileResponse(nurse)
+            )
+            .build();
+}
      
-     
+@Override
+@Transactional
+public ApiResponse<NurseProfileResponse> updateMyProfile(
+        UpdateMyNurseProfileRequest request) {
+
+    String email = SecurityUtil.getCurrentUsername();
+
+    User user =
+            userRepository
+                    .findByEmail(email)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "User not found"
+                            ));
+
+    Nurse nurse =
+            nurseRepository
+                    .findByUserIdAndDeletedAtIsNull(
+                            user.getId()
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Nurse profile not found"
+                            ));
+
+    nurseMapper.updateMyProfile(
+            nurse,
+            request
+    );
+
+    Nurse updatedNurse =
+            nurseRepository.save(nurse);
+
+    return ApiResponse.<NurseProfileResponse>builder()
+            .success(true)
+            .message("Nurse profile updated successfully")
+            .data(
+                    nurseMapper.toProfileResponse(
+                            updatedNurse
+                    )
+            )
+            .build();
+}
+@Override
+@Transactional
+public ApiResponse<NurseProfileResponse> uploadMyProfileImage(
+        MultipartFile file) {
+
+    String email = SecurityUtil.getCurrentUsername();
+
+    User user =
+            userRepository
+                    .findByEmail(email)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "User not found"
+                            ));
+
+    Nurse nurse =
+            nurseRepository
+                    .findByUserIdAndDeletedAtIsNull(
+                            user.getId()
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Nurse profile not found"
+                            ));
+
+    fileValidationService.validateImage(file);
+
+    String imageUrl =
+            fileStorageService.upload(
+                    file,
+                    "medcore/nurses/"
+                            + nurse.getId()
+                            + "/profile"
+            );
+
+    nurse.setProfileImageUrl(imageUrl);
+
+    Nurse updatedNurse =
+            nurseRepository.save(nurse);
+
+    return ApiResponse.<NurseProfileResponse>builder()
+            .success(true)
+            .message("Profile image uploaded successfully")
+            .data(
+                    nurseMapper.toProfileResponse(
+                            updatedNurse
+                    )
+            )
+            .build();
+}
 }
