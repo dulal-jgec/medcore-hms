@@ -134,8 +134,7 @@ class AccountantServiceImplTest {
         CreateAccountantRequest request =
                 new CreateAccountantRequest();
 
-        request.setUserId(10L);
-
+ 
         when(userRepository.findById(10L))
                 .thenReturn(Optional.of(user));
 
@@ -180,8 +179,7 @@ class AccountantServiceImplTest {
         CreateAccountantRequest request =
                 new CreateAccountantRequest();
 
-        request.setUserId(10L);
-
+ 
         when(userRepository.findById(10L))
                 .thenReturn(Optional.empty());
 
@@ -201,8 +199,7 @@ class AccountantServiceImplTest {
         CreateAccountantRequest request =
                 new CreateAccountantRequest();
 
-        request.setUserId(10L);
-
+ 
         Role role = new Role();
         role.setName(RoleName.DOCTOR);
 
@@ -227,8 +224,7 @@ class AccountantServiceImplTest {
         CreateAccountantRequest request =
                 new CreateAccountantRequest();
 
-        request.setUserId(10L);
-
+ 
         Hospital anotherHospital = new Hospital();
         anotherHospital.setId(99L);
 
@@ -253,8 +249,7 @@ class AccountantServiceImplTest {
         CreateAccountantRequest request =
                 new CreateAccountantRequest();
 
-        request.setUserId(10L);
-
+ 
         when(userRepository.findById(10L))
                 .thenReturn(Optional.of(user));
 
