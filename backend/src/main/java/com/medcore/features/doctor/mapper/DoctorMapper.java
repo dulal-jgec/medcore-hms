@@ -3,6 +3,7 @@ package com.medcore.features.doctor.mapper;
 import com.medcore.features.department.entity.Department;
 import com.medcore.features.doctor.dto.request.CreateDoctorRequest;
 import com.medcore.features.doctor.dto.request.UpdateDoctorRequest;
+import com.medcore.features.doctor.dto.response.DoctorProfileResponse;
 import com.medcore.features.doctor.dto.response.DoctorResponse;
 import com.medcore.features.doctor.entity.Doctor;
 import com.medcore.features.doctor.enums.DoctorStatus;
@@ -37,6 +38,30 @@ public class DoctorMapper {
                 .userId(doctor.getUser().getId())
                 .doctorName(doctor.getUser().getFullName())
                 .email(doctor.getUser().getEmail())
+                .hospitalId(doctor.getHospital().getId())
+                .hospitalName(doctor.getHospital().getName())
+                .departmentId(doctor.getDepartment().getId())
+                .departmentName(doctor.getDepartment().getName())
+                .specialization(doctor.getSpecialization())
+                .experienceYears(doctor.getExperienceYears())
+                .consultationFee(doctor.getConsultationFee())
+                .qualification(doctor.getQualification())
+                .status(doctor.getStatus())
+                .createdAt(doctor.getCreatedAt())
+                .build();
+    }
+    
+    public DoctorProfileResponse toProfileResponse(Doctor doctor) {
+
+        return DoctorProfileResponse.builder()
+                .id(doctor.getId())
+                .userId(doctor.getUser().getId())
+                .doctorName(doctor.getUser().getFullName())
+                .email(doctor.getUser().getEmail())
+                .phone(doctor.getUser().getPhone())
+                .profileImageUrl(doctor.getProfileImageUrl())
+                .bio(doctor.getBio())
+                .languages(doctor.getLanguages())
                 .hospitalId(doctor.getHospital().getId())
                 .hospitalName(doctor.getHospital().getName())
                 .departmentId(doctor.getDepartment().getId())

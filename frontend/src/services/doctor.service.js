@@ -10,6 +10,9 @@ async function handleResponse(response) {
   return result;
 }
 
+// ADMIN APIs
+ 
+
 export async function getDoctors(
   accessToken,
   { page = 0, size = 100, sortBy = "id", sortDir = "asc" } = {}
@@ -76,18 +79,15 @@ export async function getDoctorById(accessToken, doctorId) {
 }
 
 export async function createDoctor(accessToken, data) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctors`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/doctors`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
 
   return handleResponse(response);
 }
@@ -139,6 +139,67 @@ export async function deleteDoctor(accessToken, doctorId) {
         Authorization: `Bearer ${accessToken}`,
       },
       credentials: "include",
+    }
+  );
+
+  return handleResponse(response);
+
+}
+
+// DOCTOR SELF PROFILE APIs
+ 
+export async function getMyDoctorProfile(accessToken) {
+  const response = await fetch(
+    `${API_BASE_URL}/doctors/me`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      credentials: "include",
+    }
+  );
+
+  return handleResponse(response);
+}
+
+export async function updateMyDoctorProfile(
+  accessToken,
+  data
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/doctors/me`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }
+  );
+
+  return handleResponse(response);
+}
+
+export async function uploadDoctorProfileImage(
+  accessToken,
+  file
+) {
+  const formData = new FormData();
+
+  formData.append("file", file);
+
+  const response = await fetch(
+    `${API_BASE_URL}/doctors/me/profile-image`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      credentials: "include",
+      body: formData,
     }
   );
 

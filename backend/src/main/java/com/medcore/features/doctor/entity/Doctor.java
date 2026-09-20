@@ -42,6 +42,14 @@ public class Doctor extends BaseEntity {
 
     @Column(length = 255)
     private String qualification;
+    
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
+    @Column(length = 500)
+    private String languages;
+
+    private String profileImageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

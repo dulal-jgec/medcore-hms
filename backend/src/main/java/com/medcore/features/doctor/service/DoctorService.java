@@ -5,8 +5,10 @@ import com.medcore.common.response.PageResponse;
 import com.medcore.features.doctor.dto.request.CreateDoctorRequest;
 import com.medcore.features.doctor.dto.request.UpdateDoctorRequest;
 import com.medcore.features.doctor.dto.request.UpdateDoctorStatusRequest;
+import com.medcore.features.doctor.dto.request.UpdateMyDoctorProfileRequest;
+import com.medcore.features.doctor.dto.response.DoctorProfileResponse;
 import com.medcore.features.doctor.dto.response.DoctorResponse;
-
+import org.springframework.web.multipart.MultipartFile;
 public interface DoctorService {
 
     ApiResponse<DoctorResponse> createDoctor(CreateDoctorRequest request);
@@ -39,4 +41,19 @@ public interface DoctorService {
             int page,
             int size
     );
+    
+    ApiResponse<DoctorProfileResponse> getMyProfile();
+    
+    ApiResponse<DoctorProfileResponse> updateMyProfile(
+            UpdateMyDoctorProfileRequest request
+    );
+    
+    ApiResponse<DoctorProfileResponse> uploadMyProfileImage(
+            MultipartFile file
+    );
 }
+
+
+
+
+	

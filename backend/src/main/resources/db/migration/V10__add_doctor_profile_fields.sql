@@ -1,0 +1,8 @@
+ALTER TABLE doctors
+ADD COLUMN bio TEXT;
+
+ALTER TABLE doctors
+ADD COLUMN languages VARCHAR(500);
+
+ALTER TABLE doctors
+ADD COLUMN profile_image_url VARCHAR(255);

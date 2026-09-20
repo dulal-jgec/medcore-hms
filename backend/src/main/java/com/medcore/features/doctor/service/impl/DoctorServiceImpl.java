@@ -5,12 +5,17 @@ import com.medcore.common.exception.DuplicateResourceException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
+import com.medcore.common.security.SecurityUtil;
 import com.medcore.common.security.TenantContextService;
+import com.medcore.common.storage.FileStorageService;
+import com.medcore.common.storage.FileValidationService;
 import com.medcore.features.department.entity.Department;
 import com.medcore.features.department.repository.DepartmentRepository;
 import com.medcore.features.doctor.dto.request.CreateDoctorRequest;
 import com.medcore.features.doctor.dto.request.UpdateDoctorRequest;
 import com.medcore.features.doctor.dto.request.UpdateDoctorStatusRequest;
+import com.medcore.features.doctor.dto.request.UpdateMyDoctorProfileRequest;
+import com.medcore.features.doctor.dto.response.DoctorProfileResponse;
 import com.medcore.features.doctor.dto.response.DoctorResponse;
 import com.medcore.features.doctor.entity.Doctor;
 import com.medcore.features.doctor.mapper.DoctorMapper;
@@ -19,36 +24,39 @@ import com.medcore.features.doctor.service.DoctorService;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
+import com.medcore.features.notification.service.EmailService;
+import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
+import com.medcore.features.user.enums.UserStatus;
+import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.medcore.features.notification.service.EmailService;
-import com.medcore.features.user.entity.Role;
-import com.medcore.features.user.enums.UserStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import com.medcore.features.user.repository.RoleRepository;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class DoctorServiceImpl implements DoctorService {
-	
-	private static final Logger log =
-	        LoggerFactory.getLogger(DoctorServiceImpl.class);
+
+    private static final Logger log =
+            LoggerFactory.getLogger(DoctorServiceImpl.class);
 
     private final DoctorRepository doctorRepository;
     private final UserRepository userRepository;
@@ -56,11 +64,11 @@ public class DoctorServiceImpl implements DoctorService {
     private final DepartmentRepository departmentRepository;
     private final DoctorMapper doctorMapper;
     private final TenantContextService tenantContextService;
-    
     private final RoleRepository roleRepository;
-    
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final FileStorageService fileStorageService;
+    private final FileValidationService fileValidationService;
 
     private static final Set<String> ALLOWED_SORT_FIELDS =
             Set.of(
@@ -71,147 +79,121 @@ public class DoctorServiceImpl implements DoctorService {
                     "createdAt",
                     "updatedAt"
             );
-    
+
+     
 
     @Override
-public ApiResponse<DoctorResponse> createDoctor(
-        CreateDoctorRequest request) {
+    public ApiResponse<DoctorResponse> createDoctor(
+            CreateDoctorRequest request) {
 
-    // 1. Get the currently authenticated hospital
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
 
-    Hospital hospital =
-            hospitalRepository
-                    .findByIdAndDeletedAtIsNull(hospitalId)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Hospital not found"
-                            )
-                    );
+        Hospital hospital =
+                hospitalRepository
+                        .findByIdAndDeletedAtIsNull(hospitalId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Hospital not found"
+                                ));
 
-    // 2. Hospital must be active
-    if (hospital.getStatus() != HospitalStatus.ACTIVE) {
-        throw new BusinessException(
-                "Hospital is not active"
-        );
-    }
-
-    // 3. Normalize email and phone
-    String email =
-            request.getEmail().trim().toLowerCase();
-
-    String phone =
-            request.getPhone().trim();
-
-    // 4. Check email uniqueness
-    if (userRepository.existsByEmail(email)) {
-        throw new DuplicateResourceException(
-                "Email already exists"
-        );
-    }
-
-    // 5. Check phone uniqueness
-    if (userRepository.existsByPhone(phone)) {
-        throw new DuplicateResourceException(
-                "Phone number already exists"
-        );
-    }
-
-    // 6. Find DOCTOR role
-    Role doctorRole =
-            roleRepository.findByName(RoleName.DOCTOR)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor role not found"
-                            )
-                    );
-
-    // 7. Find department inside CURRENT hospital
-    Department department =
-            departmentRepository
-                    .findByIdAndHospitalIdAndDeletedAtIsNull(
-                            request.getDepartmentId(),
-                            hospitalId
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Department not found"
-                            )
-                    );
-
-    // 8. Generate temporary password
-    String temporaryPassword =
-            generateTemporaryPassword();
-
-    // 9. Create User account
-    User doctorUser = User.builder()
-            .fullName(request.getFullName().trim())
-            .email(email)
-            .phone(phone)
-            .password(
-                    passwordEncoder.encode(
-                            temporaryPassword
-                    )
-            )
-            .hospital(hospital)
-            .role(doctorRole)
-            .status(UserStatus.ACTIVE)
-            .emailVerified(false)
-            .phoneVerified(false)
-            .build();
-
-    User savedUser =
-            userRepository.save(doctorUser);
-
-    // 10. Create Doctor profile
-    Doctor doctor =
-            doctorMapper.toEntity(
-                    request,
-                    savedUser,
-                    hospital,
-                    department
+        if (hospital.getStatus() != HospitalStatus.ACTIVE) {
+            throw new BusinessException(
+                    "Hospital is not active"
             );
+        }
 
-    Doctor savedDoctor =
-            doctorRepository.save(doctor);
+        String email = request.getEmail().trim().toLowerCase();
+        String phone = request.getPhone().trim();
 
-    // 11. Send login credentials
-    emailService.sendDoctorCredentials(
-            savedUser.getEmail(),
-            savedUser.getFullName(),
-            temporaryPassword,
-            hospital.getName()
-    );
+        if (userRepository.existsByEmail(email)) {
+            throw new DuplicateResourceException(
+                    "Email already exists"
+            );
+        }
 
-    log.info(
-            "Doctor created: doctorId={}, userId={}, hospitalId={}, departmentId={}",
-            savedDoctor.getId(),
-            savedUser.getId(),
-            hospitalId,
-            department.getId()
-    );
+        if (userRepository.existsByPhone(phone)) {
+            throw new DuplicateResourceException(
+                    "Phone number already exists"
+            );
+        }
 
-    return ApiResponse.<DoctorResponse>builder()
-            .success(true)
-            .message("Doctor created successfully")
-            .data(
-                    doctorMapper.toResponse(
-                            savedDoctor
-                    )
-            )
-            .build();
-}
+        Role doctorRole =
+                roleRepository.findByName(RoleName.DOCTOR)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Doctor role not found"
+                                ));
 
-  
+        Department department =
+                departmentRepository
+                        .findByIdAndHospitalIdAndDeletedAtIsNull(
+                                request.getDepartmentId(),
+                                hospitalId
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Department not found"
+                                ));
+
+        String temporaryPassword = generateTemporaryPassword();
+
+        User doctorUser = User.builder()
+                .fullName(request.getFullName().trim())
+                .email(email)
+                .phone(phone)
+                .password(
+                        passwordEncoder.encode(temporaryPassword)
+                )
+                .hospital(hospital)
+                .role(doctorRole)
+                .status(UserStatus.ACTIVE)
+                .emailVerified(false)
+                .phoneVerified(false)
+                .build();
+
+        User savedUser = userRepository.save(doctorUser);
+
+        Doctor doctor =
+                doctorMapper.toEntity(
+                        request,
+                        savedUser,
+                        hospital,
+                        department
+                );
+
+        Doctor savedDoctor = doctorRepository.save(doctor);
+
+        emailService.sendDoctorCredentials(
+                savedUser.getEmail(),
+                savedUser.getFullName(),
+                temporaryPassword,
+                hospital.getName()
+        );
+
+        log.info(
+                "Doctor created: doctorId={}, userId={}, hospitalId={}, departmentId={}",
+                savedDoctor.getId(),
+                savedUser.getId(),
+                hospitalId,
+                department.getId()
+        );
+
+        return ApiResponse.<DoctorResponse>builder()
+                .success(true)
+                .message("Doctor created successfully")
+                .data(doctorMapper.toResponse(savedDoctor))
+                .build();
+    }
+
     private String generateTemporaryPassword() {
-
         return "Temp@" +
                 java.util.UUID.randomUUID()
                         .toString()
                         .substring(0, 8);
     }
-    
+
+     
 
     @Override
     @Transactional(readOnly = true)
@@ -224,9 +206,6 @@ public ApiResponse<DoctorResponse> createDoctor(
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
 
-         
-        // Pagination validation
- 
         if (page < 0) {
             throw new BusinessException(
                     "Page must be greater than or equal to 0"
@@ -239,9 +218,6 @@ public ApiResponse<DoctorResponse> createDoctor(
             );
         }
 
-         // Sorting validation
-        
-
         if (!ALLOWED_SORT_FIELDS.contains(sortBy)) {
             throw new BusinessException(
                     "Invalid sort field: " + sortBy
@@ -250,9 +226,7 @@ public ApiResponse<DoctorResponse> createDoctor(
 
         sortDir = sortDir.trim().toLowerCase();
 
-        if (!sortDir.equals("asc")
-                && !sortDir.equals("desc")) {
-
+        if (!sortDir.equals("asc") && !sortDir.equals("desc")) {
             throw new BusinessException(
                     "Sort direction must be 'asc' or 'desc'"
             );
@@ -262,36 +236,20 @@ public ApiResponse<DoctorResponse> createDoctor(
                 ? Sort.by(sortBy).descending()
                 : Sort.by(sortBy).ascending();
 
-        Pageable pageable =
-                PageRequest.of(page, size, sort);
-
- 
-        // Tenant-aware query
-        
+        Pageable pageable = PageRequest.of(page, size, sort);
 
         Page<Doctor> doctorPage;
 
         if (hospitalId == null) {
-
-            // SUPER_ADMIN
-            doctorPage =
-                    doctorRepository
-                            .findByDeletedAtIsNull(pageable);
-
+            doctorPage = doctorRepository
+                    .findByDeletedAtIsNull(pageable);
         } else {
-
-            // HOSPITAL_ADMIN
-            doctorPage =
-                    doctorRepository
-                            .findByHospitalIdAndDeletedAtIsNull(
-                                    hospitalId,
-                                    pageable
-                            );
+            doctorPage = doctorRepository
+                    .findByHospitalIdAndDeletedAtIsNull(
+                            hospitalId,
+                            pageable
+                    );
         }
-
- 
-        // Map response
-       
 
         List<DoctorResponse> items =
                 doctorPage.getContent()
@@ -304,18 +262,12 @@ public ApiResponse<DoctorResponse> createDoctor(
                         .items(items)
                         .page(doctorPage.getNumber())
                         .size(doctorPage.getSize())
-                        .totalElements(
-                                doctorPage.getTotalElements()
-                        )
-                        .totalPages(
-                                doctorPage.getTotalPages()
-                        )
+                        .totalElements(doctorPage.getTotalElements())
+                        .totalPages(doctorPage.getTotalPages())
                         .first(doctorPage.isFirst())
                         .last(doctorPage.isLast())
                         .hasNext(doctorPage.hasNext())
-                        .hasPrevious(
-                                doctorPage.hasPrevious()
-                        )
+                        .hasPrevious(doctorPage.hasPrevious())
                         .build();
 
         return ApiResponse.<PageResponse<DoctorResponse>>builder()
@@ -325,14 +277,11 @@ public ApiResponse<DoctorResponse> createDoctor(
                 .build();
     }
 
- 
-    // GET DOCTOR BY ID
-  
+     
 
     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<DoctorResponse> getDoctorById(
-            Long doctorId) {
+    public ApiResponse<DoctorResponse> getDoctorById(Long doctorId) {
 
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
@@ -340,19 +289,13 @@ public ApiResponse<DoctorResponse> createDoctor(
         Doctor doctor;
 
         if (hospitalId == null) {
-
-            // SUPER_ADMIN
             doctor = doctorRepository
                     .findByIdAndDeletedAtIsNull(doctorId)
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
-
+                            ));
         } else {
-
-            // HOSPITAL_ADMIN
             doctor = doctorRepository
                     .findByIdAndHospitalIdAndDeletedAtIsNull(
                             doctorId,
@@ -361,8 +304,7 @@ public ApiResponse<DoctorResponse> createDoctor(
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
+                            ));
         }
 
         return ApiResponse.<DoctorResponse>builder()
@@ -372,10 +314,7 @@ public ApiResponse<DoctorResponse> createDoctor(
                 .build();
     }
 
-     
-    // UPDATE DOCTOR
-  
-
+    
     @Override
     public ApiResponse<DoctorResponse> updateDoctor(
             Long doctorId,
@@ -387,19 +326,13 @@ public ApiResponse<DoctorResponse> createDoctor(
         Doctor doctor;
 
         if (hospitalId == null) {
-
-            // SUPER_ADMIN
             doctor = doctorRepository
                     .findByIdAndDeletedAtIsNull(doctorId)
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
-
+                            ));
         } else {
-
-            // HOSPITAL_ADMIN
             doctor = doctorRepository
                     .findByIdAndHospitalIdAndDeletedAtIsNull(
                             doctorId,
@@ -408,18 +341,13 @@ public ApiResponse<DoctorResponse> createDoctor(
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
+                            ));
         }
 
-        doctorMapper.updateEntity(
-                doctor,
-                request
-        );
+        doctorMapper.updateEntity(doctor, request);
 
-        Doctor updatedDoctor =
-                doctorRepository.save(doctor);
-        
+        Doctor updatedDoctor = doctorRepository.save(doctor);
+
         log.info(
                 "Doctor updated: doctorId={}, hospitalId={}",
                 doctorId,
@@ -433,8 +361,8 @@ public ApiResponse<DoctorResponse> createDoctor(
                 .build();
     }
 
-     // UPDATE DOCTOR STATUS
     
+
     @Override
     public ApiResponse<DoctorResponse> updateDoctorStatus(
             Long doctorId,
@@ -446,19 +374,13 @@ public ApiResponse<DoctorResponse> createDoctor(
         Doctor doctor;
 
         if (hospitalId == null) {
-
-            // SUPER_ADMIN
             doctor = doctorRepository
                     .findByIdAndDeletedAtIsNull(doctorId)
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
-
+                            ));
         } else {
-
-            // HOSPITAL_ADMIN
             doctor = doctorRepository
                     .findByIdAndHospitalIdAndDeletedAtIsNull(
                             doctorId,
@@ -467,17 +389,13 @@ public ApiResponse<DoctorResponse> createDoctor(
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
+                            ));
         }
 
-        doctor.setStatus(
-                request.getStatus()
-        );
+        doctor.setStatus(request.getStatus());
 
-        Doctor updatedDoctor =
-                doctorRepository.save(doctor);
-        
+        Doctor updatedDoctor = doctorRepository.save(doctor);
+
         log.info(
                 "Doctor status updated: doctorId={}, hospitalId={}, status={}",
                 doctorId,
@@ -487,18 +405,12 @@ public ApiResponse<DoctorResponse> createDoctor(
 
         return ApiResponse.<DoctorResponse>builder()
                 .success(true)
-                .message(
-                        "Doctor status updated successfully"
-                )
-                .data(
-                        doctorMapper.toResponse(updatedDoctor)
-                )
+                .message("Doctor status updated successfully")
+                .data(doctorMapper.toResponse(updatedDoctor))
                 .build();
     }
 
      
-    // SEARCH DOCTORS
-  
 
     @Override
     @Transactional(readOnly = true)
@@ -510,9 +422,7 @@ public ApiResponse<DoctorResponse> createDoctor(
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
 
-        if (keyword == null ||
-                keyword.trim().isEmpty()) {
-
+        if (keyword == null || keyword.trim().isEmpty()) {
             throw new BusinessException(
                     "Search keyword cannot be empty"
             );
@@ -530,34 +440,24 @@ public ApiResponse<DoctorResponse> createDoctor(
             );
         }
 
-        String normalizedKeyword =
-                keyword.trim();
-
-        Pageable pageable =
-                PageRequest.of(page, size);
+        String normalizedKeyword = keyword.trim();
+        Pageable pageable = PageRequest.of(page, size);
 
         Page<Doctor> doctorPage;
 
         if (hospitalId == null) {
-
-            // SUPER_ADMIN
-            doctorPage =
-                    doctorRepository
-                            .findBySpecializationContainingIgnoreCaseAndDeletedAtIsNull(
-                                    normalizedKeyword,
-                                    pageable
-                            );
-
+            doctorPage = doctorRepository
+                    .findBySpecializationContainingIgnoreCaseAndDeletedAtIsNull(
+                            normalizedKeyword,
+                            pageable
+                    );
         } else {
-
-            // HOSPITAL_ADMIN
-            doctorPage =
-                    doctorRepository
-                            .findByHospitalIdAndSpecializationContainingIgnoreCaseAndDeletedAtIsNull(
-                                    hospitalId,
-                                    normalizedKeyword,
-                                    pageable
-                            );
+            doctorPage = doctorRepository
+                    .findByHospitalIdAndSpecializationContainingIgnoreCaseAndDeletedAtIsNull(
+                            hospitalId,
+                            normalizedKeyword,
+                            pageable
+                    );
         }
 
         List<DoctorResponse> items =
@@ -571,18 +471,12 @@ public ApiResponse<DoctorResponse> createDoctor(
                         .items(items)
                         .page(doctorPage.getNumber())
                         .size(doctorPage.getSize())
-                        .totalElements(
-                                doctorPage.getTotalElements()
-                        )
-                        .totalPages(
-                                doctorPage.getTotalPages()
-                        )
+                        .totalElements(doctorPage.getTotalElements())
+                        .totalPages(doctorPage.getTotalPages())
                         .first(doctorPage.isFirst())
                         .last(doctorPage.isLast())
                         .hasNext(doctorPage.hasNext())
-                        .hasPrevious(
-                                doctorPage.hasPrevious()
-                        )
+                        .hasPrevious(doctorPage.hasPrevious())
                         .build();
 
         return ApiResponse.<PageResponse<DoctorResponse>>builder()
@@ -592,13 +486,9 @@ public ApiResponse<DoctorResponse> createDoctor(
                 .build();
     }
 
- 
-    // DELETE DOCTOR
-   
-
+    
     @Override
-    public ApiResponse<String> deleteDoctor(
-            Long doctorId) {
+    public ApiResponse<String> deleteDoctor(Long doctorId) {
 
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
@@ -606,19 +496,13 @@ public ApiResponse<DoctorResponse> createDoctor(
         Doctor doctor;
 
         if (hospitalId == null) {
-
-            // SUPER_ADMIN
             doctor = doctorRepository
                     .findByIdAndDeletedAtIsNull(doctorId)
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
-
+                            ));
         } else {
-
-            // HOSPITAL_ADMIN
             doctor = doctorRepository
                     .findByIdAndHospitalIdAndDeletedAtIsNull(
                             doctorId,
@@ -627,16 +511,12 @@ public ApiResponse<DoctorResponse> createDoctor(
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
+                            ));
         }
 
-        doctor.setDeletedAt(
-                LocalDateTime.now()
-        );
-
+        doctor.setDeletedAt(LocalDateTime.now());
         doctorRepository.save(doctor);
-        
+
         log.info(
                 "Doctor deleted: doctorId={}, hospitalId={}",
                 doctorId,
@@ -651,12 +531,8 @@ public ApiResponse<DoctorResponse> createDoctor(
     }
 
     
-    // RESTORE DOCTOR
-    
-
     @Override
-    public ApiResponse<String> restoreDoctor(
-            Long doctorId) {
+    public ApiResponse<String> restoreDoctor(Long doctorId) {
 
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
@@ -664,42 +540,30 @@ public ApiResponse<DoctorResponse> createDoctor(
         Doctor doctor;
 
         if (hospitalId == null) {
-
-            // SUPER_ADMIN
             doctor = doctorRepository
                     .findById(doctorId)
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
-
+                            ));
         } else {
-
-            // HOSPITAL_ADMIN
             doctor = doctorRepository
-                    .findByIdAndHospitalId(
-                            doctorId,
-                            hospitalId
-                    )
+                    .findByIdAndHospitalId(doctorId, hospitalId)
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Doctor not found"
-                            )
-                    );
+                            ));
         }
 
         if (doctor.getDeletedAt() == null) {
-
             throw new BusinessException(
                     "Doctor is already active"
             );
         }
 
         doctor.setDeletedAt(null);
-
         doctorRepository.save(doctor);
-        
+
         log.info(
                 "Doctor restored: doctorId={}, hospitalId={}",
                 doctorId,
@@ -710,6 +574,117 @@ public ApiResponse<DoctorResponse> createDoctor(
                 .success(true)
                 .message("Doctor restored successfully")
                 .data("Restored")
+                .build();
+    }
+
+    
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<DoctorProfileResponse> getMyProfile() {
+
+        String email = SecurityUtil.getCurrentUsername();
+
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found")
+                );
+
+        Doctor doctor = doctorRepository
+                .findByUserIdAndDeletedAtIsNull(user.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Doctor profile not found"
+                        )
+                );
+
+        return ApiResponse.<DoctorProfileResponse>builder()
+                .success(true)
+                .message("Doctor profile fetched successfully")
+                .data(doctorMapper.toProfileResponse(doctor))
+                .build();
+    }
+
+    
+    @Override
+    public ApiResponse<DoctorProfileResponse> updateMyProfile(
+            UpdateMyDoctorProfileRequest request) {
+
+        String email = SecurityUtil.getCurrentUsername();
+
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found")
+                );
+
+        Doctor doctor = doctorRepository
+                .findByUserIdAndDeletedAtIsNull(user.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Doctor profile not found"
+                        )
+                );
+
+        if (request.getConsultationFee() != null) {
+            doctor.setConsultationFee(request.getConsultationFee());
+        }
+
+        if (request.getBio() != null) {
+            doctor.setBio(request.getBio().trim());
+        }
+
+        if (request.getLanguages() != null) {
+            doctor.setLanguages(request.getLanguages().trim());
+        }
+
+        Doctor updatedDoctor = doctorRepository.save(doctor);
+
+        return ApiResponse.<DoctorProfileResponse>builder()
+                .success(true)
+                .message("Doctor profile updated successfully")
+                .data(doctorMapper.toProfileResponse(updatedDoctor))
+                .build();
+    }
+
+    
+
+    @Override
+    public ApiResponse<DoctorProfileResponse> uploadMyProfileImage(
+            MultipartFile file) {
+
+        String email = SecurityUtil.getCurrentUsername();
+
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found")
+                );
+
+        Doctor doctor = doctorRepository
+                .findByUserIdAndDeletedAtIsNull(user.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Doctor profile not found"
+                        )
+                );
+
+        fileValidationService.validateImage(file);
+
+        String imageUrl = fileStorageService.upload(
+                file,
+                "medcore/doctors/" + doctor.getId() + "/profile"
+        );
+
+        doctor.setProfileImageUrl(imageUrl);
+
+        Doctor updatedDoctor = doctorRepository.save(doctor);
+
+        return ApiResponse.<DoctorProfileResponse>builder()
+                .success(true)
+                .message("Profile image uploaded successfully")
+                .data(doctorMapper.toProfileResponse(updatedDoctor))
                 .build();
     }
 }
