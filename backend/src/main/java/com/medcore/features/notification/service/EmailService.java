@@ -22,4 +22,11 @@ public interface EmailService {
             String temporaryPassword,
             String hospitalName
     );
+    
+    void sendAccountantCredentials(
+            String email,
+            String fullName,
+            String temporaryPassword,
+            String hospitalName
+    );
 }

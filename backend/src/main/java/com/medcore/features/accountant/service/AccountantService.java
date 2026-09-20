@@ -15,6 +15,9 @@ import com.medcore.features.billing.dto.response.PaymentResponse;
 
 import java.time.LocalDate;
 import java.util.List;
+import com.medcore.features.accountant.dto.request.UpdateMyAccountantProfileRequest;
+import com.medcore.features.accountant.dto.response.AccountantProfileResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface AccountantService {
 
@@ -75,5 +78,15 @@ public interface AccountantService {
     ApiResponse<PaymentResponse> payBill(
             Long billId,
             PaymentRequest request
+    );
+    
+    ApiResponse<AccountantProfileResponse> getMyProfile();
+
+    ApiResponse<AccountantProfileResponse> updateMyProfile(
+            UpdateMyAccountantProfileRequest request
+    );
+
+    ApiResponse<AccountantProfileResponse> uploadMyProfileImage(
+            MultipartFile file
     );
 }

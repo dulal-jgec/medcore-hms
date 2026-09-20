@@ -22,6 +22,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+
+import com.medcore.features.accountant.dto.request.UpdateMyAccountantProfileRequest;
+import com.medcore.features.accountant.dto.response.AccountantProfileResponse;
+import org.springframework.web.multipart.MultipartFile;
+
 @RestController
 @RequestMapping("/api/v1/accountants")
 @RequiredArgsConstructor
@@ -29,57 +34,76 @@ public class AccountantController {
 
     private final AccountantService accountantService;
 
+
+  
+
     @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @PostMapping
     public ApiResponse<AccountantResponse> createAccountant(
             @Valid @RequestBody CreateAccountantRequest request) {
+
         return accountantService.createAccountant(request);
     }
 
-    @PreAuthorize("hasRole('ACCOUNTANT')")
+
+    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @GetMapping
     public ApiResponse<List<AccountantResponse>> getAllAccountants() {
+
         return accountantService.getAllAccountants();
     }
 
-    @PreAuthorize("hasRole('ACCOUNTANT')")
+
+    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @GetMapping("/{accountantId}")
     public ApiResponse<AccountantResponse> getAccountantById(
             @PathVariable Long accountantId) {
+
         return accountantService.getAccountantById(accountantId);
     }
+
 
     @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @PutMapping("/{accountantId}")
     public ApiResponse<AccountantResponse> updateAccountant(
             @PathVariable Long accountantId,
             @Valid @RequestBody UpdateAccountantRequest request) {
+
         return accountantService.updateAccountant(
                 accountantId,
                 request
         );
     }
 
+
     @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @DeleteMapping("/{accountantId}")
     public ApiResponse<Void> deleteAccountant(
             @PathVariable Long accountantId) {
+
         return accountantService.deleteAccountant(accountantId);
     }
+
 
     @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @PatchMapping("/{accountantId}/activate")
     public ApiResponse<AccountantResponse> activateAccountant(
             @PathVariable Long accountantId) {
+
         return accountantService.activateAccountant(accountantId);
     }
+
 
     @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
     @PatchMapping("/{accountantId}/deactivate")
     public ApiResponse<AccountantResponse> deactivateAccountant(
             @PathVariable Long accountantId) {
+
         return accountantService.deactivateAccountant(accountantId);
     }
+
+
+    
 
     @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/bills")
@@ -90,9 +114,13 @@ public class AccountantController {
             @RequestParam(defaultValue = "desc") String sortDir) {
 
         return accountantService.getHospitalBills(
-                page, size, sortBy, sortDir
+                page,
+                size,
+                sortBy,
+                sortDir
         );
     }
+
 
     @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/bills/outstanding")
@@ -103,28 +131,34 @@ public class AccountantController {
             @RequestParam(defaultValue = "desc") String sortDir) {
 
         return accountantService.getOutstandingBills(
-                page, size, sortBy, sortDir
+                page,
+                size,
+                sortBy,
+                sortDir
         );
     }
 
+
     @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/financial-summary")
-    public ApiResponse<FinancialSummaryResponse>
-    getFinancialSummary() {
+    public ApiResponse<FinancialSummaryResponse> getFinancialSummary() {
+
         return accountantService.getFinancialSummary();
     }
 
+
     @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/financial-report")
-    public ApiResponse<FinancialReportResponse>
-    getFinancialReport(
+    public ApiResponse<FinancialReportResponse> getFinancialReport(
             @RequestParam LocalDate fromDate,
             @RequestParam LocalDate toDate) {
 
         return accountantService.getFinancialReport(
-                fromDate, toDate
+                fromDate,
+                toDate
         );
     }
+
 
     @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/payment-method-collection")
@@ -134,13 +168,14 @@ public class AccountantController {
         return accountantService.getPaymentMethodCollection();
     }
 
+
     @PreAuthorize("hasRole('ACCOUNTANT')")
     @GetMapping("/dashboard")
-    public ApiResponse<AccountantDashboardResponse>
-    getDashboard() {
+    public ApiResponse<AccountantDashboardResponse> getDashboard() {
 
         return accountantService.getDashboard();
     }
+
 
     @PreAuthorize("hasRole('ACCOUNTANT')")
     @PostMapping("/bills/{billId}/payment")
@@ -149,7 +184,38 @@ public class AccountantController {
             @Valid @RequestBody PaymentRequest request) {
 
         return accountantService.payBill(
-                billId, request
+                billId,
+                request
         );
     }
+    
+ 
+
+ @PreAuthorize("hasRole('ACCOUNTANT')")
+ @GetMapping("/me")
+ public ApiResponse<AccountantProfileResponse> getMyProfile() {
+
+     return accountantService.getMyProfile();
+ }
+
+
+ @PreAuthorize("hasRole('ACCOUNTANT')")
+ @PutMapping("/me")
+ public ApiResponse<AccountantProfileResponse> updateMyProfile(
+         @Valid @RequestBody UpdateMyAccountantProfileRequest request) {
+
+     return accountantService.updateMyProfile(request);
+ }
+
+
+ @PreAuthorize("hasRole('ACCOUNTANT')")
+ @PostMapping(
+         value = "/me/profile-image",
+         consumes = "multipart/form-data"
+ )
+ public ApiResponse<AccountantProfileResponse> uploadMyProfileImage(
+         @RequestParam("file") MultipartFile file) {
+
+     return accountantService.uploadMyProfileImage(file);
+ }
 }

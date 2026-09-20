@@ -53,12 +53,19 @@ function LoginContent() {
 
   if (user.role === "SUPER_ADMIN") {
   router.push("/super-admin");
+
 } else if (user.role === "HOSPITAL_ADMIN") {
   router.push("/portal/admin");
+
 } else if (user.role === "DOCTOR") {
   router.push("/portal/doctor");
-  } else if (user.role === "NURSE") {
+
+} else if (user.role === "ACCOUNTANT") {
+  router.push("/portal/accounts");
+
+} else if (user.role === "NURSE") {
   router.push("/portal/nurse");
+
 } else {
   router.push("/portal");
 }

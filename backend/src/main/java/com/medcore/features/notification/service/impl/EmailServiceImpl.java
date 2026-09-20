@@ -155,4 +155,52 @@ public class EmailServiceImpl implements EmailService {
 
         mailSender.send(message);
     }
+    
+    @Override
+    public void sendAccountantCredentials(
+            String email,
+            String fullName,
+            String temporaryPassword,
+            String hospitalName) {
+
+        SimpleMailMessage message =
+                new SimpleMailMessage();
+
+        message.setFrom(fromEmail);
+        message.setTo(email);
+
+        message.setSubject(
+                "Welcome to MedCore - Accountant Account Created"
+        );
+
+        message.setText("""
+                Welcome to MedCore
+
+                Dear %s,
+
+                Your accountant account has been successfully created
+                by the administration of %s.
+
+                You can now access the MedCore Hospital Management
+                System using the credentials below.
+
+                Login Email: %s
+                Temporary Password: %s
+
+                Please log in using these credentials and change
+                your temporary password after your first login.
+
+                We are pleased to welcome you to the MedCore platform.
+
+                Regards,
+                MedCore Team
+                """.formatted(
+                fullName,
+                hospitalName,
+                email,
+                temporaryPassword
+        ));
+
+        mailSender.send(message);
+    }
 }

@@ -32,7 +32,11 @@ import { cn } from "@/lib/utils";
 /* ─── Role → nav items ─── */
 export const NAV_BY_ROLE = {
   PATIENT: [
-    { href: "/portal/patient", label: "Dashboard", icon: LayoutDashboard },
+    {
+      href: "/portal/patient",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
     {
       href: "/portal/patient/appointments",
       label: "Appointments",
@@ -48,17 +52,34 @@ export const NAV_BY_ROLE = {
       label: "Lab Reports",
       icon: FlaskConical,
     },
-    { href: "/portal/patient/bills", label: "Bills & Payments", icon: Wallet },
-    { href: "/portal/patient/profile", label: "My Profile", icon: User },
+    {
+      href: "/portal/patient/bills",
+      label: "Bills & Payments",
+      icon: Wallet,
+    },
+    {
+      href: "/portal/patient/profile",
+      label: "My Profile",
+      icon: User,
+    },
   ],
+
   DOCTOR: [
-    { href: "/portal/doctor", label: "Dashboard", icon: LayoutDashboard },
+    {
+      href: "/portal/doctor",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
     {
       href: "/portal/doctor/appointments",
       label: "Appointments",
       icon: CalendarCheck,
     },
-    { href: "/portal/doctor/patients", label: "My Patients", icon: Users },
+    {
+      href: "/portal/doctor/patients",
+      label: "My Patients",
+      icon: Users,
+    },
     {
       href: "/portal/doctor/prescriptions",
       label: "Prescriptions",
@@ -69,19 +90,44 @@ export const NAV_BY_ROLE = {
       label: "Lab Reports",
       icon: FlaskConical,
     },
-    { href: "/portal/doctor/schedule", label: "My Schedule", icon: Clock },
-    { href: "/portal/doctor/profile", label: "My Profile", icon: User },
+    {
+      href: "/portal/doctor/schedule",
+      label: "My Schedule",
+      icon: Clock,
+    },
+    {
+      href: "/portal/doctor/profile",
+      label: "My Profile",
+      icon: User,
+    },
   ],
+
   HOSPITAL_ADMIN: [
-    { href: "/portal/admin", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/portal/admin/doctors", label: "Doctors", icon: Stethoscope },
-    { href: "/portal/admin/nurses", label: "Nurses", icon: HeartPulse },
+    {
+      href: "/portal/admin",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/portal/admin/doctors",
+      label: "Doctors",
+      icon: Stethoscope,
+    },
+    {
+      href: "/portal/admin/nurses",
+      label: "Nurses",
+      icon: HeartPulse,
+    },
     {
       href: "/portal/admin/receptionists",
       label: "Receptionists",
       icon: ClipboardList,
     },
-    { href: "/portal/admin/patients", label: "Patients", icon: Users },
+    {
+      href: "/portal/admin/patients",
+      label: "Patients",
+      icon: Users,
+    },
     {
       href: "/portal/admin/departments",
       label: "Departments",
@@ -92,8 +138,24 @@ export const NAV_BY_ROLE = {
       label: "Appointments",
       icon: CalendarCheck,
     },
-    { href: "/portal/admin/billing", label: "Billing", icon: Wallet },
-    { href: "/portal/admin/reports", label: "Reports", icon: BarChart3 },
+    {
+      href: "/portal/admin/billing",
+      label: "Billing",
+      icon: Wallet,
+    },
+
+    // Accountant Management
+    {
+      href: "/portal/admin/accountants",
+      label: "Accountants",
+      icon: Users,
+    },
+
+    {
+      href: "/portal/admin/reports",
+      label: "Reports",
+      icon: BarChart3,
+    },
     {
       href: "/portal/admin/settings",
       label: "Hospital Settings",
@@ -102,43 +164,136 @@ export const NAV_BY_ROLE = {
   ],
 
   ACCOUNTANT: [
-    { href: "/portal/accounts", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/portal/accounts/bills", label: "All Bills", icon: Receipt },
+    {
+      href: "/portal/accounts",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/portal/accounts/bills",
+      label: "All Bills",
+      icon: Receipt,
+    },
     {
       href: "/portal/accounts/outstanding",
       label: "Outstanding",
       icon: AlertCircle,
     },
-    { href: "/portal/accounts/payments", label: "Payments", icon: CreditCard },
-    { href: "/portal/accounts/reports", label: "Reports", icon: BarChart3 },
-    { href: "/portal/accounts/profile", label: "My Profile", icon: User },
+    {
+      href: "/portal/accounts/payments",
+      label: "Payments",
+      icon: CreditCard,
+    },
+    {
+      href: "/portal/accounts/reports",
+      label: "Reports",
+      icon: BarChart3,
+    },
+    {
+      href: "/portal/accounts/profile",
+      label: "My Profile",
+      icon: User,
+    },
   ],
+
   RECEPTIONIST: [
-  { href: "/portal/reception", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/portal/reception/appointments", label: "Appointments", icon: CalendarCheck },
-  { href: "/portal/reception/queue", label: "Live Queue", icon: Clock },
-  { href: "/portal/reception/patients", label: "Patients", icon: Users },
-  { href: "/portal/reception/billing", label: "Billing Counter", icon: Receipt },
-  { href: "/portal/reception/profile", label: "My Profile", icon: User },
-],
+    {
+      href: "/portal/reception",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/portal/reception/appointments",
+      label: "Appointments",
+      icon: CalendarCheck,
+    },
+    {
+      href: "/portal/reception/queue",
+      label: "Live Queue",
+      icon: Clock,
+    },
+    {
+      href: "/portal/reception/patients",
+      label: "Patients",
+      icon: Users,
+    },
+    {
+      href: "/portal/reception/billing",
+      label: "Billing Counter",
+      icon: Receipt,
+    },
+    {
+      href: "/portal/reception/profile",
+      label: "My Profile",
+      icon: User,
+    },
+  ],
 
-LAB_TECHNICIAN: [
-  { href: "/portal/lab", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/portal/lab/orders", label: "Lab Orders", icon: FlaskConical },
-  { href: "/portal/lab/samples", label: "Samples", icon: Microscope },
-  { href: "/portal/lab/reports", label: "Reports", icon: FileText },
-  { href: "/portal/lab/profile", label: "My Profile", icon: User },
-],
-NURSE: [
-  { href: "/portal/nurse", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/portal/nurse/patients", label: "My Patients", icon: Users },
-  { href: "/portal/nurse/vitals", label: "Record Vitals", icon: Activity },
-  { href: "/portal/nurse/medications", label: "Medication Rounds", icon: Pill },
-  { href: "/portal/nurse/tasks", label: "My Tasks", icon: ClipboardList },
-  { href: "/portal/nurse/shifts", label: "My Shifts", icon: Clock },
-  { href: "/portal/nurse/profile", label: "My Profile", icon: User },
-],
+  LAB_TECHNICIAN: [
+    {
+      href: "/portal/lab",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/portal/lab/orders",
+      label: "Lab Orders",
+      icon: FlaskConical,
+    },
+    {
+      href: "/portal/lab/samples",
+      label: "Samples",
+      icon: Microscope,
+    },
+    {
+      href: "/portal/lab/reports",
+      label: "Reports",
+      icon: FileText,
+    },
+    {
+      href: "/portal/lab/profile",
+      label: "My Profile",
+      icon: User,
+    },
+  ],
 
+  NURSE: [
+    {
+      href: "/portal/nurse",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/portal/nurse/patients",
+      label: "My Patients",
+      icon: Users,
+    },
+    {
+      href: "/portal/nurse/vitals",
+      label: "Record Vitals",
+      icon: Activity,
+    },
+    {
+      href: "/portal/nurse/medications",
+      label: "Medication Rounds",
+      icon: Pill,
+    },
+    {
+      href: "/portal/nurse/tasks",
+      label: "My Tasks",
+      icon: ClipboardList,
+    },
+    {
+      href: "/portal/nurse/shifts",
+      label: "My Shifts",
+      icon: Clock,
+    },
+    {
+      href: "/portal/nurse/profile",
+      label: "My Profile",
+      icon: User,
+    },
+  ],
 };
 
 /* URL slug → role name */

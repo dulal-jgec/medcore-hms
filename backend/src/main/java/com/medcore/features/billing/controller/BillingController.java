@@ -1,6 +1,7 @@
 package com.medcore.features.billing.controller;
 
 import com.medcore.common.response.ApiResponse;
+import com.medcore.common.response.PageResponse;
 import com.medcore.features.billing.dto.request.AddBillItemRequest;
 import com.medcore.features.billing.dto.request.CreateBillRequest;
 import com.medcore.features.billing.dto.request.PaymentRequest;
@@ -25,6 +26,7 @@ public class BillingController {
 
 
     
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
@@ -32,6 +34,46 @@ public class BillingController {
             @Valid @RequestBody CreateBillRequest request) {
 
         return billingService.createBill(request);
+    }
+
+
+    // =========================================================
+    // GET ALL HOSPITAL BILLS
+    // =========================================================
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
+    public ApiResponse<PageResponse<BillResponse>> getHospitalBills(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "billDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+
+        return billingService.getHospitalBills(
+                page,
+                size,
+                sortBy,
+                sortDir
+        );
+    }
+
+
+     
+
+    @GetMapping("/outstanding")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
+    public ApiResponse<PageResponse<BillResponse>> getOutstandingBills(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "billDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+
+        return billingService.getOutstandingBills(
+                page,
+                size,
+                sortBy,
+                sortDir
+        );
     }
 
 
@@ -66,7 +108,8 @@ public class BillingController {
     }
 
 
-    
+     
+
     @PutMapping("/{billId}/items/{itemId}")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
     public ApiResponse<BillItemResponse> updateBillItem(
@@ -82,7 +125,7 @@ public class BillingController {
     }
 
 
-     
+    
     @DeleteMapping("/{billId}/items/{itemId}")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ACCOUNTANT')")
     public ApiResponse<Void> deleteBillItem(
@@ -96,7 +139,7 @@ public class BillingController {
     }
 
 
-     
+ 
 
     @PostMapping("/{billId}/payments")
     @PreAuthorize("hasRole('ACCOUNTANT')")
