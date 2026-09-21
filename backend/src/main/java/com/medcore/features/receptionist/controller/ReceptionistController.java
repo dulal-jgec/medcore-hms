@@ -18,6 +18,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.medcore.features.receptionist.dto.request.UpdateMyReceptionistProfileRequest;
+import com.medcore.features.receptionist.dto.response.ReceptionistProfileResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/receptionists")
@@ -33,6 +36,38 @@ public class ReceptionistController {
             @Valid @RequestBody CreateReceptionistRequest request) {
 
         return receptionistService.createReceptionist(request);
+    }
+    
+    @PreAuthorize("hasRole('RECEPTIONIST')")
+    @GetMapping("/me")
+    public ApiResponse<ReceptionistProfileResponse> getMyProfile() {
+
+        return receptionistService.getMyProfile();
+    }
+    
+    @PreAuthorize("hasRole('RECEPTIONIST')")
+    @PutMapping("/me")
+    public ApiResponse<ReceptionistProfileResponse> updateMyProfile(
+            @Valid @RequestBody
+            UpdateMyReceptionistProfileRequest request) {
+
+        return receptionistService.updateMyProfile(
+                request
+        );
+    }
+    
+    @PreAuthorize("hasRole('RECEPTIONIST')")
+    @PostMapping(
+            value = "/me/profile-image",
+            consumes = "multipart/form-data"
+    )
+    public ApiResponse<ReceptionistProfileResponse>
+    uploadMyProfileImage(
+            @RequestParam("file") MultipartFile file) {
+
+        return receptionistService.uploadMyProfileImage(
+                file
+        );
     }
 
     @GetMapping("/{receptionistId}")

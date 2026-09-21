@@ -51,21 +51,18 @@ function LoginContent() {
   console.log("Logged in user:", user);
   console.log("Role:", user.role);
 
-  if (user.role === "SUPER_ADMIN") {
+ if (user.role === "SUPER_ADMIN") {
   router.push("/super-admin");
-
 } else if (user.role === "HOSPITAL_ADMIN") {
   router.push("/portal/admin");
-
 } else if (user.role === "DOCTOR") {
   router.push("/portal/doctor");
-
-} else if (user.role === "ACCOUNTANT") {
-  router.push("/portal/accounts");
-
 } else if (user.role === "NURSE") {
   router.push("/portal/nurse");
-
+} else if (user.role === "ACCOUNTANT") {
+  router.push("/portal/accounts");
+} else if (user.role === "RECEPTIONIST") {
+  router.push("/portal/reception");
 } else {
   router.push("/portal");
 }

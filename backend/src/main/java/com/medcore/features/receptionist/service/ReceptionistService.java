@@ -10,6 +10,9 @@ import com.medcore.features.receptionist.dto.request.UpdateReceptionistRequest;
 import com.medcore.features.receptionist.dto.response.ReceptionistResponse;
 
 import java.util.List;
+import com.medcore.features.receptionist.dto.request.UpdateMyReceptionistProfileRequest;
+import com.medcore.features.receptionist.dto.response.ReceptionistProfileResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface ReceptionistService {
 
@@ -65,6 +68,16 @@ public interface ReceptionistService {
             String keyword,
             int page,
             int size
+    );
+    
+    ApiResponse<ReceptionistProfileResponse> getMyProfile();
+
+    ApiResponse<ReceptionistProfileResponse> updateMyProfile(
+            UpdateMyReceptionistProfileRequest request
+    );
+
+    ApiResponse<ReceptionistProfileResponse> uploadMyProfileImage(
+            MultipartFile file
     );
 
 }

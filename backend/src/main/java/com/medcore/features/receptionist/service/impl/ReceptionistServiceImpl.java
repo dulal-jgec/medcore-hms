@@ -6,16 +6,26 @@ import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
 import com.medcore.common.security.SecurityUtil;
 import com.medcore.common.security.TenantContextService;
+import com.medcore.common.storage.FileStorageService;
+import com.medcore.common.storage.FileValidationService;
+import com.medcore.common.util.PasswordGenerator;
 
 import com.medcore.features.appointment.dto.response.AppointmentResponse;
 import com.medcore.features.appointment.service.AppointmentService;
+
+import com.medcore.features.hospital.entity.Hospital;
+import com.medcore.features.hospital.repository.HospitalRepository;
+
+import com.medcore.features.notification.service.EmailService;
 
 import com.medcore.features.patient.dto.request.CreatePatientRequest;
 import com.medcore.features.patient.dto.response.PatientResponse;
 import com.medcore.features.patient.service.PatientService;
 
 import com.medcore.features.receptionist.dto.request.CreateReceptionistRequest;
+import com.medcore.features.receptionist.dto.request.UpdateMyReceptionistProfileRequest;
 import com.medcore.features.receptionist.dto.request.UpdateReceptionistRequest;
+import com.medcore.features.receptionist.dto.response.ReceptionistProfileResponse;
 import com.medcore.features.receptionist.dto.response.ReceptionistResponse;
 import com.medcore.features.receptionist.entity.Receptionist;
 import com.medcore.features.receptionist.enums.ReceptionistStatus;
@@ -23,25 +33,33 @@ import com.medcore.features.receptionist.mapper.ReceptionistMapper;
 import com.medcore.features.receptionist.repository.ReceptionistRepository;
 import com.medcore.features.receptionist.service.ReceptionistService;
 
+import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
+import com.medcore.features.user.enums.RoleName;
+import com.medcore.features.user.enums.UserStatus;
+import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import com.medcore.features.user.enums.RoleName;
 
 @Service
 @RequiredArgsConstructor
-public class ReceptionistServiceImpl
-        implements ReceptionistService {
+public class ReceptionistServiceImpl implements ReceptionistService {
 
     private final ReceptionistRepository receptionistRepository;
     private final UserRepository userRepository;
@@ -51,57 +69,97 @@ public class ReceptionistServiceImpl
     private final AppointmentService appointmentService;
 
     private final TenantContextService tenantContextService;
+    private final HospitalRepository hospitalRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+
+    private final FileStorageService fileStorageService;
+    private final FileValidationService fileValidationService;
+
+
+     
 
     @Override
+    @Transactional
     public ApiResponse<ReceptionistResponse> createReceptionist(
             CreateReceptionistRequest request) {
 
-        Long hospitalId = getCurrentHospitalId();
+         
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
 
-        User user =
-                userRepository
-                        .findByIdAndHospitalIdAndDeletedAtIsNull(
-                                request.getUserId(),
-                                hospitalId
-                        )
+        Hospital hospital =
+                hospitalRepository
+                        .findByIdAndDeletedAtIsNull(hospitalId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
-                                        "User not found in this hospital"
+                                        "Hospital not found"
                                 ));
 
-        if (user.getRole() == null
-                || user.getRole().getName() != RoleName.RECEPTIONIST) {
-
+         
+        if (userRepository.existsByEmail(request.getEmail())) {
             throw new BusinessException(
-                    "User does not have the RECEPTIONIST role"
-            );
-        }
-        if (receptionistRepository
-                .existsByUserIdAndDeletedAtIsNull(
-                        user.getId()
-                )) {
-
-            throw new BusinessException(
-                    "Receptionist profile already exists for this user"
-                );
-        }
-
-        if (receptionistRepository
-                .existsByUserIdAndDeletedAtIsNull(
-                        user.getId()
-                )) {
-
-            throw new BusinessException(
-                    "Receptionist profile already exists for this user"
+                    "Email already exists"
             );
         }
 
+         
+        if (userRepository.existsByPhone(request.getPhone())) {
+            throw new BusinessException(
+                    "Phone number already exists"
+            );
+        }
+
+         
+        Role receptionistRole =
+                roleRepository
+                        .findByName(RoleName.RECEPTIONIST)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Receptionist role not found"
+                                ));
+
+         
+        String temporaryPassword =
+                PasswordGenerator.generate();
+
+        // Create User
+        User user = User.builder()
+                .fullName(
+                        request.getFullName().trim()
+                )
+                .email(
+                        request.getEmail()
+                                .trim()
+                                .toLowerCase()
+                )
+                .phone(
+                        request.getPhone().trim()
+                )
+                .password(
+                        passwordEncoder.encode(
+                                temporaryPassword
+                        )
+                )
+                .hospital(hospital)
+                .role(receptionistRole)
+                .status(UserStatus.ACTIVE)
+                .emailVerified(false)
+                .phoneVerified(false)
+                .build();
+
+        User savedUser =
+                userRepository.save(user);
+
+         
         Receptionist receptionist =
                 receptionistMapper.toEntity(
                         request,
-                        user
+                        savedUser
                 );
 
+        receptionist.setHospital(hospital);
         receptionist.setStatus(
                 ReceptionistStatus.ACTIVE
         );
@@ -111,6 +169,15 @@ public class ReceptionistServiceImpl
                         receptionist
                 );
 
+         
+        emailService.sendReceptionistCredentials(
+                savedUser.getEmail(),
+                savedUser.getFullName(),
+                temporaryPassword,
+                hospital.getName()
+        );
+
+        // Return response
         return ApiResponse.<ReceptionistResponse>builder()
                 .success(true)
                 .message("Receptionist created successfully")
@@ -122,7 +189,10 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
+
+     
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<ReceptionistResponse> getReceptionistById(
             Long receptionistId) {
 
@@ -142,62 +212,89 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
-    @Override
-    	public ApiResponse<PageResponse<ReceptionistResponse>> getAllReceptionists(
-        int page,
-        int size,
-        String sortBy,
-        String sortDir) {
 
-    Long hospitalId = getCurrentHospitalId();
-
-    Sort.Direction direction =
-            sortDir.equalsIgnoreCase("desc")
-                    ? Sort.Direction.DESC
-                    : Sort.Direction.ASC;
-
-    Pageable pageable =
-            PageRequest.of(
-                    page,
-                    size,
-                    Sort.by(direction, sortBy)
-            );
-
-    Page<Receptionist> receptionistPage =
-            receptionistRepository
-                    .findByHospitalIdAndDeletedAtIsNull(
-                            hospitalId,
-                            pageable
-                    );
-
-    List<ReceptionistResponse> items =
-            receptionistPage.getContent()
-                    .stream()
-                    .map(receptionistMapper::toResponse)
-                    .toList();
-
-    PageResponse<ReceptionistResponse> pageResponse =
-            PageResponse.<ReceptionistResponse>builder()
-                    .items(items)
-                    .page(receptionistPage.getNumber())
-                    .size(receptionistPage.getSize())
-                    .totalElements(receptionistPage.getTotalElements())
-                    .totalPages(receptionistPage.getTotalPages())
-                    .first(receptionistPage.isFirst())
-                    .last(receptionistPage.isLast())
-                    .hasNext(receptionistPage.hasNext())
-                    .hasPrevious(receptionistPage.hasPrevious())
-                    .build();
-
-    return ApiResponse
-            .<PageResponse<ReceptionistResponse>>builder()
-            .success(true)
-            .message("Receptionists fetched successfully")
-            .data(pageResponse)
-            .build();
-}
+    
 
     @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<ReceptionistResponse>>
+    getAllReceptionists(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+
+        Long hospitalId =
+                getCurrentHospitalId();
+
+        Sort.Direction direction =
+                sortDir.equalsIgnoreCase("desc")
+                        ? Sort.Direction.DESC
+                        : Sort.Direction.ASC;
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        Sort.by(direction, sortBy)
+                );
+
+        Page<Receptionist> receptionistPage =
+                receptionistRepository
+                        .findByHospitalIdAndDeletedAtIsNull(
+                                hospitalId,
+                                pageable
+                        );
+
+        List<ReceptionistResponse> items =
+                receptionistPage
+                        .getContent()
+                        .stream()
+                        .map(receptionistMapper::toResponse)
+                        .toList();
+
+        PageResponse<ReceptionistResponse> pageResponse =
+                PageResponse.<ReceptionistResponse>builder()
+                        .items(items)
+                        .page(
+                                receptionistPage.getNumber()
+                        )
+                        .size(
+                                receptionistPage.getSize()
+                        )
+                        .totalElements(
+                                receptionistPage.getTotalElements()
+                        )
+                        .totalPages(
+                                receptionistPage.getTotalPages()
+                        )
+                        .first(
+                                receptionistPage.isFirst()
+                        )
+                        .last(
+                                receptionistPage.isLast()
+                        )
+                        .hasNext(
+                                receptionistPage.hasNext()
+                        )
+                        .hasPrevious(
+                                receptionistPage.hasPrevious()
+                        )
+                        .build();
+
+        return ApiResponse
+                .<PageResponse<ReceptionistResponse>>builder()
+                .success(true)
+                .message("Receptionists fetched successfully")
+                .data(pageResponse)
+                .build();
+    }
+
+
+    
+
+    @Override
+    @Transactional
     public ApiResponse<ReceptionistResponse> updateReceptionist(
             Long receptionistId,
             UpdateReceptionistRequest request) {
@@ -228,7 +325,11 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
+
+ 
+
     @Override
+    @Transactional
     public ApiResponse<Void> deleteReceptionist(
             Long receptionistId) {
 
@@ -252,7 +353,10 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
+
+     
     @Override
+    @Transactional
     public ApiResponse<ReceptionistResponse>
     activateReceptionist(
             Long receptionistId) {
@@ -261,6 +365,14 @@ public class ReceptionistServiceImpl
                 getReceptionist(receptionistId);
 
         validateHospitalAccess(receptionist);
+
+        if (receptionist.getStatus()
+                == ReceptionistStatus.ACTIVE) {
+
+            throw new BusinessException(
+                    "Receptionist is already active"
+            );
+        }
 
         receptionist.setStatus(
                 ReceptionistStatus.ACTIVE
@@ -282,7 +394,11 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
+
+    
+
     @Override
+    @Transactional
     public ApiResponse<ReceptionistResponse>
     deactivateReceptionist(
             Long receptionistId) {
@@ -291,6 +407,14 @@ public class ReceptionistServiceImpl
                 getReceptionist(receptionistId);
 
         validateHospitalAccess(receptionist);
+
+        if (receptionist.getStatus()
+                == ReceptionistStatus.INACTIVE) {
+
+            throw new BusinessException(
+                    "Receptionist is already inactive"
+            );
+        }
 
         receptionist.setStatus(
                 ReceptionistStatus.INACTIVE
@@ -312,7 +436,10 @@ public class ReceptionistServiceImpl
                 .build();
     }
 
+
+    
     @Override
+    @Transactional
     public ApiResponse<PatientResponse> registerPatient(
             CreatePatientRequest request) {
 
@@ -324,6 +451,7 @@ public class ReceptionistServiceImpl
     }
 
     @Override
+    @Transactional
     public ApiResponse<AppointmentResponse> checkInPatient(
             Long appointmentId) {
 
@@ -334,7 +462,9 @@ public class ReceptionistServiceImpl
         );
     }
 
+
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<PageResponse<AppointmentResponse>>
     getTodayAppointments(
             int page,
@@ -353,6 +483,7 @@ public class ReceptionistServiceImpl
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<PageResponse<PatientResponse>>
     searchPatients(
             String keyword,
@@ -368,6 +499,108 @@ public class ReceptionistServiceImpl
         );
     }
 
+
+    
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<ReceptionistProfileResponse>
+    getMyProfile() {
+
+        Receptionist receptionist =
+                getCurrentReceptionist();
+
+        return ApiResponse.<ReceptionistProfileResponse>builder()
+                .success(true)
+                .message(
+                        "Receptionist profile fetched successfully"
+                )
+                .data(
+                        receptionistMapper.toProfileResponse(
+                                receptionist
+                        )
+                )
+                .build();
+    }
+
+ 
+
+    @Override
+    @Transactional
+    public ApiResponse<ReceptionistProfileResponse>
+    updateMyProfile(
+            UpdateMyReceptionistProfileRequest request) {
+
+        Receptionist receptionist =
+                getCurrentReceptionist();
+
+        receptionistMapper.updateMyProfile(
+                receptionist,
+                request
+        );
+
+        Receptionist updatedReceptionist =
+                receptionistRepository.save(
+                        receptionist
+                );
+
+        return ApiResponse.<ReceptionistProfileResponse>builder()
+                .success(true)
+                .message(
+                        "Receptionist profile updated successfully"
+                )
+                .data(
+                        receptionistMapper.toProfileResponse(
+                                updatedReceptionist
+                        )
+                )
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse<ReceptionistProfileResponse>
+    uploadMyProfileImage(
+            MultipartFile file) {
+
+        Receptionist receptionist =
+                getCurrentReceptionist();
+
+        // Validate image
+        fileValidationService.validateImage(file);
+
+        // Upload to Cloudinary
+        String imageUrl =
+                fileStorageService.upload(
+                        file,
+                        "medcore/receptionists/"
+                                + receptionist.getId()
+                                + "/profile"
+                );
+
+        receptionist.setProfileImageUrl(
+                imageUrl
+        );
+
+        Receptionist updatedReceptionist =
+                receptionistRepository.save(
+                        receptionist
+                );
+
+        return ApiResponse.<ReceptionistProfileResponse>builder()
+                .success(true)
+                .message(
+                        "Profile image uploaded successfully"
+                )
+                .data(
+                        receptionistMapper.toProfileResponse(
+                                updatedReceptionist
+                        )
+                )
+                .build();
+    }
+
+
+    
     private Receptionist getReceptionist(
             Long receptionistId) {
 
@@ -378,9 +611,33 @@ public class ReceptionistServiceImpl
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Receptionist not found"
-                        )
-                );
+                        ));
     }
+
+
+    private Receptionist getCurrentReceptionist() {
+
+        String email =
+                SecurityUtil.getCurrentUsername();
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "User not found"
+                                ));
+
+        return receptionistRepository
+                .findByUserIdAndDeletedAtIsNull(
+                        user.getId()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Receptionist profile not found"
+                        ));
+    }
+
 
     private void validateHospitalAccess(
             Receptionist receptionist) {
@@ -389,15 +646,17 @@ public class ReceptionistServiceImpl
                 getCurrentHospitalId();
 
         if (receptionist.getHospital() == null
-                || !receptionist.getHospital()
-                .getId()
-                .equals(hospitalId)) {
+                || !receptionist
+                        .getHospital()
+                        .getId()
+                        .equals(hospitalId)) {
 
             throw new BusinessException(
                     "You are not authorized to access this hospital data"
             );
         }
     }
+
 
     private Receptionist validateActiveReceptionist() {
 
@@ -415,19 +674,21 @@ public class ReceptionistServiceImpl
                         .orElseThrow(() ->
                                 new BusinessException(
                                         "Only receptionists can perform this action"
-                                )
-                        );
+                                ));
 
+        // Tenant isolation check
         if (receptionist.getHospital() == null
-                || !receptionist.getHospital()
-                .getId()
-                .equals(hospitalId)) {
+                || !receptionist
+                        .getHospital()
+                        .getId()
+                        .equals(hospitalId)) {
 
             throw new BusinessException(
                     "You are not authorized to access this hospital data"
             );
         }
 
+        // Active status check
         if (receptionist.getStatus()
                 != ReceptionistStatus.ACTIVE) {
 
@@ -438,6 +699,7 @@ public class ReceptionistServiceImpl
 
         return receptionist;
     }
+
 
     private Long getCurrentHospitalId() {
 
@@ -454,6 +716,7 @@ public class ReceptionistServiceImpl
 
         return hospitalId;
     }
+
 
     private User getCurrentUser() {
 
