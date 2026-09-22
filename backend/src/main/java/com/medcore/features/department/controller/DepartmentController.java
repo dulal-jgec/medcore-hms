@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/departments")
@@ -140,6 +141,23 @@ public class DepartmentController {
         return ResponseEntity.ok(
                 departmentService.restoreDepartment(
                         departmentId
+                )
+        );
+    }
+    
+    @PostMapping(
+            value = "/{departmentId}/image",
+            consumes = "multipart/form-data"
+    )
+    public ResponseEntity<ApiResponse<DepartmentResponse>>
+    uploadDepartmentImage(
+            @PathVariable Long departmentId,
+            @RequestParam("file") MultipartFile file) {
+
+        return ResponseEntity.ok(
+                departmentService.uploadDepartmentImage(
+                        departmentId,
+                        file
                 )
         );
     }

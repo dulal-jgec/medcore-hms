@@ -144,7 +144,7 @@ export default function DepartmentsPage() {
               <thead className="border-b bg-muted/40">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium">
-                    Name
+                    Department
                   </th>
 
                   <th className="px-4 py-3 text-left font-medium">
@@ -171,18 +171,44 @@ export default function DepartmentsPage() {
                     key={department.id}
                     className="border-b last:border-0"
                   >
-                    <td className="px-4 py-3 font-medium">
-                      {department.name}
+                    {/* Department */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {department.imageUrl ? (
+                          <img
+                            src={department.imageUrl}
+                            alt={department.name}
+                            className="h-10 w-10 rounded-md object-cover border"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
+                            N/A
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="font-medium">
+                            {department.name}
+                          </p>
+
+                          <p className="text-xs text-muted-foreground">
+                            ID: {department.id}
+                          </p>
+                        </div>
+                      </div>
                     </td>
 
-                    <td className="px-4 py-3">
+                    {/* Code */}
+                    <td className="px-4 py-3 font-medium">
                       {department.code}
                     </td>
 
+                    {/* Description */}
                     <td className="max-w-sm truncate px-4 py-3 text-muted-foreground">
                       {department.description || "—"}
                     </td>
 
+                    {/* Status */}
                     <td className="px-4 py-3">
                       <span
                         className={
@@ -195,6 +221,7 @@ export default function DepartmentsPage() {
                       </span>
                     </td>
 
+                    {/* Created */}
                     <td className="px-4 py-3 text-muted-foreground">
                       {department.createdAt
                         ? new Date(

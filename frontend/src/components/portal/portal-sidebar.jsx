@@ -25,6 +25,7 @@ import {
   FlaskConical,
   Microscope,
   Activity,
+  Images,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -149,6 +150,13 @@ export const NAV_BY_ROLE = {
       href: "/portal/admin/accountants",
       label: "Accountants",
       icon: Users,
+    },
+
+    // Hospital Gallery
+    {
+      href: "/portal/admin/gallery",
+      label: "Gallery",
+      icon: Images,
     },
 
     {
@@ -311,13 +319,17 @@ const SLUG_TO_ROLE = {
 /* Detect role from current path */
 export function getRoleFromPath(pathname) {
   const match = pathname.match(/^\/portal\/([^/]+)/);
+
   if (!match) return "PATIENT";
+
   return SLUG_TO_ROLE[match[1]] || "PATIENT";
 }
 
 export function PortalSidebar({ onNavigate }) {
   const pathname = usePathname();
+
   const role = getRoleFromPath(pathname);
+
   const items = NAV_BY_ROLE[role] || NAV_BY_ROLE.PATIENT;
 
   const basePath = `/portal/${pathname.split("/")[2] || "patient"}`;
@@ -330,6 +342,7 @@ export function PortalSidebar({ onNavigate }) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-brand-foreground">
             M
           </div>
+
           <span className="text-base font-bold tracking-tight">
             Med<span className="text-brand">Core</span>
           </span>
@@ -343,6 +356,7 @@ export function PortalSidebar({ onNavigate }) {
             const active =
               pathname === href ||
               (href !== basePath && pathname.startsWith(href));
+
             return (
               <li key={href}>
                 <Link
@@ -356,6 +370,7 @@ export function PortalSidebar({ onNavigate }) {
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
+
                   {label}
                 </Link>
               </li>
@@ -376,6 +391,7 @@ export function PortalSidebar({ onNavigate }) {
               Settings
             </Link>
           </li>
+
           <li>
             <Link
               href="/login"
@@ -390,10 +406,12 @@ export function PortalSidebar({ onNavigate }) {
         <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
           <div className="flex items-center gap-1.5 text-destructive">
             <Heart className="h-3.5 w-3.5" />
+
             <p className="text-[10px] font-semibold uppercase tracking-wider">
               Emergency
             </p>
           </div>
+
           <p className="mt-1 text-[11px] text-muted-foreground">
             Call +91 90000 00000
           </p>

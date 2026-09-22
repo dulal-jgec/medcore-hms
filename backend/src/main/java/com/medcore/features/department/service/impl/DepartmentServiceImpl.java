@@ -6,7 +6,8 @@ import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
 import com.medcore.common.security.TenantContextService;
-
+import com.medcore.common.storage.FileStorageService;
+import com.medcore.common.storage.FileValidationService;
 import com.medcore.features.department.dto.request.CreateDepartmentRequest;
 import com.medcore.features.department.dto.request.UpdateDepartmentRequest;
 import com.medcore.features.department.dto.request.UpdateDepartmentStatusRequest;
@@ -28,6 +29,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,7 +50,9 @@ public class DepartmentServiceImpl
     private final HospitalRepository hospitalRepository;
     private final DepartmentMapper departmentMapper;
     private final TenantContextService tenantContextService;
-
+    private final FileStorageService fileStorageService;
+    private final FileValidationService fileValidationService;
+    
     private static final int MAX_PAGE_SIZE = 50;
 
     private static final Set<String> ALLOWED_SORT_FIELDS =
@@ -60,9 +64,7 @@ public class DepartmentServiceImpl
                     "updatedAt"
             );
 
-    /* ══════════════════════════════════════════════════════
-       CREATE
-       ══════════════════════════════════════════════════════ */
+     
 
     @Override
     @Transactional
@@ -125,9 +127,7 @@ public class DepartmentServiceImpl
                 .build();
     }
 
-    /* ══════════════════════════════════════════════════════
-       GET ALL (cached)
-       ══════════════════════════════════════════════════════ */
+ 
 
     @Override
     @Transactional(readOnly = true)
@@ -160,9 +160,7 @@ public class DepartmentServiceImpl
         );
     }
 
-    /* ══════════════════════════════════════════════════════
-       GET BY ID
-       ══════════════════════════════════════════════════════ */
+    
 
     @Override
     public ApiResponse<DepartmentResponse> getDepartmentById(
@@ -180,10 +178,6 @@ public class DepartmentServiceImpl
                 .data(departmentMapper.toResponse(department))
                 .build();
     }
-
-    /* ══════════════════════════════════════════════════════
-       UPDATE
-       ══════════════════════════════════════════════════════ */
 
     @Override
     @Transactional
@@ -241,9 +235,7 @@ public class DepartmentServiceImpl
                 .build();
     }
 
-    /* ══════════════════════════════════════════════════════
-       UPDATE STATUS
-       ══════════════════════════════════════════════════════ */
+ 
 
     @Override
     @Transactional
@@ -283,9 +275,7 @@ public class DepartmentServiceImpl
                 .build();
     }
 
-    /* ══════════════════════════════════════════════════════
-       SEARCH (cached)
-       ══════════════════════════════════════════════════════ */
+    
 
     @Override
     @Transactional(readOnly = true)
@@ -327,9 +317,7 @@ public class DepartmentServiceImpl
         );
     }
 
-    /* ══════════════════════════════════════════════════════
-       DELETE (soft)
-       ══════════════════════════════════════════════════════ */
+     
 
     @Override
     @Transactional
@@ -358,10 +346,7 @@ public class DepartmentServiceImpl
                 .build();
     }
 
-    /* ══════════════════════════════════════════════════════
-       RESTORE
-       ══════════════════════════════════════════════════════ */
-
+    
     @Override
     @Transactional
     @CacheEvict(cacheNames = "departments", allEntries = true)
@@ -404,9 +389,52 @@ public class DepartmentServiceImpl
                 .build();
     }
 
-    /* ══════════════════════════════════════════════════════
-       PRIVATE HELPERS
-       ══════════════════════════════════════════════════════ */
+     
+    
+    @Override
+    @Transactional
+    @CacheEvict(
+            cacheNames = "departments",
+            allEntries = true
+    )
+    public ApiResponse<DepartmentResponse> uploadDepartmentImage(
+            Long departmentId,
+            MultipartFile file) {
+
+        Long hospitalId = getCurrentHospitalId();
+
+        Department department =
+                getDepartment(departmentId, hospitalId);
+
+        fileValidationService.validateImage(file);
+
+        String imageUrl =
+                fileStorageService.upload(
+                        file,
+                        "medcore/departments/"
+                                + department.getId()
+                                + "/image"
+                );
+
+        department.setImageUrl(imageUrl);
+
+        Department updatedDepartment =
+                departmentRepository.save(department);
+
+        log.info(
+                "Department image uploaded: departmentId={}, hospitalId={}",
+                departmentId,
+                hospitalId
+        );
+
+        return ApiResponse
+                .<DepartmentResponse>builder()
+                .success(true)
+                .message("Department image uploaded successfully")
+                .data(departmentMapper.toResponse(updatedDepartment))
+                .build();
+    }
+    
 
     private Long getCurrentHospitalId() {
 

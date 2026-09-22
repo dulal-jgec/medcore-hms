@@ -29,6 +29,7 @@ public class DepartmentMapper {
                 .name(department.getName())
                 .code(department.getCode())
                 .description(department.getDescription())
+                .imageUrl(department.getImageUrl())
                 .hospitalId(department.getHospital().getId())
                 .hospitalName(department.getHospital().getName())
                 .status(department.getStatus())

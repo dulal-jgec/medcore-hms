@@ -17,11 +17,20 @@ import java.time.LocalDateTime;
 public class DepartmentResponse {
 
     private Long id;
+
     private String name;
+
     private String code;
+
     private String description;
+
+    private String imageUrl;
+
     private Long hospitalId;
+
     private String hospitalName;
+
     private DepartmentStatus status;
+
     private LocalDateTime createdAt;
 }

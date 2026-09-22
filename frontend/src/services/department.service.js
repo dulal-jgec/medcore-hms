@@ -9,6 +9,7 @@ async function handleResponse(response) {
 
   return result;
 }
+ 
 
 export async function getDepartments(
   accessToken,
@@ -34,23 +35,23 @@ export async function getDepartments(
 
   return handleResponse(response);
 }
+ 
 
 export async function createDepartment(accessToken, data) {
-  const response = await fetch(
-    `${API_BASE_URL}/departments`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/departments`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
 
   return handleResponse(response);
 }
+
+ 
 
 export async function searchDepartments(
   accessToken,
@@ -71,6 +72,32 @@ export async function searchDepartments(
         Authorization: `Bearer ${accessToken}`,
       },
       credentials: "include",
+    }
+  );
+
+  return handleResponse(response);
+}
+
+ 
+
+export async function uploadDepartmentImage(
+  departmentId,
+  file,
+  accessToken
+) {
+  const formData = new FormData();
+
+  formData.append("file", file);
+
+  const response = await fetch(
+    `${API_BASE_URL}/departments/${departmentId}/image`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      credentials: "include",
+      body: formData,
     }
   );
 

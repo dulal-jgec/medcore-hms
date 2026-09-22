@@ -71,8 +71,7 @@ class ReceptionistServiceImplTest {
         CreateReceptionistRequest request =
                 new CreateReceptionistRequest();
 
-        request.setUserId(10L);
-        request.setDesignation("Front Desk");
+         request.setDesignation("Front Desk");
 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(100L);
@@ -110,8 +109,7 @@ class ReceptionistServiceImplTest {
         CreateReceptionistRequest request =
                 new CreateReceptionistRequest();
 
-        request.setUserId(10L);
-
+ 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(100L);
 
@@ -134,8 +132,7 @@ class ReceptionistServiceImplTest {
         CreateReceptionistRequest request =
                 new CreateReceptionistRequest();
 
-        request.setUserId(10L);
-
+ 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(100L);
 
@@ -163,8 +160,7 @@ class ReceptionistServiceImplTest {
         CreateReceptionistRequest request =
                 new CreateReceptionistRequest();
 
-        request.setUserId(10L);
-
+ 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(100L);
 
@@ -196,8 +192,7 @@ class ReceptionistServiceImplTest {
         CreateReceptionistRequest request =
                 new CreateReceptionistRequest();
 
-        request.setUserId(10L);
-
+ 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(100L);
 

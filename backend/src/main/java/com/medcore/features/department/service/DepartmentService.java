@@ -6,6 +6,7 @@ import com.medcore.features.department.dto.request.CreateDepartmentRequest;
 import com.medcore.features.department.dto.request.UpdateDepartmentRequest;
 import com.medcore.features.department.dto.request.UpdateDepartmentStatusRequest;
 import com.medcore.features.department.dto.response.DepartmentResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface DepartmentService {
 
@@ -39,4 +40,9 @@ public interface DepartmentService {
     ApiResponse<String> deleteDepartment(Long departmentId);
 
     ApiResponse<String> restoreDepartment(Long departmentId);
+    
+    ApiResponse<DepartmentResponse> uploadDepartmentImage(
+            Long departmentId,
+            MultipartFile file
+    );
 }
