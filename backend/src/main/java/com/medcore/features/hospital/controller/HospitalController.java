@@ -21,7 +21,6 @@ public class HospitalController {
 
     @GetMapping("/profile")
     public ApiResponse<HospitalProfileResponse> getMyHospitalProfile() {
-
         return hospitalAdminService.getMyHospitalProfile();
     }
 
@@ -31,7 +30,7 @@ public class HospitalController {
 
         return hospitalAdminService.updateMyHospitalProfile(request);
     }
-    
+
     @PostMapping(
             value = "/profile/logo",
             consumes = "multipart/form-data"
@@ -41,7 +40,7 @@ public class HospitalController {
 
         return hospitalAdminService.uploadLogo(file);
     }
-    
+
     @PostMapping(
             value = "/profile/banner",
             consumes = "multipart/form-data"

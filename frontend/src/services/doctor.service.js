@@ -10,8 +10,9 @@ async function handleResponse(response) {
   return result;
 }
 
+// ======================================================
 // ADMIN APIs
- 
+// ======================================================
 
 export async function getDoctors(
   accessToken,
@@ -143,11 +144,93 @@ export async function deleteDoctor(accessToken, doctorId) {
   );
 
   return handleResponse(response);
-
 }
 
+// ======================================================
+// DOCTOR SCHEDULE APIs - HOSPITAL ADMIN
+// ======================================================
+
+export async function getDoctorSchedules(
+  accessToken,
+  doctorId
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/doctor-schedules/doctor/${doctorId}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      credentials: "include",
+    }
+  );
+
+  return handleResponse(response);
+}
+
+export async function createDoctorSchedule(
+  accessToken,
+  data
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/doctor-schedules`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }
+  );
+
+  return handleResponse(response);
+}
+
+export async function updateDoctorSchedule(
+  accessToken,
+  scheduleId,
+  data
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/doctor-schedules/${scheduleId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }
+  );
+
+  return handleResponse(response);
+}
+
+export async function deleteDoctorSchedule(
+  accessToken,
+  scheduleId
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/doctor-schedules/${scheduleId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      credentials: "include",
+    }
+  );
+
+  return handleResponse(response);
+}
+
+// ======================================================
 // DOCTOR SELF PROFILE APIs
- 
+// ======================================================
+
 export async function getMyDoctorProfile(accessToken) {
   const response = await fetch(
     `${API_BASE_URL}/doctors/me`,

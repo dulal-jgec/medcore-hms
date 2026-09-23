@@ -39,6 +39,9 @@ public class Doctor extends BaseEntity {
 
     @Column(nullable = false)
     private BigDecimal consultationFee;
+    
+    @Column(nullable = false)
+    private Integer consultationDurationMinutes;
 
     @Column(length = 255)
     private String qualification;

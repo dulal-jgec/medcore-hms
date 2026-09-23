@@ -42,6 +42,8 @@ public class DoctorProfileResponse {
     private Integer experienceYears;
 
     private BigDecimal consultationFee;
+    
+    private Integer consultationDurationMinutes;
 
     private String qualification;
 

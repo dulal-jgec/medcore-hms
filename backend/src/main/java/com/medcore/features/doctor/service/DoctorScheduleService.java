@@ -2,6 +2,7 @@ package com.medcore.features.doctor.service;
 
 import com.medcore.common.response.ApiResponse;
 import com.medcore.features.doctor.dto.request.CreateDoctorScheduleRequest;
+import com.medcore.features.doctor.dto.request.UpdateDoctorScheduleRequest;
 import com.medcore.features.doctor.dto.response.DoctorScheduleResponse;
 
 import java.util.List;
@@ -14,6 +15,15 @@ public interface DoctorScheduleService {
 
     ApiResponse<List<DoctorScheduleResponse>> getDoctorSchedules(
             Long doctorId
+    );
+    
+    ApiResponse<DoctorScheduleResponse> updateSchedule(
+            Long scheduleId,
+            UpdateDoctorScheduleRequest request
+    );
+
+    ApiResponse<String> deleteSchedule(
+            Long scheduleId
     );
 
 }

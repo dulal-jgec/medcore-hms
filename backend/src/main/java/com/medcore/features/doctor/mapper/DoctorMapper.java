@@ -5,6 +5,7 @@ import com.medcore.features.doctor.dto.request.CreateDoctorRequest;
 import com.medcore.features.doctor.dto.request.UpdateDoctorRequest;
 import com.medcore.features.doctor.dto.response.DoctorProfileResponse;
 import com.medcore.features.doctor.dto.response.DoctorResponse;
+import com.medcore.features.doctor.dto.response.PublicDoctorResponse;
 import com.medcore.features.doctor.entity.Doctor;
 import com.medcore.features.doctor.enums.DoctorStatus;
 import com.medcore.features.hospital.entity.Hospital;
@@ -26,6 +27,9 @@ public class DoctorMapper {
                 .specialization(request.getSpecialization().trim())
                 .experienceYears(request.getExperienceYears())
                 .consultationFee(request.getConsultationFee())
+                .consultationDurationMinutes(
+                        request.getConsultationDurationMinutes()
+                )
                 .qualification(request.getQualification().trim())
                 .status(DoctorStatus.ACTIVE)
                 .build();
@@ -83,5 +87,56 @@ public class DoctorMapper {
         doctor.setExperienceYears(request.getExperienceYears());
         doctor.setConsultationFee(request.getConsultationFee());
         doctor.setQualification(request.getQualification().trim());
+        doctor.setConsultationDurationMinutes(
+                request.getConsultationDurationMinutes()
+        );
+    }
+    
+    public PublicDoctorResponse toPublicResponse(
+            Doctor doctor) {
+
+        return PublicDoctorResponse
+                .builder()
+                .id(doctor.getId())
+                .doctorName(
+                        doctor.getUser().getFullName()
+                )
+                .profileImageUrl(
+                        doctor.getProfileImageUrl()
+                )
+                .hospitalId(
+                        doctor.getHospital().getId()
+                )
+                .hospitalName(
+                        doctor.getHospital().getName()
+                )
+                .departmentId(
+                        doctor.getDepartment().getId()
+                )
+                .departmentName(
+                        doctor.getDepartment().getName()
+                )
+                .specialization(
+                        doctor.getSpecialization()
+                )
+                .experienceYears(
+                        doctor.getExperienceYears()
+                )
+                .consultationFee(
+                        doctor.getConsultationFee()
+                )
+                .consultationDurationMinutes(
+                        doctor.getConsultationDurationMinutes()
+                )
+                .qualification(
+                        doctor.getQualification()
+                )
+                .bio(
+                        doctor.getBio()
+                )
+                .languages(
+                        doctor.getLanguages()
+                )
+                .build();
     }
 }

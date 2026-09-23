@@ -3,6 +3,7 @@ package com.medcore.features.department.mapper;
 import com.medcore.features.department.dto.request.CreateDepartmentRequest;
 import com.medcore.features.department.dto.request.UpdateDepartmentRequest;
 import com.medcore.features.department.dto.response.DepartmentResponse;
+import com.medcore.features.department.dto.response.PublicDepartmentResponse;
 import com.medcore.features.department.entity.Department;
 import com.medcore.features.department.enums.DepartmentStatus;
 import com.medcore.features.hospital.entity.Hospital;
@@ -44,5 +45,21 @@ public class DepartmentMapper {
         department.setName(request.getName().trim());
         department.setCode(request.getCode().trim().toUpperCase());
         department.setDescription(request.getDescription());
+    }
+    
+    public PublicDepartmentResponse toPublicResponse(
+            Department department) {
+
+        return PublicDepartmentResponse
+                .builder()
+                .id(department.getId())
+                .name(department.getName())
+                .code(department.getCode())
+                .description(department.getDescription())
+                .imageUrl(department.getImageUrl())
+                .hospitalId(department.getHospital().getId())
+                .hospitalName(department.getHospital().getName())
+                .createdAt(department.getCreatedAt())
+                .build();
     }
 }

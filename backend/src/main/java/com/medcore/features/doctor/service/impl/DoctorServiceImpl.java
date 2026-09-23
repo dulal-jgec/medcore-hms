@@ -626,10 +626,7 @@ public class DoctorServiceImpl implements DoctorService {
                                 "Doctor profile not found"
                         )
                 );
-
-        if (request.getConsultationFee() != null) {
-            doctor.setConsultationFee(request.getConsultationFee());
-        }
+ 
 
         if (request.getBio() != null) {
             doctor.setBio(request.getBio().trim());

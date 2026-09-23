@@ -36,6 +36,8 @@ public class DoctorResponse {
     private Integer experienceYears;
 
     private BigDecimal consultationFee;
+    
+    private Integer consultationDurationMinutes;
 
     private String qualification;
 

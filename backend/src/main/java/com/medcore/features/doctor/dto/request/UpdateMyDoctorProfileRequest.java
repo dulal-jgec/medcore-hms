@@ -16,8 +16,7 @@ public class UpdateMyDoctorProfileRequest {
             value = "0.0",
             message = "Consultation fee cannot be negative"
     )
-    private BigDecimal consultationFee;
-
+ 
     @Size(
             max = 1000,
             message = "Bio must not exceed 1000 characters"

@@ -13,9 +13,9 @@ import java.util.Optional;
 
 public interface HospitalRepository
         extends JpaRepository<Hospital, Long> {
-	
-	Optional<Hospital> findByEmailAndDeletedAtIsNull(String email);
-	
+
+    Optional<Hospital> findByEmailAndDeletedAtIsNull(String email);
+
     boolean existsByEmailAndDeletedAtIsNull(String email);
 
     boolean existsByLicenseNumberAndDeletedAtIsNull(
@@ -49,6 +49,16 @@ public interface HospitalRepository
     long countByDeletedAtIsNotNull();
 
     long countByStatusAndDeletedAtIsNull(
+            HospitalStatus status
+    );
+
+    Page<Hospital> findByStatusAndDeletedAtIsNull(
+            HospitalStatus status,
+            Pageable pageable
+    );
+
+    Optional<Hospital> findByIdAndStatusAndDeletedAtIsNull(
+            Long id,
             HospitalStatus status
     );
 }

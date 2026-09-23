@@ -5,6 +5,7 @@ import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.security.TenantContextService;
 import com.medcore.features.doctor.dto.request.CreateDoctorScheduleRequest;
+import com.medcore.features.doctor.dto.request.UpdateDoctorScheduleRequest;
 import com.medcore.features.doctor.dto.response.DoctorScheduleResponse;
 import com.medcore.features.doctor.entity.Doctor;
 import com.medcore.features.doctor.entity.DoctorSchedule;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -183,6 +185,144 @@ public class DoctorScheduleServiceImpl
                 .success(true)
                 .message("Doctor schedules fetched successfully")
                 .data(schedules)
+                .build();
+    }
+    
+    @Override
+    public ApiResponse<DoctorScheduleResponse> updateSchedule(
+            Long scheduleId,
+            UpdateDoctorScheduleRequest request) {
+
+        Long currentHospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+        DoctorSchedule schedule =
+                scheduleRepository.findByIdAndDeletedAtIsNull(scheduleId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Doctor schedule not found"
+                                ));
+
+        Doctor doctor = schedule.getDoctor();
+
+        // Hospital Admin can modify only doctors
+        // belonging to their own hospital
+        if (!doctor.getHospital().getId().equals(currentHospitalId)) {
+            throw new ResourceNotFoundException(
+                    "Doctor schedule not found"
+            );
+        }
+
+        // Doctor must be active
+        if (doctor.getStatus() != DoctorStatus.ACTIVE) {
+            throw new BusinessException(
+                    "Only active doctors can have schedules"
+            );
+        }
+
+        // Start time must be before end time
+        if (!request.getStartTime().isBefore(
+                request.getEndTime())) {
+
+            throw new BusinessException(
+                    "Start time must be before end time"
+            );
+        }
+
+        // Check overlapping schedules
+        List<DoctorSchedule> existingSchedules =
+                scheduleRepository
+                        .findByDoctorIdAndDayOfWeekAndDeletedAtIsNull(
+                                doctor.getId(),
+                                request.getDayOfWeek()
+                        );
+
+        for (DoctorSchedule existingSchedule :
+                existingSchedules) {
+
+            // Ignore the schedule currently being edited
+            if (existingSchedule.getId().equals(scheduleId)) {
+                continue;
+            }
+
+            boolean overlap =
+                    request.getStartTime()
+                            .isBefore(existingSchedule.getEndTime())
+                    &&
+                    request.getEndTime()
+                            .isAfter(existingSchedule.getStartTime());
+
+            if (overlap) {
+                throw new BusinessException(
+                        "Doctor already has a schedule during this time"
+                );
+            }
+        }
+
+        schedule.setDayOfWeek(request.getDayOfWeek());
+        schedule.setStartTime(request.getStartTime());
+        schedule.setEndTime(request.getEndTime());
+
+        DoctorSchedule updatedSchedule =
+                scheduleRepository.save(schedule);
+
+        log.info(
+                "Doctor schedule updated: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}",
+                updatedSchedule.getId(),
+                doctor.getId(),
+                updatedSchedule.getDayOfWeek(),
+                updatedSchedule.getStartTime(),
+                updatedSchedule.getEndTime()
+        );
+
+        return ApiResponse
+                .<DoctorScheduleResponse>builder()
+                .success(true)
+                .message("Doctor schedule updated successfully")
+                .data(scheduleMapper.toResponse(updatedSchedule))
+                .build();
+    }
+    
+    @Override
+    public ApiResponse<String> deleteSchedule(
+            Long scheduleId) {
+
+        Long currentHospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+        DoctorSchedule schedule =
+                scheduleRepository.findByIdAndDeletedAtIsNull(scheduleId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Doctor schedule not found"
+                                ));
+
+        Doctor doctor = schedule.getDoctor();
+
+        // Tenant isolation
+        if (!doctor.getHospital().getId().equals(currentHospitalId)) {
+            throw new ResourceNotFoundException(
+                    "Doctor schedule not found"
+            );
+        }
+
+        // Soft delete
+        schedule.setDeletedAt(LocalDateTime.now());
+
+        scheduleRepository.save(schedule);
+
+        log.info(
+                "Doctor schedule deleted: scheduleId={}, doctorId={}, hospitalId={}",
+                scheduleId,
+                doctor.getId(),
+                currentHospitalId
+        );
+
+        return ApiResponse
+                .<String>builder()
+                .success(true)
+                .message("Doctor schedule deleted successfully")
+                .data("Deleted")
                 .build();
     }
 }

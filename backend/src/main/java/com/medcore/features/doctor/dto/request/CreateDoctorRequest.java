@@ -41,6 +41,10 @@ public class CreateDoctorRequest {
     @NotNull(message = "Consultation fee is required")
     @DecimalMin(value = "0.0")
     private BigDecimal consultationFee;
+    
+    @NotNull(message = "Consultation duration is required")
+    @Min(value = 5, message = "Consultation duration must be at least 5 minutes")
+    private Integer consultationDurationMinutes;
 
     @NotBlank(message = "Qualification is required")
     @Size(max = 255)
