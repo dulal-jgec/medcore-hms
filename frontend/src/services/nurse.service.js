@@ -1,199 +1,95 @@
-const API_BASE_URL = "http://localhost:8080/api/v1";
+import { apiFetch } from "@/lib/api-client";
 
 async function handleResponse(response) {
   const result = await response.json();
 
-  if (!response.ok) {
+  if (!response.ok || !result.success) {
     throw new Error(result.message || "Something went wrong");
   }
 
   return result;
 }
 
-// =====================================================
-// HOSPITAL ADMIN APIs
-// =====================================================
-
-export async function getNurses(accessToken) {
-  const response = await fetch(
-    `${API_BASE_URL}/nurses`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function getNurses({
+  page = 0,
+  size = 50,
+  sortBy = "id",
+  sortDir = "asc",
+} = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+    sortBy,
+    sortDir,
+  });
+  const response = await apiFetch(`/nurses?${params.toString()}`);
   return handleResponse(response);
 }
 
-export async function getNurseById(accessToken, nurseId) {
-  const response = await fetch(
-    `${API_BASE_URL}/nurses/${nurseId}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function getNurseById(nurseId) {
+  const response = await apiFetch(`/nurses/${nurseId}`);
   return handleResponse(response);
 }
 
-export async function createNurse(accessToken, data) {
-  const response = await fetch(
-    `${API_BASE_URL}/nurses`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
-
+export async function createNurse(data) {
+  const response = await apiFetch("/nurses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handleResponse(response);
 }
 
-export async function updateNurse(
-  accessToken,
-  nurseId,
-  data
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/nurses/${nurseId}`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
-
+export async function updateNurse(nurseId, data) {
+  const response = await apiFetch(`/nurses/${nurseId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handleResponse(response);
 }
 
-export async function deleteNurse(
-  accessToken,
-  nurseId
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/nurses/${nurseId}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function deleteNurse(nurseId) {
+  const response = await apiFetch(`/nurses/${nurseId}`, {
+    method: "DELETE",
+  });
   return handleResponse(response);
 }
 
-export async function activateNurse(
-  accessToken,
-  nurseId
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/nurses/${nurseId}/activate`,
-    {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function activateNurse(nurseId) {
+  const response = await apiFetch(`/nurses/${nurseId}/activate`, {
+    method: "PATCH",
+  });
   return handleResponse(response);
 }
 
-export async function deactivateNurse(
-  accessToken,
-  nurseId
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/nurses/${nurseId}/deactivate`,
-    {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function deactivateNurse(nurseId) {
+  const response = await apiFetch(`/nurses/${nurseId}/deactivate`, {
+    method: "PATCH",
+  });
   return handleResponse(response);
 }
 
-// =====================================================
-// NURSE SELF PROFILE APIs
-// =====================================================
-
-export async function getMyNurseProfile(accessToken) {
-  const response = await fetch(
-    `${API_BASE_URL}/nurses/me`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function getMyNurseProfile() {
+  const response = await apiFetch("/nurses/me");
   return handleResponse(response);
 }
 
-export async function updateMyNurseProfile(
-  accessToken,
-  data
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/nurses/me`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
-
+export async function updateMyNurseProfile(data) {
+  const response = await apiFetch("/nurses/me", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handleResponse(response);
 }
 
-export async function uploadNurseProfileImage(
-  accessToken,
-  file
-) {
+export async function uploadNurseProfileImage(file) {
   const formData = new FormData();
-
   formData.append("file", file);
-
-  const response = await fetch(
-    `${API_BASE_URL}/nurses/me/profile-image`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: formData,
-    }
-  );
-
+  const response = await apiFetch("/nurses/me/profile-image", {
+    method: "POST",
+    body: formData,
+  });
   return handleResponse(response);
 }

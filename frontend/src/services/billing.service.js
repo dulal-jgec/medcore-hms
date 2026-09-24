@@ -1,14 +1,6 @@
-const API_BASE_URL = "http://localhost:8080/api/v1";
+import { apiFetch } from "@/lib/api-client";
 
-async function request(url, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-
+async function handleResponse(response) {
   const result = await response.json();
 
   if (!response.ok || !result.success) {
@@ -18,106 +10,84 @@ async function request(url, options = {}) {
   return result;
 }
 
-export async function getHospitalBills(
-  accessToken,
+export async function getHospitalBills({
   page = 0,
   size = 20,
   sortBy = "billDate",
-  sortDir = "desc"
-) {
-  return request(
-    `/billing?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
+  sortDir = "desc",
+} = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+    sortBy,
+    sortDir,
+  });
+  const response = await apiFetch(`/billing?${params.toString()}`);
+  return handleResponse(response);
 }
 
-export async function getOutstandingBills(
-  accessToken,
+export async function getOutstandingBills({
   page = 0,
   size = 20,
   sortBy = "billDate",
-  sortDir = "desc"
-) {
-  return request(
-    `/billing/outstanding?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
+  sortDir = "desc",
+} = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+    sortBy,
+    sortDir,
+  });
+  const response = await apiFetch(
+    `/billing/outstanding?${params.toString()}`
   );
+  return handleResponse(response);
 }
 
-export async function getBillById(accessToken, billId) {
-  return request(`/billing/${billId}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+export async function getBillById(billId) {
+  const response = await apiFetch(`/billing/${billId}`);
+  return handleResponse(response);
 }
 
-export async function createBill(accessToken, data) {
-  return request("/billing", {
+export async function createBill(data) {
+  const response = await apiFetch("/billing", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+  return handleResponse(response);
 }
 
-export async function addBillItem(accessToken, billId, data) {
-  return request(`/billing/${billId}/items`, {
+export async function addBillItem(billId, data) {
+  const response = await apiFetch(`/billing/${billId}/items`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+  return handleResponse(response);
 }
 
-export async function updateBillItem(
-  accessToken,
-  billId,
-  itemId,
-  data
-) {
-  return request(`/billing/${billId}/items/${itemId}`, {
+export async function updateBillItem(billId, itemId, data) {
+  const response = await apiFetch(`/billing/${billId}/items/${itemId}`, {
     method: "PUT",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+  return handleResponse(response);
 }
 
-export async function deleteBillItem(
-  accessToken,
-  billId,
-  itemId
-) {
-  return request(`/billing/${billId}/items/${itemId}`, {
+export async function deleteBillItem(billId, itemId) {
+  const response = await apiFetch(`/billing/${billId}/items/${itemId}`, {
     method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
   });
+  return handleResponse(response);
 }
 
-export async function payBill(
-  accessToken,
-  billId,
-  data
-) {
-  return request(`/billing/${billId}/payments`, {
+export async function payBill(billId, data) {
+  const response = await apiFetch(`/billing/${billId}/payments`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+  return handleResponse(response);
 }

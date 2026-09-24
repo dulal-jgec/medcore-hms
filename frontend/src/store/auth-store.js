@@ -8,8 +8,6 @@ import {
 } from "@/services/auth.service";
 
 export const useAuthStore = create((set) => ({
-   
-
   accessToken: null,
   user: null,
 
@@ -17,17 +15,15 @@ export const useAuthStore = create((set) => ({
   isLoading: true,
   initialized: false,
 
-   
-
   login: async (credentials) => {
     const result = await loginApi(credentials);
-
     const accessToken = result.data.accessToken;
 
-    const userResult = await getCurrentUser(accessToken);
+    set({ accessToken });
+
+    const userResult = await getCurrentUser();
 
     set({
-      accessToken,
       user: userResult.data,
       isAuthenticated: true,
       isLoading: false,
@@ -36,24 +32,23 @@ export const useAuthStore = create((set) => ({
 
     return userResult.data;
   },
- 
 
   initializeAuth: async () => {
     try {
       const result = await refreshTokenApi();
-
       const accessToken = result.data.accessToken;
 
-      const userResult = await getCurrentUser(accessToken);
+      set({ accessToken });
+
+      const userResult = await getCurrentUser();
 
       set({
-        accessToken,
         user: userResult.data,
         isAuthenticated: true,
         isLoading: false,
         initialized: true,
       });
-    } catch (error) {
+    } catch {
       set({
         accessToken: null,
         user: null,
@@ -65,12 +60,10 @@ export const useAuthStore = create((set) => ({
   },
 
   logout: async () => {
-    const { accessToken } = useAuthStore.getState();
-
     try {
-      if (accessToken) {
-        await logoutApi(accessToken);
-      }
+      await logoutApi();
+    } catch {
+      // ignore
     } finally {
       set({
         accessToken: null,

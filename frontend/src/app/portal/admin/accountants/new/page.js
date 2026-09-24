@@ -1,20 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
+  ArrowLeft,
+  UserPlus,
   User,
   Mail,
   Phone,
   Briefcase,
-  Save,
-  X,
-  ArrowLeft,
   ShieldCheck,
-  Info,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,291 +20,225 @@ import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth-store";
 import { createAccountant } from "@/services/accountant.service";
 
-const accountantSchema = z.object({
-  fullName: z
-    .string()
-    .trim()
-    .min(2, "Full name is required")
-    .max(100, "Full name must not exceed 100 characters"),
+const INITIAL_FORM = {
+  fullName: "",
+  email: "",
+  phone: "",
+  designation: "",
+};
 
-  email: z
-    .string()
-    .trim()
-    .email("Enter a valid email address")
-    .max(100, "Email must not exceed 100 characters"),
-
-  phone: z
-    .string()
-    .trim()
-    .regex(
-      /^[6-9]\d{9}$/,
-      "Enter a valid 10-digit Indian phone number"
-    ),
-
-  designation: z
-    .string()
-    .trim()
-    .max(
-      100,
-      "Designation must not exceed 100 characters"
-    )
-    .optional(),
-});
-
-export default function NewAccountantPage() {
+export default function CreateAccountantPage() {
   const router = useRouter();
+  const accessToken = useAuthStore((s) => s.accessToken);
 
-  const { accessToken } = useAuthStore();
+  const [form, setForm] = useState(INITIAL_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [serverError, setServerError] = useState("");
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    if (error) setError("");
+    if (success) setSuccess("");
+  }
 
-  const {
-    register,
-    handleSubmit,
-    formState: {
-      errors,
-      isSubmitting,
-    },
-  } = useForm({
-    resolver: zodResolver(accountantSchema),
+  async function handleSubmit(event) {
+    event.preventDefault();
 
-    defaultValues: {
-      fullName: "",
-      email: "",
-      phone: "",
-      designation: "",
-    },
-  });
-
-  async function onSubmit(data) {
-    setServerError("");
+    if (!accessToken) {
+      setError("Authentication required");
+      return;
+    }
 
     try {
+      setSubmitting(true);
+      setError("");
+
       await createAccountant(accessToken, {
-        fullName: data.fullName.trim(),
-        email: data.email.trim().toLowerCase(),
-        phone: data.phone.trim(),
-        designation:
-          data.designation?.trim() || null,
+        fullName: form.fullName.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        designation: form.designation.trim() || null,
       });
 
-      router.push("/portal/admin/accountants");
-    } catch (error) {
-      setServerError(
-        error.message ||
-          "Failed to create accountant."
+      setSuccess(
+        "Accountant created successfully. Login credentials have been emailed."
       );
+
+      setForm(INITIAL_FORM);
+
+      setTimeout(() => {
+        router.push("/portal/admin/accountants");
+      }, 1500);
+    } catch (err) {
+      setError(err.message || "Failed to create accountant");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      <Link
+        href="/portal/admin/accountants"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to accountants
+      </Link>
 
-      {/* Header */}
-      <div>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
-
-        <p className="text-xs font-semibold uppercase tracking-wider text-brand">
-          Administration
-        </p>
-
-        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-          Add accountant
-        </h1>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Create an accountant account for your hospital.
-        </p>
-      </div>
-
-      {/* Form */}
-      <div className="mt-8 rounded-2xl border border-border bg-card">
-
-        <div className="border-b border-border px-5 py-4 sm:px-6">
-          <h2 className="text-base font-semibold">
-            Accountant information
-          </h2>
-
-          <p className="mt-1 text-xs text-muted-foreground">
-            Enter the basic information of the accountant.
+      <div className="mt-6 flex items-center gap-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand-soft-foreground">
+          <UserPlus className="h-6 w-6" />
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+            Finance
+          </p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            Add accountant
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create an accountant account for your hospital.
           </p>
         </div>
-
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="p-5 sm:p-6"
-        >
-
-          {/* Server Error */}
-          {serverError && (
-            <div className="mb-6 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3">
-              <p className="text-sm font-medium text-destructive">
-                {serverError}
-              </p>
-            </div>
-          )}
-
-          {/* Fields */}
-          <div className="grid gap-5 sm:grid-cols-2">
-
-            <Field
-              label="Full name"
-              icon={User}
-              required
-              error={errors.fullName?.message}
-            >
-              <Input
-                {...register("fullName")}
-                placeholder="Enter full name"
-                className="h-11"
-              />
-            </Field>
-
-            <Field
-              label="Email"
-              icon={Mail}
-              required
-              error={errors.email?.message}
-            >
-              <Input
-                {...register("email")}
-                type="email"
-                placeholder="accountant@example.com"
-                className="h-11"
-              />
-            </Field>
-
-            <Field
-              label="Phone"
-              icon={Phone}
-              required
-              error={errors.phone?.message}
-            >
-              <Input
-                {...register("phone")}
-                placeholder="10-digit phone number"
-                inputMode="numeric"
-                maxLength={10}
-                className="h-11"
-              />
-            </Field>
-
-            <Field
-              label="Designation"
-              icon={Briefcase}
-              error={errors.designation?.message}
-            >
-              <Input
-                {...register("designation")}
-                placeholder="e.g. Senior Accountant"
-                className="h-11"
-              />
-            </Field>
-
-          </div>
-
-          {/* Credentials info */}
-          <div className="mt-6 flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-
-            <div>
-              <p className="text-sm font-medium">
-                Account credentials
-              </p>
-
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                MedCore will automatically create the
-                user account, generate a temporary password,
-                and send the login credentials to the
-                accountant&apos;s email address.
-              </p>
-            </div>
-          </div>
-
-          {/* Tenant info */}
-          <div className="mt-4 flex items-start gap-3 rounded-xl border border-brand/20 bg-brand-soft/30 p-4">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-
-            <div>
-              <p className="text-sm font-medium">
-                Hospital isolation
-              </p>
-
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                This accountant will automatically belong
-                to your current hospital. Hospital selection
-                is controlled by the system and cannot be
-                changed from this form.
-              </p>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-border pt-5">
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={isSubmitting}
-            >
-              <X className="mr-1.5 h-4 w-4" />
-              Cancel
-            </Button>
-
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-            >
-              <Save className="mr-1.5 h-4 w-4" />
-
-              {isSubmitting
-                ? "Creating..."
-                : "Create accountant"}
-            </Button>
-
-          </div>
-        </form>
       </div>
+
+      {error && (
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+          <div>
+            <p className="text-sm font-semibold text-destructive">
+              Unable to create accountant
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {success && (
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-brand/20 bg-brand-soft/40 p-4">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+          <p className="text-sm font-medium text-brand-soft-foreground">
+            {success}
+          </p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="mt-6">
+        <div className="rounded-2xl border border-border bg-card">
+          <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
+              <UserPlus className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">
+                Accountant information
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Enter the basic account information.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-5 sm:p-6">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field
+                label="Full name"
+                icon={User}
+                required
+                className="sm:col-span-2"
+              >
+                <Input
+                  name="fullName"
+                  value={form.fullName}
+                  onChange={handleChange}
+                  placeholder="e.g. Priya Banerjee"
+                  className="h-11 pl-10"
+                  required
+                  minLength={2}
+                  maxLength={100}
+                />
+              </Field>
+
+              <Field label="Email" icon={Mail} required>
+                <Input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="accountant@example.com"
+                  className="h-11 pl-10"
+                  required
+                />
+              </Field>
+
+              <Field label="Phone" icon={Phone} required>
+                <Input
+                  type="tel"
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  placeholder="10-digit mobile number"
+                  className="h-11 pl-10"
+                  required
+                  inputMode="numeric"
+                  pattern="[6-9][0-9]{9}"
+                  maxLength={10}
+                />
+              </Field>
+
+              <Field
+                label="Designation"
+                icon={Briefcase}
+                className="sm:col-span-2"
+              >
+                <Input
+                  name="designation"
+                  value={form.designation}
+                  onChange={handleChange}
+                  placeholder="e.g. Senior Accountant"
+                  className="h-11 pl-10"
+                  maxLength={100}
+                />
+              </Field>
+            </div>
+
+            <div className="mt-6 flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <p className="text-xs leading-5 text-muted-foreground">
+                A temporary password will be generated automatically. Login
+                credentials will be sent to the accountant's email address.
+                The accountant will belong to your current hospital.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 border-t border-border p-5 sm:flex-row sm:justify-end sm:p-6">
+            <Button type="button" variant="outline" asChild>
+              <Link href="/portal/admin/accountants">Cancel</Link>
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              <UserPlus className="mr-1.5 h-4 w-4" />
+              {submitting ? "Creating..." : "Create accountant"}
+            </Button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }
 
-function Field({
-  label,
-  icon: Icon,
-  required,
-  error,
-  children,
-}) {
+function Field({ label, icon: Icon, required, className, children }) {
   return (
-    <div>
+    <div className={className}>
       <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-
+        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
         {label}
-
-        {required && (
-          <span className="text-destructive">
-            *
-          </span>
-        )}
+        {required && <span className="text-destructive">*</span>}
       </label>
-
       {children}
-
-      {error && (
-        <p className="mt-1.5 text-xs text-destructive">
-          {error}
-        </p>
-      )}
     </div>
   );
 }

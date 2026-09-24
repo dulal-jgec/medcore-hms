@@ -1,105 +1,65 @@
-const API_BASE_URL = "http://localhost:8080/api/v1";
+import { apiFetch } from "@/lib/api-client";
 
 async function handleResponse(response) {
   const result = await response.json();
 
-  if (!response.ok) {
+  if (!response.ok || !result.success) {
     throw new Error(result.message || "Something went wrong");
   }
 
   return result;
 }
- 
 
-export async function getDepartments(
-  accessToken,
-  { page = 0, size = 10, sortBy = "id", sortDir = "asc" } = {}
-) {
+export async function getDepartments({
+  page = 0,
+  size = 50,
+  sortBy = "name",
+  sortDir = "asc",
+} = {}) {
   const params = new URLSearchParams({
-    page,
-    size,
+    page: String(page),
+    size: String(size),
     sortBy,
     sortDir,
   });
-
-  const response = await fetch(
-    `${API_BASE_URL}/departments?${params.toString()}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
-  return handleResponse(response);
-}
- 
-
-export async function createDepartment(accessToken, data) {
-  const response = await fetch(`${API_BASE_URL}/departments`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    credentials: "include",
-    body: JSON.stringify(data),
-  });
-
+  const response = await apiFetch(`/departments?${params.toString()}`);
   return handleResponse(response);
 }
 
- 
-
-export async function searchDepartments(
-  accessToken,
-  keyword,
-  { page = 0, size = 10 } = {}
-) {
+export async function searchDepartments(keyword, { page = 0, size = 50 } = {}) {
   const params = new URLSearchParams({
     keyword,
-    page,
-    size,
+    page: String(page),
+    size: String(size),
   });
-
-  const response = await fetch(
-    `${API_BASE_URL}/departments/search?${params.toString()}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+  const response = await apiFetch(`/departments/search?${params.toString()}`);
   return handleResponse(response);
 }
 
- 
+export async function createDepartment(data) {
+  const response = await apiFetch("/departments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
 
-export async function uploadDepartmentImage(
-  departmentId,
-  file,
-  accessToken
-) {
+export async function updateDepartment(id, data) {
+  const response = await apiFetch(`/departments/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function uploadDepartmentImage(departmentId, file) {
   const formData = new FormData();
-
   formData.append("file", file);
-
-  const response = await fetch(
-    `${API_BASE_URL}/departments/${departmentId}/image`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: formData,
-    }
-  );
-
+  const response = await apiFetch(`/departments/${departmentId}/image`, {
+    method: "POST",
+    body: formData,
+  });
   return handleResponse(response);
 }

@@ -1,4 +1,7 @@
-const API_BASE_URL = "http://localhost:8080/api/v1";
+import { apiFetch } from "@/lib/api-client";
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api/v1";
 
 async function handleResponse(response) {
   const result = await response.json();
@@ -10,16 +13,10 @@ async function handleResponse(response) {
   return result;
 }
 
-// =========================
-// LOGIN
-// =========================
-
 export async function login(credentials) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify(credentials),
   });
@@ -27,41 +24,20 @@ export async function login(credentials) {
   return handleResponse(response);
 }
 
-// =========================
-// REGISTER
-// =========================
-
 export async function register(userData) {
   const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(userData),
   });
 
   return handleResponse(response);
 }
 
-// =========================
-// CURRENT USER
-// =========================
-
-export async function getCurrentUser(accessToken) {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    credentials: "include",
-  });
-
+export async function getCurrentUser() {
+  const response = await apiFetch("/auth/me");
   return handleResponse(response);
 }
-
-// =========================
-// REFRESH TOKEN
-// =========================
 
 export async function refreshToken() {
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -72,18 +48,7 @@ export async function refreshToken() {
   return handleResponse(response);
 }
 
-// =========================
-// LOGOUT
-// =========================
-
-export async function logout(accessToken) {
-  const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    credentials: "include",
-  });
-
+export async function logout() {
+  const response = await apiFetch("/auth/logout", { method: "POST" });
   return handleResponse(response);
 }

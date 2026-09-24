@@ -1,0 +1,106 @@
+[33m92be3ad[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Remove super admin seeder from repository
+[33m5c43ea2[m feat: complete public hospital integration
+[33md01c8ef[m feat: implement hospital gallery management
+[33m63401e6[m feat: integrate receptionist APIs
+[33mb127fdc[m Update for tenant isolation test in Accountants
+[33m529834f[m feat: integrate Accountants profile APIs
+[33m3728a93[m feat: integrate nurse APIs with frontend
+[33m3e8e40a[m feat: integrate doctor profile APIs
+[33m5bb2fe8[m test: update department and doctor tests for tenant-based creation
+[33md7dc357[m feat: integrate hospital admin department and doctor management
+[33m1aed5ca[m feat: integrate hospital admin profile
+[33m2b98d43[m refactor: integrate and polish super admin email flow
+[33m9ae2fe8[m feat: integrate patient registration and profile data
+[33m63a6ce2[m Fixed CORS error
+[33mdf6f408[m connect patient auth with backend
+[33mc1a9e89[m feat: integrate frontend login with backend authentication
+[33mcceb4c2[m fix: compact maintenance modal for mobile
+[33md67cbdd[m fix: prevent horizontal scroll on mobile + responsive hero
+[33m47e6026[m fix: responsive hero section and maintenance modal for mobile
+[33m5d72b2d[m fix: wrap nurse vitals record page in Suspense
+[33m89599ab[m fix: wrap lab orders page in Suspense boundary for useSearchParams
+[33m793f9dd[m fix: wrap login page in Suspense boundary for useSearchParams
+[33m1bdb53c[m fix: disable no-unescaped-entities rule
+[33m532c001[m feat: complete frontend demo with 10 role dashboards
+[33m236193d[m feat: MedCore HMS frontend initial release
+[33m974bc16[m feat: complete public website phase 1
+[33m18e5a4c[m feat: MedCore public site — home, hospitals, doctors, about, for-hospitals
+[33m25e87be[m Implement hero section
+[33mac852c0[m feat: complete frontend authentication
+[33m4a60b4e[m feat: implement authentication flow
+[33m05369a6[m Frontend part added
+[33ma96f7f8[m test: add pharmacy dispensing service tests and fix business logic
+[33m2f01161[m fix prescription validation and add service tests
+[33mad751ab[m test: fix lab service unit tests
+[33md72767e[m test: add receptionist service unit tests
+[33mbf63b45[m test: add SuperAdmin service unit tests
+[33m41d15c3[m ci: build Docker image
+[33m36f10a9[m ci: build backend with GitHub Actions
+[33m2da2949[m ci: fix GitHub Actions workflow location
+[33mf9db9b3[m ci: fix GitHub Actions workflow location
+[33mb6daa69[m ci: add GitHub Actions workflow
+[33m9ce4583[m Add Nginx reverse proxy with Docker Compose
+[33m48b26da[m dockerize backend with compose and redis
+[33m7907f84[m feat: strengthen tenant security and add lab observability
+[33m5e6eb0e[m feat(observability): add hospital business event logs
+[33mb953caf[m feat(observability): add doctor business event logs
+[33m8630b35[m feat(observability): add department business event logs
+[33m3a9876b[m feat(observability): add billing business event logs
+[33m6724fd1[m feat(observability): add appointment business event logging
+[33mb0a25c2[m feat(observability): add accountant service logging
+[33m180c8cb[m feat(observability): add authentication and refresh token logging
+[33m397a90a[m feat(observability): add notification service logging
+[33m7a35794[m test(notification): add notification service and retry tests
+[33mae4347a[m feat(payment): implement Razorpay webhook processing
+[33mf1c66d3[m feat(payment): add Razorpay payment order flow
+[33m2757e8c[m feat(notification): add SMS notification channel & add provider
+[33md5ec981[m feat(notification): add SMS notification channel
+[33mfdf6c7d[m feat(notification): add automatic email retry mechanism
+[33m299e836[m feat(notification): integrate email delivery with notification service
+[33mcaf7af3[m feat: implement notification system with email support
+[33m30a7a11[m fix tests after cache and notification integration
+[33m1f3b323[m Add Read,unread notification
+[33ma30abb6[m feat: add multi-tenant notification system
+[33me0e48a2[m feat: enhance rate limiting for auth endpoints
+[33md3cb829[m feat: implement redis caching and rate limiting
+[33m919f9ca[m feat: add redis caching and transaction handling for lab modules
+[33mddf5003[m feat: add tenant-aware department cache eviction
+[33m61a58f6[m feat: add Redis caching for departments
+[33m90b1b2b[m feat: implement redis caching for lab tests
+[33m1caa6f1[m test: Lab module unit test
+[33md6e1fca[m test: add doctor service unit tests
+[33m96b891e[m test: add service layer unit tests
+[33m5f7b20e[m Improve exception handling and production configuration
+[33mc3f1203[m feat: improve transaction boundaries
+[33ma96025d[m chore: harden application configuration and database migrations
+[33mbba3963[m refactor: strengthen module isolation and service validation
+[33m02fe935[m complete 2nd phase of backend module : isolation
+[33m30e4623[m Fix billing , accountant isolation
+[33med93226[m Fix isolation problem on module
+[33mda4f361[m feat: add tenant isolation to medical records
+[33mcf04f96[m fix Lab module isolation problem
+[33m6eeb6a7[m Nurse module Controller fix
+[33m8d0121b[m Add feat : Isolation multi tenant to nurse module
+[33m919f349[m Add Multi tenant Appointment isolation to appointment\
+[33m20719dd[m  Add multi-tenant isolation to dctor module
+[33m6a7a300[m small fix : tenantContextService add
+[33m5e94424[m refactor hospital and super admin modules
+[33m0f9bf6e[m feat(auth): implement secure refresh token rotation and session support
+[33m802556c[m feat: complete super admin module
+[33m9ea5e41[m feat(accountant): complete accountant financial module
+[33m3b664aa[m feat(receptionist): add multi-tenant receptionist workflows
+[33m47b85ab[m feat: implement lab management module
+[33m0542244[m feat: implement nurse management module
+[33m856d074[m feat: complete billing and payment module
+[33m2df8686[m feat: complete pharmacy dispensing and inventory flow
+[33mc7271b9[m feat: implement prescription management module
+[33m959f00e[m feat: complete medical record module
+[33m24dd096[m feat: complete medical record module
+[33m5f29df7[m Complete appointment management module
+[33m18055ae[m Complete patient management module with CRUD, status, search and soft delete
+[33m7602751[m Complete doctor management and schedule module with business validations
+[33m185257e[m Complete department management module with CRUD, search, pagination and soft delete
+[33mac77683[m Complete hospital management module with CRUD, search, pagination and status management
+[33m64787c9[m Implement hospital module CRUD foundation with status management
+[33m36e56a8[m Implement JWT authentication with register, login, refresh token and logout
+[33m2c0fd49[m Initial project setup with Spring Boot, PostgreSQL and authentication foundation

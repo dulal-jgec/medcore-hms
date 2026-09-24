@@ -1,108 +1,61 @@
-const API_BASE_URL = "http://localhost:8080/api/v1";
+import { apiFetch } from "@/lib/api-client";
 
 async function handleResponse(response) {
   const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(
-      result.message || "Something went wrong"
-    );
+    throw new Error(result.message || "Something went wrong");
   }
 
   return result;
 }
 
-export async function getDashboard(accessToken) {
-  const response = await fetch(
-    `${API_BASE_URL}/super-admin/dashboard`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function getDashboard() {
+  const response = await apiFetch("/super-admin/dashboard");
   return handleResponse(response);
 }
 
 export async function getAllHospitals(
-  accessToken,
   page = 0,
   size = 10,
   sortBy = "createdAt",
   sortDir = "desc"
 ) {
-  const response = await fetch(
-    `${API_BASE_URL}/super-admin/hospitals?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+    sortBy,
+    sortDir,
+  });
+  const response = await apiFetch(
+    `/super-admin/hospitals?${params.toString()}`
   );
-
   return handleResponse(response);
 }
 
-export async function createHospital(
-  accessToken,
-  data
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/super-admin/hospitals`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
-
+export async function createHospital(data) {
+  const response = await apiFetch("/super-admin/hospitals", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handleResponse(response);
 }
 
-export async function getAllHospitalAdmins(
-  accessToken,
-  page = 0,
-  size = 10
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/super-admin/admins?page=${page}&size=${size}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function getAllHospitalAdmins(page = 0, size = 10) {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+  const response = await apiFetch(`/super-admin/admins?${params.toString()}`);
   return handleResponse(response);
 }
 
-export async function createHospitalAdmin(
-  accessToken,
-  data
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/super-admin/admins`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
-
+export async function createHospitalAdmin(data) {
+  const response = await apiFetch("/super-admin/admins", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handleResponse(response);
 }

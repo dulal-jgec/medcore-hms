@@ -1,51 +1,24 @@
 import Image from "next/image";
+import { Building2 } from "lucide-react";
 
 export default function PublicImage({
   src,
   alt = "",
-  fill = false,
-  width,
-  height,
-  priority = false,
-  sizes,
+  fallbackIcon: FallbackIcon = Building2,
   className = "",
   ...props
 }) {
   if (!src) {
     return (
       <div
+        role="img"
+        aria-label={alt}
         className={`flex h-full w-full items-center justify-center bg-muted ${className}`}
       >
-        <span className="text-sm text-muted-foreground">
-          No image available
-        </span>
+        <FallbackIcon className="h-8 w-8 text-muted-foreground/40" />
       </div>
     );
   }
 
-  if (fill) {
-    return (
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        priority={priority}
-        sizes={sizes || "100vw"}
-        className={className}
-        {...props}
-      />
-    );
-  }
-
-  return (
-    <Image
-      src={src}
-      alt={alt}
-      width={width || 800}
-      height={height || 600}
-      priority={priority}
-      className={className}
-      {...props}
-    />
-  );
+  return <Image src={src} alt={alt} className={className} {...props} />;
 }

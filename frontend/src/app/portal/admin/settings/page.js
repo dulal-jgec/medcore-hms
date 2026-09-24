@@ -10,9 +10,6 @@ import {
   Phone,
   MapPin,
   Globe,
-  Calendar,
-  BedDouble,
-  FileText,
   Clock,
   Bell,
   ShieldCheck,
@@ -21,6 +18,12 @@ import {
   AlertCircle,
   Image,
   Upload,
+  Lock,
+  Smartphone,
+  Landmark,
+  Hash,
+  Calendar,
+  FileText,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,52 +37,18 @@ import {
   uploadHospitalBanner,
 } from "@/services/hospital-admin.service";
 
-/* ═══════════════════════════════════════════════════════════
-   SCHEMAS
-   ═══════════════════════════════════════════════════════════ */
-
 const generalSchema = z.object({
   name: z.string().min(3).max(120),
   email: z.string().email("Enter a valid email"),
   phone: z.string().min(10).max(15),
   licenseNumber: z.string(),
   city: z.string(),
-
-  website: z
-    .string()
-    .max(500, "Website URL is too long")
-    .optional()
-    .or(z.literal("")),
-
-  description: z
-    .string()
-    .max(5000, "Description is too long")
-    .optional()
-    .or(z.literal("")),
-
-  address: z
-    .string()
-    .max(255, "Address is too long")
-    .optional()
-    .or(z.literal("")),
-
-  state: z
-    .string()
-    .max(100, "State is too long")
-    .optional()
-    .or(z.literal("")),
-
-  pincode: z
-    .string()
-    .max(10, "Pincode is too long")
-    .optional()
-    .or(z.literal("")),
-
-  emergencyPhone: z
-    .string()
-    .max(15, "Emergency phone is too long")
-    .optional()
-    .or(z.literal("")),
+  website: z.string().max(500).optional().or(z.literal("")),
+  description: z.string().max(5000).optional().or(z.literal("")),
+  address: z.string().max(255).optional().or(z.literal("")),
+  state: z.string().max(100).optional().or(z.literal("")),
+  pincode: z.string().max(10).optional().or(z.literal("")),
+  emergencyPhone: z.string().max(15).optional().or(z.literal("")),
 });
 
 const hoursSchema = z.object({
@@ -90,18 +59,30 @@ const hoursSchema = z.object({
 });
 
 const TABS = [
-  { id: "general", label: "General", icon: Building2 },
-  { id: "hours", label: "Hours", icon: Clock },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "security", label: "Security", icon: ShieldCheck },
+  {
+    id: "general",
+    label: "General",
+    desc: "Profile and branding",
+    icon: Building2,
+  },
+  { id: "hours", label: "Hours", desc: "Operating schedule", icon: Clock },
+  {
+    id: "notifications",
+    label: "Notifications",
+    desc: "Email and SMS alerts",
+    icon: Bell,
+  },
+  {
+    id: "security",
+    label: "Security",
+    desc: "Access and policy",
+    icon: ShieldCheck,
+  },
 ];
-
-/* ═══════════════════════════════════════════════════════════
-   PAGE
-   ═══════════════════════════════════════════════════════════ */
 
 export default function AdminSettingsPage() {
   const [tab, setTab] = useState("general");
+  const activeTab = TABS.find((t) => t.id === tab);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
@@ -113,14 +94,15 @@ export default function AdminSettingsPage() {
           Hospital settings
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage your hospital's profile, hours, and preferences.
+          Manage your hospital profile, operating hours, notifications, and
+          security preferences.
         </p>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-12">
+      <div className="mt-8 grid gap-8 lg:grid-cols-12">
         <aside className="lg:col-span-3">
-          <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-card p-2 lg:flex-col lg:overflow-visible">
-            {TABS.map(({ id, label, icon: Icon }) => {
+          <nav className="flex gap-2 overflow-x-auto rounded-2xl border border-border bg-card p-2 lg:flex-col lg:gap-1 lg:overflow-visible">
+            {TABS.map(({ id, label, desc, icon: Icon }) => {
               const active = tab === id;
               return (
                 <button
@@ -128,14 +110,29 @@ export default function AdminSettingsPage() {
                   type="button"
                   onClick={() => setTab(id)}
                   className={cn(
-                    "flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:w-full",
+                    "flex items-start gap-3 whitespace-nowrap rounded-xl px-3 py-3 text-left transition-colors lg:w-full",
                     active
                       ? "bg-brand-soft text-brand-soft-foreground"
                       : "text-muted-foreground hover:bg-hover hover:text-hover-foreground"
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
+                  <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div className="hidden min-w-0 flex-1 lg:block">
+                    <p className="truncate text-sm font-semibold">{label}</p>
+                    <p
+                      className={cn(
+                        "mt-0.5 truncate text-[11px]",
+                        active
+                          ? "text-brand-soft-foreground/70"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {desc}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold lg:hidden">
+                    {label}
+                  </span>
                 </button>
               );
             })}
@@ -153,22 +150,16 @@ export default function AdminSettingsPage() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   GENERAL TAB — REAL BACKEND INTEGRATION
-   ═══════════════════════════════════════════════════════════ */
-
 function GeneralSettings() {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [serverError, setServerError] = useState("");
-
   const [logoUploading, setLogoUploading] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
-
   const [logoUrl, setLogoUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
 
-  const accessToken = useAuthStore((state) => state.accessToken);
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   const {
     register,
@@ -180,10 +171,9 @@ function GeneralSettings() {
   });
 
   useEffect(() => {
-    async function loadProfile() {
+    async function load() {
       try {
         setServerError("");
-
         const result = await getHospitalProfile(accessToken);
         const hospital = result.data;
 
@@ -203,18 +193,14 @@ function GeneralSettings() {
 
         setLogoUrl(hospital.logoUrl || "");
         setBannerUrl(hospital.bannerUrl || "");
-      } catch (error) {
-        setServerError(
-          error.message || "Failed to load hospital profile"
-        );
+      } catch (err) {
+        setServerError(err.message || "Failed to load hospital profile");
       } finally {
         setLoading(false);
       }
     }
 
-    if (accessToken) {
-      loadProfile();
-    }
+    if (accessToken) load();
   }, [accessToken, reset]);
 
   async function onSubmit(data) {
@@ -231,17 +217,11 @@ function GeneralSettings() {
         emergencyPhone: data.emergencyPhone,
       });
 
-      const hospital = result.data;
-
-      setLogoUrl(hospital.logoUrl || "");
-      setBannerUrl(hospital.bannerUrl || "");
-
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (error) {
-      setServerError(
-        error.message || "Failed to update hospital profile"
-      );
+      setLogoUrl(result.data.logoUrl || "");
+      setBannerUrl(result.data.bannerUrl || "");
+      flashSaved();
+    } catch (err) {
+      setServerError(err.message || "Failed to update hospital profile");
     }
   }
 
@@ -252,16 +232,11 @@ function GeneralSettings() {
     try {
       setServerError("");
       setLogoUploading(true);
-
       const result = await uploadHospitalLogo(accessToken, file);
       setLogoUrl(result.data.logoUrl || "");
-
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (error) {
-      setServerError(
-        error.message || "Failed to upload hospital logo"
-      );
+      flashSaved();
+    } catch (err) {
+      setServerError(err.message || "Failed to upload hospital logo");
     } finally {
       setLogoUploading(false);
       event.target.value = "";
@@ -275,254 +250,185 @@ function GeneralSettings() {
     try {
       setServerError("");
       setBannerUploading(true);
-
       const result = await uploadHospitalBanner(accessToken, file);
       setBannerUrl(result.data.bannerUrl || "");
-
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (error) {
-      setServerError(
-        error.message || "Failed to upload hospital banner"
-      );
+      flashSaved();
+    } catch (err) {
+      setServerError(err.message || "Failed to upload hospital banner");
     } finally {
       setBannerUploading(false);
       event.target.value = "";
     }
   }
 
+  function flashSaved() {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
+
   if (loading) {
-    return (
-      <SectionCard
-        title="General information"
-        desc="Manage your hospital profile information."
-      >
-        <p className="text-sm text-muted-foreground">
-          Loading hospital profile...
-        </p>
-      </SectionCard>
-    );
+    return <SettingsSkeleton />;
   }
 
   return (
-    <SectionCard
-      title="General information"
-      desc="Manage your hospital profile information."
-    >
-      {saved && <SavedToast />}
-
-      {serverError && (
-        <div className="mb-5 flex items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <p>{serverError}</p>
-        </div>
-      )}
-
-      {/* ══════════ HOSPITAL IMAGES ══════════ */}
-      <div className="mb-8 space-y-5">
-        <div>
-          <h3 className="text-sm font-semibold">Hospital images</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Upload your hospital logo and banner image.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <SettingsSection
+        icon={Image}
+        title="Branding"
+        desc="Upload your hospital logo and banner. These appear on public pages."
+      >
+        {saved && <SavedToast />}
+        {serverError && <ErrorBanner message={serverError} />}
 
         <div className="grid gap-5 lg:grid-cols-2">
-          {/* Logo */}
-          <div className="rounded-xl border border-border bg-muted/20 p-4">
-            <div className="flex items-center gap-2">
-              <Image className="h-4 w-4 text-brand" />
-              <p className="text-sm font-medium">Hospital logo</p>
-            </div>
-
-            <div className="mt-4 flex items-center gap-4">
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
-                {logoUrl ? (
-                  <img
-                    src={logoUrl}
-                    alt="Hospital logo"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <Building2 className="h-8 w-8 text-muted-foreground" />
-                )}
-              </div>
-
-              <div>
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={handleLogoUpload}
-                    disabled={logoUploading}
-                  />
-                  <span className="inline-flex h-10 items-center gap-2 rounded-md border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                    <Upload className="h-4 w-4" />
-                    {logoUploading ? "Uploading..." : "Upload logo"}
-                  </span>
-                </label>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  JPG, PNG or WebP · Max 5 MB
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Banner */}
-          <div className="rounded-xl border border-border bg-muted/20 p-4">
-            <div className="flex items-center gap-2">
-              <Image className="h-4 w-4 text-brand" />
-              <p className="text-sm font-medium">Hospital banner</p>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
-                {bannerUrl ? (
-                  <img
-                    src={bannerUrl}
-                    alt="Hospital banner"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <Image className="h-8 w-8" />
-                    <span className="text-xs">No banner uploaded</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  JPG, PNG or WebP · Max 5 MB
-                </p>
-
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={handleBannerUpload}
-                    disabled={bannerUploading}
-                  />
-                  <span className="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                    <Upload className="h-4 w-4" />
-                    {bannerUploading ? "Uploading..." : "Upload banner"}
-                  </span>
-                </label>
-              </div>
-            </div>
-          </div>
+          <UploadTile
+            label="Hospital logo"
+            hint="Square image · JPG, PNG or WebP · Max 5 MB"
+            image={logoUrl}
+            placeholderIcon={Building2}
+            uploading={logoUploading}
+            onUpload={handleLogoUpload}
+            aspect="square"
+          />
+          <UploadTile
+            label="Hospital banner"
+            hint="Wide image · JPG, PNG or WebP · Max 5 MB"
+            image={bannerUrl}
+            placeholderIcon={Image}
+            uploading={bannerUploading}
+            onUpload={handleBannerUpload}
+            aspect="banner"
+          />
         </div>
-      </div>
+      </SettingsSection>
 
-      {/* ══════════ PROFILE FORM ══════════ */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <div className="grid gap-5 sm:grid-cols-2">
-          {/* Read-only fields */}
-          <Field label="Hospital name" className="sm:col-span-2">
-            <Input {...register("name")} className="h-11" readOnly />
-          </Field>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <SettingsSection
+          icon={Building2}
+          title="Identity"
+          desc="Core information registered with MedCore. Contact support to change locked fields."
+        >
+          {serverError && !saved && (
+            <div className="mb-4">
+              <ErrorBanner message={serverError} />
+            </div>
+          )}
 
-          <Field label="Email">
-            <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field
+              label="Hospital name"
+              icon={Building2}
+              locked
+              className="sm:col-span-2"
+            >
+              <Input {...register("name")} className="h-11 pl-10" readOnly />
+            </Field>
+
+            <Field label="Email" icon={Mail} locked>
               <Input {...register("email")} className="h-11 pl-10" readOnly />
-            </div>
-          </Field>
+            </Field>
 
-          <Field label="Phone">
-            <div className="relative">
-              <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Field label="Phone" icon={Phone} locked>
               <Input {...register("phone")} className="h-11 pl-10" readOnly />
-            </div>
-          </Field>
+            </Field>
 
-          <Field label="License number">
-            <Input {...register("licenseNumber")} className="h-11" readOnly />
-          </Field>
+            <Field label="License number" icon={FileText} locked>
+              <Input
+                {...register("licenseNumber")}
+                className="h-11 pl-10"
+                readOnly
+              />
+            </Field>
 
-          <Field label="City">
-            <Input {...register("city")} className="h-11" readOnly />
-          </Field>
+            <Field label="City" icon={MapPin} locked>
+              <Input {...register("city")} className="h-11 pl-10" readOnly />
+            </Field>
+          </div>
+        </SettingsSection>
 
-          {/* Editable fields */}
-          <Field label="Website" error={errors.website?.message}>
-            <div className="relative">
-              <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <SettingsSection
+          icon={Globe}
+          title="Public profile"
+          desc="These details appear on your hospital's public page."
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Website" icon={Globe} error={errors.website?.message}>
               <Input
                 {...register("website")}
                 className="h-11 pl-10"
                 placeholder="https://example.com"
               />
-            </div>
-          </Field>
+            </Field>
 
-          <Field
-            label="Emergency phone"
-            error={errors.emergencyPhone?.message}
-          >
-            <div className="relative">
-              <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Field
+              label="Emergency phone"
+              icon={Phone}
+              error={errors.emergencyPhone?.message}
+            >
               <Input
                 {...register("emergencyPhone")}
                 className="h-11 pl-10"
                 placeholder="Emergency contact number"
               />
-            </div>
-          </Field>
+            </Field>
 
-          <Field
-            label="Description"
-            error={errors.description?.message}
-            className="sm:col-span-2"
-          >
-            <textarea
-              {...register("description")}
-              rows={4}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
-              placeholder="Tell patients about your hospital..."
-            />
-          </Field>
+            <Field
+              label="Description"
+              error={errors.description?.message}
+              className="sm:col-span-2"
+            >
+              <textarea
+                {...register("description")}
+                rows={4}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
+                placeholder="Tell patients about your hospital..."
+              />
+            </Field>
 
-          <Field
-            label="Address"
-            error={errors.address?.message}
-            className="sm:col-span-2"
-          >
-            <div className="relative">
-              <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Field
+              label="Address"
+              icon={MapPin}
+              error={errors.address?.message}
+              className="sm:col-span-2"
+            >
               <Input
                 {...register("address")}
                 className="h-11 pl-10"
-                placeholder="Hospital address"
+                placeholder="Full street address"
               />
-            </div>
-          </Field>
+            </Field>
 
-          <Field label="State" error={errors.state?.message}>
-            <Input {...register("state")} className="h-11" />
-          </Field>
+            <Field label="State" error={errors.state?.message}>
+              <Input
+                {...register("state")}
+                className="h-11"
+                placeholder="State"
+              />
+            </Field>
 
-          <Field label="Pincode" error={errors.pincode?.message}>
-            <Input {...register("pincode")} className="h-11" />
-          </Field>
-        </div>
+            <Field label="Pincode" error={errors.pincode?.message}>
+              <Input
+                {...register("pincode")}
+                className="h-11"
+                placeholder="6-digit pincode"
+              />
+            </Field>
+          </div>
+        </SettingsSection>
 
-        <div className="flex justify-end border-t border-border pt-5">
+        <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" disabled={isSubmitting}>
+            Reset
+          </Button>
           <Button type="submit" disabled={isSubmitting}>
             <Save className="mr-1.5 h-4 w-4" />
             {isSubmitting ? "Saving..." : "Save changes"}
           </Button>
         </div>
       </form>
-    </SectionCard>
+    </div>
   );
 }
-
-/* ═══════════════════════════════════════════════════════════
-   HOURS TAB — kept as-is (mock)
-   ═══════════════════════════════════════════════════════════ */
 
 function HoursSettings() {
   const [saved, setSaved] = useState(false);
@@ -543,51 +449,62 @@ function HoursSettings() {
 
   async function onSubmit(data) {
     await new Promise((r) => setTimeout(r, 500));
-    console.log("Hours update:", data);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
 
   return (
-    <SectionCard
-      title="Operating hours"
-      desc="These hours are shown to patients when they book appointments."
-    >
-      {saved && <SavedToast />}
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <SettingsSection
+        icon={Clock}
+        title="Operating hours"
+        desc="Displayed to patients booking appointments or visiting the hospital."
+      >
+        {saved && <SavedToast />}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="OPD hours" error={errors.opd?.message} required>
-            <Input {...register("opd")} className="h-11" />
+          <Field label="OPD hours" icon={Clock} required error={errors.opd?.message}>
+            <Input {...register("opd")} className="h-11 pl-10" />
           </Field>
-          <Field label="Emergency" error={errors.emergency?.message} required>
-            <Input {...register("emergency")} className="h-11" />
+          <Field
+            label="Emergency"
+            icon={AlertCircle}
+            required
+            error={errors.emergency?.message}
+          >
+            <Input {...register("emergency")} className="h-11 pl-10" />
           </Field>
-          <Field label="Visiting hours" error={errors.visiting?.message} required>
-            <Input {...register("visiting")} className="h-11" />
+          <Field
+            label="Visiting hours"
+            icon={Calendar}
+            required
+            error={errors.visiting?.message}
+          >
+            <Input {...register("visiting")} className="h-11 pl-10" />
           </Field>
-          <Field label="Pharmacy hours" error={errors.pharmacy?.message} required>
-            <Input {...register("pharmacy")} className="h-11" />
+          <Field
+            label="Pharmacy hours"
+            icon={Smartphone}
+            required
+            error={errors.pharmacy?.message}
+          >
+            <Input {...register("pharmacy")} className="h-11 pl-10" />
           </Field>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-5">
-          <Button type="button" variant="outline">
+        <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-border pt-5">
+          <Button type="button" variant="outline" disabled={isSubmitting}>
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
             <Save className="mr-1.5 h-4 w-4" />
-            {isSubmitting ? "Saving..." : "Save changes"}
+            {isSubmitting ? "Saving..." : "Save hours"}
           </Button>
         </div>
-      </form>
-    </SectionCard>
+      </SettingsSection>
+    </form>
   );
 }
-
-/* ═══════════════════════════════════════════════════════════
-   NOTIFICATIONS TAB — kept as-is (mock)
-   ═══════════════════════════════════════════════════════════ */
 
 function NotificationsSettings() {
   const [prefs, setPrefs] = useState({
@@ -627,12 +544,12 @@ function NotificationsSettings() {
     {
       key: "smsPatientReminders",
       label: "Patient reminders",
-      desc: "Appointment reminders to patients",
+      desc: "Appointment reminders sent to patients",
     },
     {
       key: "smsStaffAlerts",
       label: "Staff SMS alerts",
-      desc: "Urgent alerts to on-duty staff",
+      desc: "Urgent alerts sent to on-duty staff",
     },
   ];
 
@@ -642,15 +559,15 @@ function NotificationsSettings() {
 
   async function save() {
     await new Promise((r) => setTimeout(r, 500));
-    console.log("Notification prefs:", prefs);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
 
   return (
-    <SectionCard
+    <SettingsSection
+      icon={Bell}
       title="Notifications"
-      desc="Choose which events trigger email or SMS notifications."
+      desc="Choose which events trigger email or SMS notifications for your staff."
     >
       {saved && <SavedToast />}
 
@@ -675,7 +592,7 @@ function NotificationsSettings() {
 
         <div className="border-t border-border pt-6">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Phone className="h-3.5 w-3.5" />
+            <Smartphone className="h-3.5 w-3.5" />
             SMS notifications
           </div>
           <div className="mt-3 space-y-1">
@@ -701,13 +618,9 @@ function NotificationsSettings() {
           </Button>
         </div>
       </div>
-    </SectionCard>
+    </SettingsSection>
   );
 }
-
-/* ═══════════════════════════════════════════════════════════
-   SECURITY TAB — kept as-is (mock)
-   ═══════════════════════════════════════════════════════════ */
 
 function SecuritySettings() {
   const [sec, setSec] = useState({
@@ -728,22 +641,22 @@ function SecuritySettings() {
 
   async function save() {
     await new Promise((r) => setTimeout(r, 500));
-    console.log("Security settings:", sec);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
 
   return (
-    <SectionCard
+    <SettingsSection
+      icon={ShieldCheck}
       title="Security"
-      desc="Configure authentication and session policies for your hospital."
+      desc="Authentication and session policies for your hospital staff."
     >
       {saved && <SavedToast />}
 
       <div className="space-y-6">
         <ToggleRow
           label="Require two-factor authentication"
-          desc="Staff must verify login with a second factor (email or app)"
+          desc="Staff must verify login with a second factor (email or authenticator app)"
           checked={sec.requireTwoFactor}
           onChange={() => toggle("requireTwoFactor")}
         />
@@ -761,25 +674,25 @@ function SecuritySettings() {
           </h3>
 
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
-            <Field label="Session timeout (minutes)">
+            <Field label="Session timeout (minutes)" icon={Clock}>
               <Input
                 type="number"
                 value={sec.sessionTimeout}
                 onChange={(e) =>
                   update("sessionTimeout", parseInt(e.target.value) || 0)
                 }
-                className="h-11"
+                className="h-11 pl-10"
               />
             </Field>
 
-            <Field label="Password expiry (days)">
+            <Field label="Password expiry (days)" icon={Lock}>
               <Input
                 type="number"
                 value={sec.passwordExpiryDays}
                 onChange={(e) =>
                   update("passwordExpiryDays", parseInt(e.target.value) || 0)
                 }
-                className="h-11"
+                className="h-11 pl-10"
               />
             </Field>
           </div>
@@ -803,24 +716,106 @@ function SecuritySettings() {
           </Button>
         </div>
       </div>
-    </SectionCard>
+    </SettingsSection>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   SHARED COMPONENTS
-   ═══════════════════════════════════════════════════════════ */
-
-function SectionCard({ title, desc, children }) {
+function SettingsSection({ icon: Icon, title, desc, children }) {
   return (
     <div className="rounded-2xl border border-border bg-card">
-      <div className="border-b border-border px-5 py-4 sm:px-6">
-        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-        {desc && (
-          <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
-        )}
+      <div className="flex items-start gap-3 border-b border-border px-5 py-4 sm:px-6">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-soft-foreground">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+          {desc && (
+            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+              {desc}
+            </p>
+          )}
+        </div>
       </div>
       <div className="p-5 sm:p-6">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, icon: Icon, required, error, className, locked, children }) {
+  return (
+    <div className={className}>
+      <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">
+        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+        {label}
+        {required && <span className="text-destructive">*</span>}
+        {locked && (
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <Lock className="h-2.5 w-2.5" />
+            Locked
+          </span>
+        )}
+      </label>
+      {children}
+      {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function UploadTile({
+  label,
+  hint,
+  image,
+  placeholderIcon: Icon,
+  uploading,
+  onUpload,
+  aspect,
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold">{label}</p>
+        {uploading && (
+          <span className="text-[10px] font-medium uppercase tracking-wider text-brand">
+            Uploading...
+          </span>
+        )}
+      </div>
+
+      <div
+        className={cn(
+          "mt-4 overflow-hidden rounded-xl border border-border bg-background",
+          aspect === "square"
+            ? "flex h-24 w-24 items-center justify-center"
+            : "flex aspect-[16/6] w-full items-center justify-center"
+        )}
+      >
+        {image ? (
+          <img
+            src={image}
+            alt={label}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <Icon className="h-8 w-8 text-muted-foreground" />
+        )}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-[11px] text-muted-foreground">{hint}</p>
+        <label className="cursor-pointer">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={onUpload}
+            disabled={uploading}
+          />
+          <span className="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-hover hover:text-hover-foreground">
+            <Upload className="h-4 w-4" />
+            {image ? "Replace" : "Upload"}
+          </span>
+        </label>
+      </div>
     </div>
   );
 }
@@ -836,29 +831,11 @@ function SavedToast() {
   );
 }
 
-function Field({ label, required, error, className, children }) {
+function ErrorBanner({ message }) {
   return (
-    <div className={className}>
-      <label className="mb-1.5 block text-sm font-medium">
-        {label}
-        {required && <span className="ml-0.5 text-destructive">*</span>}
-      </label>
-      {children}
-      {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
-    </div>
-  );
-}
-
-function FactBox({ icon: Icon, label, value }) {
-  return (
-    <div className="rounded-xl border border-border bg-muted/30 p-4">
-      <div className="flex items-center gap-2 text-brand">
-        <Icon className="h-4 w-4" />
-        <p className="text-[10px] font-semibold uppercase tracking-wider">
-          {label}
-        </p>
-      </div>
-      <p className="mt-2 text-sm font-medium">{value}</p>
+    <div className="mb-5 flex items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <AlertCircle className="h-4 w-4 shrink-0" />
+      <p>{message}</p>
     </div>
   );
 }
@@ -887,5 +864,31 @@ function ToggleRow({ label, desc, checked, onChange }) {
         />
       </button>
     </label>
+  );
+}
+
+function SettingsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="animate-pulse rounded-2xl border border-border bg-card">
+        <div className="h-20 border-b border-border" />
+        <div className="p-5 sm:p-6">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="h-40 rounded-xl bg-muted" />
+            <div className="h-40 rounded-xl bg-muted" />
+          </div>
+        </div>
+      </div>
+      <div className="animate-pulse rounded-2xl border border-border bg-card">
+        <div className="h-20 border-b border-border" />
+        <div className="p-5 sm:p-6">
+          <div className="grid gap-5 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-11 rounded-lg bg-muted" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

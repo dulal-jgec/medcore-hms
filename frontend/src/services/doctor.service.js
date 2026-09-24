@@ -1,290 +1,130 @@
-const API_BASE_URL = "http://localhost:8080/api/v1";
+import { apiFetch } from "@/lib/api-client";
 
 async function handleResponse(response) {
   const result = await response.json();
 
-  if (!response.ok) {
+  if (!response.ok || !result.success) {
     throw new Error(result.message || "Something went wrong");
   }
 
   return result;
 }
 
-// ======================================================
-// ADMIN APIs
-// ======================================================
-
-export async function getDoctors(
-  accessToken,
-  { page = 0, size = 100, sortBy = "id", sortDir = "asc" } = {}
-) {
+export async function getDoctors({
+  page = 0,
+  size = 50,
+  sortBy = "id",
+  sortDir = "asc",
+} = {}) {
   const params = new URLSearchParams({
-    page,
-    size,
+    page: String(page),
+    size: String(size),
     sortBy,
     sortDir,
   });
-
-  const response = await fetch(
-    `${API_BASE_URL}/doctors?${params.toString()}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+  const response = await apiFetch(`/doctors?${params.toString()}`);
   return handleResponse(response);
 }
 
-export async function searchDoctors(
-  accessToken,
-  keyword,
-  { page = 0, size = 100 } = {}
-) {
+export async function searchDoctors(keyword, { page = 0, size = 50 } = {}) {
   const params = new URLSearchParams({
     keyword,
-    page,
-    size,
+    page: String(page),
+    size: String(size),
   });
-
-  const response = await fetch(
-    `${API_BASE_URL}/doctors/search?${params.toString()}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+  const response = await apiFetch(`/doctors/search?${params.toString()}`);
   return handleResponse(response);
 }
 
-export async function getDoctorById(accessToken, doctorId) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctors/${doctorId}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function getDoctorById(doctorId) {
+  const response = await apiFetch(`/doctors/${doctorId}`);
   return handleResponse(response);
 }
 
-export async function createDoctor(accessToken, data) {
-  const response = await fetch(`${API_BASE_URL}/doctors`, {
+export async function createDoctor(data) {
+  const response = await apiFetch("/doctors", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-
   return handleResponse(response);
 }
 
-export async function updateDoctor(accessToken, doctorId, data) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctors/${doctorId}`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
-
+export async function updateDoctor(doctorId, data) {
+  const response = await apiFetch(`/doctors/${doctorId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handleResponse(response);
 }
 
-export async function updateDoctorStatus(
-  accessToken,
-  doctorId,
-  status
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctors/${doctorId}/status`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify({ status }),
-    }
-  );
-
+export async function updateDoctorStatus(doctorId, status) {
+  const response = await apiFetch(`/doctors/${doctorId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
   return handleResponse(response);
 }
 
-export async function deleteDoctor(accessToken, doctorId) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctors/${doctorId}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function deleteDoctor(doctorId) {
+  const response = await apiFetch(`/doctors/${doctorId}`, {
+    method: "DELETE",
+  });
   return handleResponse(response);
 }
 
-// ======================================================
-// DOCTOR SCHEDULE APIs - HOSPITAL ADMIN
-// ======================================================
-
-export async function getDoctorSchedules(
-  accessToken,
-  doctorId
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctor-schedules/doctor/${doctorId}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function getDoctorSchedules(doctorId) {
+  const response = await apiFetch(`/doctor-schedules/doctor/${doctorId}`);
   return handleResponse(response);
 }
 
-export async function createDoctorSchedule(
-  accessToken,
-  data
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctor-schedules`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
-
+export async function createDoctorSchedule(data) {
+  const response = await apiFetch("/doctor-schedules", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handleResponse(response);
 }
 
-export async function updateDoctorSchedule(
-  accessToken,
-  scheduleId,
-  data
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctor-schedules/${scheduleId}`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
-
+export async function updateDoctorSchedule(scheduleId, data) {
+  const response = await apiFetch(`/doctor-schedules/${scheduleId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handleResponse(response);
 }
 
-export async function deleteDoctorSchedule(
-  accessToken,
-  scheduleId
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctor-schedules/${scheduleId}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function deleteDoctorSchedule(scheduleId) {
+  const response = await apiFetch(`/doctor-schedules/${scheduleId}`, {
+    method: "DELETE",
+  });
   return handleResponse(response);
 }
 
-// ======================================================
-// DOCTOR SELF PROFILE APIs
-// ======================================================
-
-export async function getMyDoctorProfile(accessToken) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctors/me`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-    }
-  );
-
+export async function getMyDoctorProfile() {
+  const response = await apiFetch("/doctors/me");
   return handleResponse(response);
 }
 
-export async function updateMyDoctorProfile(
-  accessToken,
-  data
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/doctors/me`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
-
+export async function updateMyDoctorProfile(data) {
+  const response = await apiFetch("/doctors/me", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handleResponse(response);
 }
 
-export async function uploadDoctorProfileImage(
-  accessToken,
-  file
-) {
+export async function uploadDoctorProfileImage(file) {
   const formData = new FormData();
-
   formData.append("file", file);
-
-  const response = await fetch(
-    `${API_BASE_URL}/doctors/me/profile-image`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: "include",
-      body: formData,
-    }
-  );
-
+  const response = await apiFetch("/doctors/me/profile-image", {
+    method: "POST",
+    body: formData,
+  });
   return handleResponse(response);
 }

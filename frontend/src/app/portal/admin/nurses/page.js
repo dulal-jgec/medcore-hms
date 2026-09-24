@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -10,26 +10,20 @@ import {
   Mail,
   Phone,
   Building2,
+  Briefcase,
   GraduationCap,
   FileText,
-  ShieldCheck,
-  Pencil,
-  Ban,
-  CheckCircle2,
-  Loader2,
-  UserRound,
+  AlertCircle,
+  ArrowUpRight,
+  Users,
+  TrendingUp,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
-
-import {
-  getNurses,
-  activateNurse,
-  deactivateNurse,
-} from "@/services/nurse.service";
+import { getNurses } from "@/services/nurse.service";
 
 const STATUS_TABS = [
   { id: "all", label: "All" },
@@ -38,52 +32,38 @@ const STATUS_TABS = [
 ];
 
 export default function AdminNursesPage() {
-  const accessToken = useAuthStore(
-    (state) => state.accessToken
-  );
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   const [nurses, setNurses] = useState([]);
   const [query, setQuery] = useState("");
-  const [dept, setDept] = useState("all");
   const [status, setStatus] = useState("all");
-
-  const [viewNurse, setViewNurse] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!accessToken) return;
-
-    loadNurses();
+    load();
   }, [accessToken]);
 
-  async function loadNurses() {
+  async function load() {
     try {
       setLoading(true);
       setError("");
 
-      const result = await getNurses(accessToken);
+      const result = await getNurses(accessToken, {
+        page: 0,
+       size: 50,
+        sortBy: "id",
+        sortDir: "asc",
+      });
 
-      setNurses(result.data || []);
-    } catch (error) {
-      setError(
-        error.message || "Failed to load nurses."
-      );
+      setNurses(result.data?.items || result.data || []);
+    } catch (err) {
+      setError(err.message || "Failed to load nurses");
     } finally {
       setLoading(false);
     }
   }
-
-  const departments = useMemo(() => {
-    return [
-      ...new Set(
-        nurses
-          .map((nurse) => nurse.department)
-          .filter(Boolean)
-      ),
-    ];
-  }, [nurses]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -93,637 +73,416 @@ export default function AdminNursesPage() {
         !q ||
         nurse.name?.toLowerCase().includes(q) ||
         nurse.email?.toLowerCase().includes(q) ||
-        nurse.phone?.includes(q);
+        nurse.department?.toLowerCase().includes(q) ||
+        nurse.designation?.toLowerCase().includes(q);
 
-      const matchDept =
-        dept === "all" ||
-        nurse.department === dept;
+      const matchStatus = status === "all" || nurse.status === status;
 
-      const matchStatus =
-        status === "all" ||
-        nurse.status === status;
-
-      return (
-        matchQuery &&
-        matchDept &&
-        matchStatus
-      );
+      return matchQuery && matchStatus;
     });
-  }, [nurses, query, dept, status]);
+  }, [nurses, query, status]);
 
-  const counts = {
-    all: nurses.length,
-    ACTIVE: nurses.filter(
-      (nurse) => nurse.status === "ACTIVE"
-    ).length,
-    INACTIVE: nurses.filter(
-      (nurse) => nurse.status === "INACTIVE"
-    ).length,
-  };
+  const counts = useMemo(
+    () => ({
+      all: nurses.length,
+      ACTIVE: nurses.filter((n) => n.status === "ACTIVE").length,
+      INACTIVE: nurses.filter((n) => n.status === "INACTIVE").length,
+    }),
+    [nurses]
+  );
 
-  const hasFilters =
-    query ||
-    dept !== "all" ||
-    status !== "all";
+  const departmentsCovered = useMemo(
+    () => new Set(nurses.map((n) => n.department).filter(Boolean)).size,
+    [nurses]
+  );
+
+  const hasFilters = query.trim() !== "" || status !== "all";
 
   function clearFilters() {
     setQuery("");
-    setDept("all");
     setStatus("all");
-  }
-
-  async function handleStatusChange(nurse) {
-    try {
-      setActionLoading(true);
-
-      if (nurse.status === "ACTIVE") {
-        await deactivateNurse(
-          accessToken,
-          nurse.id
-        );
-      } else {
-        await activateNurse(
-          accessToken,
-          nurse.id
-        );
-      }
-
-      await loadNurses();
-
-      setViewNurse(null);
-    } catch (error) {
-      alert(
-        error.message ||
-          "Failed to update nurse status."
-      );
-    } finally {
-      setActionLoading(false);
-    }
   }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      <PageHeader
+        eyebrow="Staff Management"
+        title="Nurses"
+        desc="Manage nursing staff, shift assignments, and credentials."
+        action={{
+          label: "Add nurse",
+          icon: Plus,
+          href: "/portal/admin/nurses/new",
+        }}
+      />
 
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
-            Staff Management
-          </p>
+      <SummaryBar
+        items={[
+          {
+            label: "Total nurses",
+            value: counts.all,
+            icon: Users,
+            accent: true,
+          },
+          {
+            label: "Active",
+            value: counts.ACTIVE,
+            icon: HeartPulse,
+          },
+          {
+            label: "Inactive",
+            value: counts.INACTIVE,
+            icon: AlertCircle,
+          },
+          {
+            label: "Departments",
+            value: departmentsCovered,
+            icon: Building2,
+          },
+        ]}
+      />
 
-          <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-            Nurses
-          </h1>
+      <Toolbar
+        query={query}
+        onQuery={setQuery}
+        placeholder="Search by name, email, department, or designation..."
+        hasFilters={hasFilters}
+        onClear={clearFilters}
+      />
 
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your hospital's nursing staff.
-          </p>
-        </div>
+      <StatusTabs
+        tabs={STATUS_TABS}
+        counts={counts}
+        active={status}
+        onChange={setStatus}
+      />
 
-        <Button asChild>
-          <Link href="/portal/admin/nurses/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Add nurse
-          </Link>
-        </Button>
-      </div>
-
-      {/* Error */}
       {error && (
-        <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <ErrorBanner
+          title="Unable to load nurses"
+          message={error}
+          onRetry={load}
+        />
       )}
 
-      {/* Filters */}
-      <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center">
+      {!loading && !error && (
+        <ResultCount
+          count={filtered.length}
+          noun="nurse"
+          suffix="across your hospital"
+        />
+      )}
 
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-          <Input
-            value={query}
-            onChange={(e) =>
-              setQuery(e.target.value)
-            }
-            placeholder="Search by name, email or phone..."
-            className="h-11 pl-10"
-          />
-        </div>
-
-        <select
-          value={dept}
-          onChange={(e) =>
-            setDept(e.target.value)
-          }
-          className="h-11 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 lg:w-56"
-        >
-          <option value="all">
-            All departments
-          </option>
-
-          {departments.map((department) => (
-            <option
-              key={department}
-              value={department}
-            >
-              {department}
-            </option>
-          ))}
-        </select>
-
-        {hasFilters && (
-          <Button
-            variant="ghost"
-            onClick={clearFilters}
-            className="h-11"
-          >
-            <X className="mr-1.5 h-4 w-4" />
-            Clear
-          </Button>
-        )}
-      </div>
-
-      {/* Status tabs */}
-      <div className="mt-6 border-b border-border">
-        <nav className="flex gap-6 overflow-x-auto">
-          {STATUS_TABS.map(
-            ({ id, label }) => {
-              const isActive =
-                status === id;
-
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() =>
-                    setStatus(id)
-                  }
-                  className={cn(
-                    "relative flex items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium",
-                    "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5",
-                    isActive
-                      ? "text-foreground after:bg-brand"
-                      : "text-muted-foreground after:bg-transparent"
-                  )}
-                >
-                  {label}
-
-                  <span
-                    className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                      isActive
-                        ? "bg-brand-soft text-brand-soft-foreground"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {counts[id]}
-                  </span>
-                </button>
-              );
-            }
-          )}
-        </nav>
-      </div>
-
-      <p className="mt-4 text-xs text-muted-foreground">
-        {filtered.length} nurse
-        {filtered.length !== 1 ? "s" : ""} found
-      </p>
-
-      {/* Loading */}
       {loading ? (
-        <div className="flex min-h-60 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-brand" />
-        </div>
+        <CardSkeleton />
       ) : filtered.length > 0 ? (
-
-        /* Grid */
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((nurse) => (
-            <NurseCard
-              key={nurse.id}
-              nurse={nurse}
-              onView={() =>
-                setViewNurse(nurse)
-              }
-            />
+            <NurseCard key={nurse.id} nurse={nurse} />
           ))}
         </div>
-
       ) : (
-
-        /* Empty */
-        <div className="mt-6 rounded-2xl border border-dashed border-border py-16 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-            <HeartPulse className="h-6 w-6 text-muted-foreground" />
-          </div>
-
-          <p className="mt-5 text-base font-semibold">
-            No nurses found
-          </p>
-
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Try adjusting your filters or add a new nurse.
-          </p>
-
-          <Button
-            asChild
-            className="mt-5"
-          >
-            <Link href="/portal/admin/nurses/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add nurse
-            </Link>
-          </Button>
-        </div>
-      )}
-
-      {viewNurse && (
-        <NurseModal
-          nurse={viewNurse}
-          onClose={() =>
-            setViewNurse(null)
-          }
-          onStatusChange={() =>
-            handleStatusChange(viewNurse)
-          }
-          actionLoading={actionLoading}
-        />
+        <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
       )}
     </div>
   );
 }
 
-
- 
-
-function NurseCard({ nurse, onView }) {
-  const isActive =
-    nurse.status === "ACTIVE";
+function NurseCard({ nurse }) {
+  const isActive = nurse.status === "ACTIVE";
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/40 hover:shadow-md">
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/40 hover:shadow-lg">
+      <div
+        aria-hidden
+        className={cn(
+          "absolute inset-x-0 top-0 h-1",
+          isActive ? "bg-brand" : "bg-muted-foreground/30"
+        )}
+      />
 
-      <button
-        type="button"
-        onClick={onView}
-        className="flex items-start gap-4 p-5 text-left"
-      >
+      <div className="flex items-start gap-4 p-5 pt-6">
         <div
           className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold",
+            "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold shadow-sm",
             isActive
-              ? "bg-brand-soft text-brand-soft-foreground"
+              ? "bg-gradient-to-br from-brand to-brand/85 text-brand-foreground"
               : "bg-muted text-muted-foreground"
           )}
         >
-          {nurse.name
-            ?.charAt(0)
-            ?.toUpperCase() || (
-            <UserRound className="h-6 w-6" />
-          )}
+          {nurse.name?.charAt(0)?.toUpperCase() || "N"}
         </div>
 
         <div className="min-w-0 flex-1">
-
           <div className="flex items-start justify-between gap-2">
             <h3 className="truncate text-base font-semibold tracking-tight">
               {nurse.name}
             </h3>
-
-            <StatusBadge
-              status={nurse.status}
-            />
+            <StatusBadge status={nurse.status} />
           </div>
 
-          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Building2 className="h-3 w-3" />
-            <span className="truncate">
-              {nurse.department ||
-                "Department not assigned"}
-            </span>
+          <p className="mt-0.5 truncate text-sm font-medium text-brand">
+            {nurse.designation || "Staff Nurse"}
+          </p>
+
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Mail className="h-3 w-3 shrink-0" />
+            <span className="truncate">{nurse.email || "—"}</span>
           </div>
-
-          {nurse.designation && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {nurse.designation}
-            </p>
-          )}
-        </div>
-      </button>
-
-      <div className="grid grid-cols-2 divide-x divide-border border-t border-border bg-muted/20">
-
-        <div className="p-3 text-center">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Qualification
-          </p>
-
-          <p className="mt-1 truncate px-1 text-xs font-semibold">
-            {nurse.qualification ||
-              "Not specified"}
-          </p>
-        </div>
-
-        <div className="p-3 text-center">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            License No.
-          </p>
-
-          <p className="mt-1 truncate px-1 text-xs font-semibold">
-            {nurse.licenseNumber ||
-              "Not specified"}
-          </p>
         </div>
       </div>
 
-      <div className="mt-auto flex items-center gap-2 border-t border-border p-3">
+      <div className="mx-5 mb-4 grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/20 p-3">
+        <MetaCell
+          icon={Building2}
+          label="Department"
+          value={nurse.department || "—"}
+        />
+        <MetaCell
+          icon={HeartPulse}
+          label="Ward"
+          value={nurse.ward || "—"}
+        />
+      </div>
 
-        <Button
-          size="sm"
-          variant="outline"
-          className="flex-1"
-          onClick={onView}
+      <div className="mt-auto flex items-center justify-between border-t border-border bg-muted/10 px-5 py-3">
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <GraduationCap className="h-3 w-3" />
+          <span className="truncate">
+            {nurse.qualification || "Qualification not set"}
+          </span>
+        </div>
+        <Link
+          href={`/portal/admin/nurses/${nurse.id}`}
+          className="flex items-center gap-1 text-xs font-medium text-brand transition-transform hover:gap-1.5"
         >
           View
-        </Button>
-
-        <Button
-          size="sm"
-          className="flex-1"
-          asChild
-        >
-          <Link
-            href={`/portal/admin/nurses/${nurse.id}/edit`}
-          >
-            <Pencil className="mr-1.5 h-3.5 w-3.5" />
-            Edit
-          </Link>
-        </Button>
-
+          <ArrowUpRight className="h-3 w-3" />
+        </Link>
       </div>
     </div>
   );
 }
 
-
-/* =====================================================
-   STATUS
-===================================================== */
+function MetaCell({ icon: Icon, label, value }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-2.5 w-2.5" />
+        {label}
+      </div>
+      <p className="mt-1 truncate text-xs font-medium">{value}</p>
+    </div>
+  );
+}
 
 function StatusBadge({ status }) {
-  const isActive =
-    status === "ACTIVE";
+  const isActive = status === "ACTIVE";
 
   return (
     <span
       className={cn(
-        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
         isActive
           ? "bg-brand-soft text-brand-soft-foreground"
           : "bg-muted text-muted-foreground"
       )}
     >
-      {isActive
-        ? "Active"
-        : "Inactive"}
+      <span
+        className={cn(
+          "h-1.5 w-1.5 rounded-full",
+          isActive ? "bg-brand" : "bg-muted-foreground"
+        )}
+      />
+      {isActive ? "Active" : "Inactive"}
     </span>
   );
 }
 
-
- 
-
-function NurseModal({
-  nurse,
-  onClose,
-  onStatusChange,
-  actionLoading,
-}) {
-  const isActive =
-    nurse.status === "ACTIVE";
-
+function PageHeader({ eyebrow, title, desc, action }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
-        onClick={(e) =>
-          e.stopPropagation()
-        }
-      >
-
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card px-6 py-5">
-
-          <div className="flex items-start gap-4">
-
-            <div
-              className={cn(
-                "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold",
-                isActive
-                  ? "bg-brand-soft text-brand-soft-foreground"
-                  : "bg-muted text-muted-foreground"
-              )}
-            >
-              {nurse.name
-                ?.charAt(0)
-                ?.toUpperCase()}
-            </div>
-
-            <div className="min-w-0">
-
-              <h2 className="truncate text-lg font-bold tracking-tight">
-                {nurse.name}
-              </h2>
-
-              <p className="mt-0.5 text-sm font-medium text-brand">
-                {nurse.designation ||
-                  "Staff Nurse"}
-              </p>
-
-              <p className="mt-1 text-xs text-muted-foreground">
-                {nurse.department ||
-                  "Department not assigned"}
-              </p>
-
-              <div className="mt-2">
-                <StatusBadge
-                  status={nurse.status}
-                />
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-
-          <section>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Contact
-            </h3>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-
-              <InfoBox
-                icon={Mail}
-                label="Email"
-                value={nurse.email}
-              />
-
-              <InfoBox
-                icon={Phone}
-                label="Phone"
-                value={nurse.phone}
-              />
-
-            </div>
-          </section>
-
-          <section className="mt-6">
-
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Professional
-            </h3>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-
-              <InfoBox
-                icon={Building2}
-                label="Department"
-                value={
-                  nurse.department ||
-                  "Not assigned"
-                }
-              />
-
-              <InfoBox
-                icon={GraduationCap}
-                label="Qualification"
-                value={
-                  nurse.qualification ||
-                  "Not specified"
-                }
-              />
-
-              <InfoBox
-                icon={FileText}
-                label="License No."
-                value={
-                  nurse.licenseNumber ||
-                  "Not specified"
-                }
-              />
-
-              <InfoBox
-                icon={ShieldCheck}
-                label="Designation"
-                value={
-                  nurse.designation ||
-                  "Not specified"
-                }
-              />
-
-              <InfoBox
-                icon={HeartPulse}
-                label="Ward"
-                value={
-                  nurse.ward ||
-                  "Not assigned"
-                }
-              />
-
-            </div>
-          </section>
-
-          <div className="mt-6 flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-
-            <p className="text-xs leading-5 text-muted-foreground">
-              Nurse credentials and hospital
-              assignment are managed by hospital
-              administration.
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-border bg-card px-6 py-4">
-
-          <Button
-            variant="outline"
-            asChild
-          >
-            <Link
-              href={`/portal/admin/nurses/${nurse.id}/edit`}
-            >
-              <Pencil className="mr-1.5 h-4 w-4" />
-              Edit details
-            </Link>
-          </Button>
-
-          <Button
-            variant="outline"
-            disabled={actionLoading}
-            onClick={onStatusChange}
-            className={
-              isActive
-                ? "text-destructive hover:bg-destructive/10 hover:text-destructive"
-                : ""
-            }
-          >
-            {actionLoading ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : isActive ? (
-              <Ban className="mr-1.5 h-4 w-4" />
-            ) : (
-              <CheckCircle2 className="mr-1.5 h-4 w-4" />
-            )}
-
-            {isActive
-              ? "Deactivate"
-              : "Reactivate"}
-          </Button>
-
-        </div>
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+          {eyebrow}
+        </p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+          {title}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
       </div>
+
+      {action && (
+        <Button asChild>
+          <Link href={action.href}>
+            {action.icon && <action.icon className="mr-1.5 h-4 w-4" />}
+            {action.label}
+          </Link>
+        </Button>
+      )}
     </div>
   );
 }
 
-
- 
-
-function InfoBox({
-  icon: Icon,
-  label,
-  value,
-}) {
+function SummaryBar({ items }) {
   return (
-    <div className="rounded-lg border border-border bg-background p-3">
+    <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <div
+            key={item.label}
+            className="rounded-2xl border border-border bg-card p-4 transition-all hover:border-brand/30 hover:shadow-sm"
+          >
+            <span
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-lg",
+                item.accent
+                  ? "bg-brand text-brand-foreground"
+                  : "bg-brand-soft text-brand-soft-foreground"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+            </span>
+            <p className="mt-3 text-2xl font-bold tracking-tight">
+              {item.value}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+              {item.label}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        <Icon className="h-3 w-3" />
-        {label}
+function Toolbar({ query, onQuery, placeholder, hasFilters, onClear }) {
+  return (
+    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <div className="relative flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          placeholder={placeholder}
+          className="h-11 pl-10"
+        />
       </div>
 
-      <p className="mt-1 text-sm font-medium leading-5">
-        {value}
-      </p>
+      {hasFilters && (
+        <Button variant="ghost" onClick={onClear} className="h-11">
+          <X className="mr-1.5 h-4 w-4" />
+          Clear
+        </Button>
+      )}
+    </div>
+  );
+}
 
+function StatusTabs({ tabs, counts, active, onChange }) {
+  return (
+    <div className="mt-6 border-b border-border">
+      <nav className="flex gap-6 overflow-x-auto" aria-label="Status filter">
+        {tabs.map(({ id, label }) => {
+          const isActive = active === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onChange(id)}
+              className={cn(
+                "relative flex items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium transition-colors",
+                "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full",
+                isActive
+                  ? "text-foreground after:bg-brand"
+                  : "text-muted-foreground after:bg-transparent hover:text-foreground"
+              )}
+            >
+              {label}
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                  isActive
+                    ? "bg-brand-soft text-brand-soft-foreground"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {counts[id]}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+function ResultCount({ count, noun, suffix }) {
+  return (
+    <p className="mt-4 text-xs text-muted-foreground">
+      <span className="font-semibold text-foreground">{count}</span> {noun}
+      {count !== 1 ? "s" : ""} {suffix}
+    </p>
+  );
+}
+
+function ErrorBanner({ title, message, onRetry }) {
+  return (
+    <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-destructive">{title}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{message}</p>
+      </div>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ hasFilters, onClear }) {
+  return (
+    <div className="mt-6 rounded-2xl border border-dashed border-border py-16 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft">
+        <HeartPulse className="h-6 w-6 text-brand-soft-foreground" />
+      </div>
+      <p className="mt-5 text-base font-semibold">
+        {hasFilters ? "No nurses match your filters" : "No nurses yet"}
+      </p>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        {hasFilters
+          ? "Try a different search or clear the filters."
+          : "Add your first nurse to get started."}
+      </p>
+      {hasFilters ? (
+        <Button variant="outline" onClick={onClear} className="mt-5">
+          Clear filters
+        </Button>
+      ) : (
+        <Button asChild className="mt-5">
+          <Link href="/portal/admin/nurses/new">
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add nurse
+          </Link>
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function CardSkeleton() {
+  return (
+    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div
+          key={i}
+          className="h-56 animate-pulse rounded-2xl border border-border bg-muted/30"
+        />
+      ))}
     </div>
   );
 }

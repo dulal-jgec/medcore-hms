@@ -1,73 +1,78 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  BriefcaseMedical,
-  Stethoscope,
-} from "lucide-react";
+import { ArrowUpRight, Stethoscope } from "lucide-react";
 
 import PublicImage from "@/components/public-hospital/shared/public-image";
 
-export default function DoctorCard({
-  doctor,
-  hospitalId,
-}) {
+export default function DoctorCard({ doctor, hospitalId }) {
+  const initials = doctor.doctorName
+    ?.replace(/^Dr\.?\s*/i, "")
+    .split(" ")
+    .map((s) => s.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
   return (
-    <article className="group overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/40 hover:shadow-md">
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+    <Link
+      href={`/hospitals/${hospitalId}/doctors/${doctor.id}`}
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-1 hover:border-brand/40 hover:shadow-lg"
+    >
+      <div className="relative aspect-[4/5] w-full overflow-hidden bg-muted">
         {doctor.profileImageUrl ? (
           <PublicImage
             src={doctor.profileImageUrl}
             alt={doctor.doctorName}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover transition-transform duration-700 group-hover:scale-110"
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <Stethoscope className="h-12 w-12 text-muted-foreground" />
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary to-primary/85">
+            <span className="text-5xl font-bold text-brand">{initials}</span>
           </div>
         )}
-      </div>
 
-      <div className="p-5">
-        <p className="text-lg font-semibold">
-          {doctor.doctorName}
-        </p>
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-t from-primary via-primary/40 to-transparent"
+        />
 
         {doctor.specialization && (
-          <p className="mt-1 text-sm font-medium text-primary">
+          <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-foreground">
+            <Stethoscope className="h-3 w-3" />
             {doctor.specialization}
-          </p>
-        )}
-
-        {doctor.departmentName && (
-          <p className="mt-2 text-sm text-muted-foreground">
-            {doctor.departmentName}
-          </p>
-        )}
-
-        <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-          <BriefcaseMedical className="h-4 w-4" />
-
-          <span>
-            {doctor.experienceYears != null
-              ? `${doctor.experienceYears} ${
-                  doctor.experienceYears === 1
-                    ? "year"
-                    : "years"
-                } experience`
-              : "Experience not specified"}
           </span>
+        )}
+
+        <div className="absolute inset-x-0 bottom-0 p-5">
+          <h3 className="text-lg font-bold leading-tight tracking-tight text-white">
+            {doctor.doctorName}
+          </h3>
+
+          {doctor.departmentName && (
+            <p className="mt-1 truncate text-xs text-white/75">
+              {doctor.departmentName}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-4">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            Experience
+          </p>
+          <p className="mt-0.5 text-sm font-semibold">
+            {doctor.experienceYears != null
+              ? `${doctor.experienceYears} years`
+              : "Not specified"}
+          </p>
         </div>
 
-        <Link
-          href={`/hospitals/${hospitalId}/doctors/${doctor.id}`}
-          className="mt-5 flex h-10 items-center justify-center gap-2 rounded-lg border bg-background text-sm font-medium transition hover:bg-muted"
-        >
-          View Profile
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-soft-foreground transition-transform group-hover:scale-110">
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </span>
       </div>
-    </article>
+    </Link>
   );
 }

@@ -197,14 +197,17 @@ export default function CreateHospitalAdminPage() {
               </Label>
 
               <Input
-                id="phone"
-                name="phone"
-                placeholder="10-digit phone number"
-                value={formData.phone}
-                onChange={handleChange}
-                maxLength={10}
-                required
-              />
+  id="phone"
+  name="phone"
+  value={formData.phone}
+  onChange={handleChange}
+  placeholder="10-digit mobile number"
+  inputMode="numeric"
+  pattern="[6-9][0-9]{9}"
+  maxLength={10}
+  required
+  className="h-11"
+/>
             </div>
           </div>
 

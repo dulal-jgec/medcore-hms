@@ -158,9 +158,7 @@ public class AuthController {
         return ResponseEntity.ok(result);
     }
 
-    // =========================
-    // REFRESH TOKEN COOKIE
-    // =========================
+    
 
     private ResponseCookie createRefreshTokenCookie(
             String refreshToken) {

@@ -1,16 +1,6 @@
-const API_BASE_URL = "http://localhost:8080/api/v1";
+import { apiFetch } from "@/lib/api-client";
 
-const request = async (url, options = {}) => {
-  const isFormData = options.body instanceof FormData;
-
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(options.headers || {}),
-    },
-  });
-
+async function handleResponse(response) {
   const result = await response.json();
 
   if (!response.ok || !result.success) {
@@ -18,176 +8,98 @@ const request = async (url, options = {}) => {
   }
 
   return result;
-};
+}
 
-// ======================================================
-// ADMIN
-// ======================================================
+export async function getAccountants() {
+  const response = await apiFetch("/accountants");
+  return handleResponse(response);
+}
 
-export const getAccountants = async (accessToken) => {
-  return request("/accountants", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-};
+export async function getAccountantById(accountantId) {
+  const response = await apiFetch(`/accountants/${accountantId}`);
+  return handleResponse(response);
+}
 
-export const getAccountantById = async (
-  accessToken,
-  accountantId
-) => {
-  return request(`/accountants/${accountantId}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-};
-
-export const createAccountant = async (
-  accessToken,
-  data
-) => {
-  return request("/accountants", {
+export async function createAccountant(data) {
+  const response = await apiFetch("/accountants", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-};
+  return handleResponse(response);
+}
 
-export const updateAccountant = async (
-  accessToken,
-  accountantId,
-  data
-) => {
-  return request(`/accountants/${accountantId}`, {
+export async function updateAccountant(accountantId, data) {
+  const response = await apiFetch(`/accountants/${accountantId}`, {
     method: "PUT",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-};
+  return handleResponse(response);
+}
 
-export const deleteAccountant = async (
-  accessToken,
-  accountantId
-) => {
-  return request(`/accountants/${accountantId}`, {
+export async function deleteAccountant(accountantId) {
+  const response = await apiFetch(`/accountants/${accountantId}`, {
     method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
   });
-};
+  return handleResponse(response);
+}
 
-export const activateAccountant = async (
-  accessToken,
-  accountantId
-) => {
-  return request(`/accountants/${accountantId}/activate`, {
+export async function activateAccountant(accountantId) {
+  const response = await apiFetch(`/accountants/${accountantId}/activate`, {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
   });
-};
+  return handleResponse(response);
+}
 
-export const deactivateAccountant = async (
-  accessToken,
-  accountantId
-) => {
-  return request(`/accountants/${accountantId}/deactivate`, {
+export async function deactivateAccountant(accountantId) {
+  const response = await apiFetch(`/accountants/${accountantId}/deactivate`, {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
   });
-};
+  return handleResponse(response);
+}
 
-// ======================================================
-// ACCOUNTANT DASHBOARD
-// ======================================================
+export async function getAccountantDashboard() {
+  const response = await apiFetch("/accountants/dashboard");
+  return handleResponse(response);
+}
 
-export const getAccountantDashboard = async (
-  accessToken
-) => {
-  return request("/accountants/dashboard", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-};
-
-// ======================================================
-// ACCOUNTANT BILLING
-// ======================================================
-
-export const getHospitalBills = async (
-  accessToken,
+export async function getHospitalBills({
   page = 0,
   size = 10,
   sortBy = "billDate",
-  sortDir = "desc"
-) => {
+  sortDir = "desc",
+} = {}) {
   const params = new URLSearchParams({
     page: String(page),
     size: String(size),
     sortBy,
     sortDir,
   });
+  const response = await apiFetch(`/accountants/bills?${params.toString()}`);
+  return handleResponse(response);
+}
 
-  return request(
-    `/accountants/bills?${params.toString()}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
-};
+export async function getMyAccountantProfile() {
+  const response = await apiFetch("/accountants/me");
+  return handleResponse(response);
+}
 
-// ======================================================
-// ACCOUNTANT PROFILE
-// ======================================================
-
-export const getMyAccountantProfile = async (
-  accessToken
-) => {
-  return request("/accountants/me", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-};
-
-export const updateMyAccountantProfile = async (
-  accessToken,
-  data
-) => {
-  return request("/accountants/me", {
+export async function updateMyAccountantProfile(data) {
+  const response = await apiFetch("/accountants/me", {
     method: "PUT",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-};
+  return handleResponse(response);
+}
 
-export const uploadAccountantProfileImage = async (
-  accessToken,
-  file
-) => {
+export async function uploadAccountantProfileImage(file) {
   const formData = new FormData();
-
   formData.append("file", file);
-
-  return request("/accountants/me/profile-image", {
+  const response = await apiFetch("/accountants/me/profile-image", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
     body: formData,
   });
-};
+  return handleResponse(response);
+}
