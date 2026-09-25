@@ -1,10 +1,14 @@
 package com.medcore.features.appointment.service;
 
+import java.time.LocalDate;
+import java.util.List;
+
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
 import com.medcore.features.appointment.dto.request.CreateAppointmentRequest;
 import com.medcore.features.appointment.dto.request.UpdateAppointmentStatusRequest;
 import com.medcore.features.appointment.dto.response.AppointmentResponse;
+import com.medcore.features.appointment.dto.response.AvailableSlotResponse;
 
 public interface AppointmentService {
 
@@ -55,5 +59,10 @@ public interface AppointmentService {
             int size,
             String sortBy,
             String sortDir
+    );
+    
+    ApiResponse<List<AvailableSlotResponse>> getAvailableSlots(
+            Long doctorId,
+            LocalDate appointmentDate
     );
 }

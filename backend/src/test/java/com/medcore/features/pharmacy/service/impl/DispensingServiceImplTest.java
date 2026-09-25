@@ -110,7 +110,7 @@ class DispensingServiceImplTest {
         patient = new Patient();
         patient.setId(10L);
         patient.setUser(user);
-        patient.setHospital(hospital);
+        
 
         medicine = new Medicine();
         medicine.setId(20L);
@@ -182,13 +182,8 @@ class DispensingServiceImplTest {
         );
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        1L,
-                        100L
-                ))
-                .thenReturn(
-                        Optional.of(patient)
-                );
+                .findByUserIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(patient));
 
         when(prescriptionRepository
                 .findByIdAndDeletedAtIsNull(30L))
@@ -253,13 +248,8 @@ class DispensingServiceImplTest {
         );
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        1L,
-                        100L
-                ))
-                .thenReturn(
-                        Optional.of(patient)
-                );
+                .findByUserIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(patient));
 
         when(prescriptionRepository
                 .findByIdAndDeletedAtIsNull(30L))
@@ -310,13 +300,8 @@ class DispensingServiceImplTest {
         );
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        1L,
-                        100L
-                ))
-                .thenReturn(
-                        Optional.of(patient)
-                );
+                .findByUserIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(patient));
 
         when(prescriptionRepository
                 .findByIdAndDeletedAtIsNull(30L))
@@ -369,13 +354,8 @@ class DispensingServiceImplTest {
         );
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        1L,
-                        100L
-                ))
-                .thenReturn(
-                        Optional.of(patient)
-                );
+                .findByUserIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(patient));
 
         when(prescriptionRepository
                 .findByIdAndDeletedAtIsNull(30L))
@@ -423,13 +403,8 @@ class DispensingServiceImplTest {
         );
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        1L,
-                        100L
-                ))
-                .thenReturn(
-                        Optional.of(patient)
-                );
+                .findByUserIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(patient));
 
         when(prescriptionRepository
                 .findByIdAndDeletedAtIsNull(30L))
@@ -475,13 +450,8 @@ class DispensingServiceImplTest {
         );
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        1L,
-                        100L
-                ))
-                .thenReturn(
-                        Optional.of(patient)
-                );
+                .findByUserIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(patient));
 
         when(prescriptionRepository
                 .findByIdAndDeletedAtIsNull(30L))
@@ -525,13 +495,8 @@ class DispensingServiceImplTest {
         );
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        1L,
-                        100L
-                ))
-                .thenReturn(
-                        Optional.of(patient)
-                );
+                .findByUserIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(patient));
 
         when(prescriptionRepository
                 .findByIdAndDeletedAtIsNull(30L))

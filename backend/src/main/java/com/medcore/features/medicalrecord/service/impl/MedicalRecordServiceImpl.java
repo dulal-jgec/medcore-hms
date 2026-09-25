@@ -228,11 +228,10 @@ public class MedicalRecordServiceImpl
         }
 
         Patient patient =
-        		patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        currentUser.getId(),
-                        tenantContextService.getCurrentHospitalId()
-                )
+                patientRepository
+                        .findByUserIdAndDeletedAtIsNull(
+                                currentUser.getId()
+                        )
                         .orElse(null);
 
         if (patient != null) {
@@ -282,11 +281,10 @@ public class MedicalRecordServiceImpl
         }
 
         Patient patient =
-        		patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        currentUser.getId(),
-                        tenantContextService.getCurrentHospitalId()
-                )
+                patientRepository
+                        .findByUserIdAndDeletedAtIsNull(
+                                currentUser.getId()
+                        )
                         .orElse(null);
 
         if (patient != null) {

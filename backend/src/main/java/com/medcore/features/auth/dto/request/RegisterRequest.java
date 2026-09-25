@@ -21,9 +21,7 @@ import java.util.List;
 @Setter
 public class RegisterRequest {
 
-     
     // User information
-     
 
     @NotBlank(message = "Full name is required")
     private String fullName;
@@ -50,9 +48,6 @@ public class RegisterRequest {
     @NotBlank(message = "Confirm password is required")
     private String confirmPassword;
 
-    @NotNull(message = "Hospital is required")
-    private Long hospitalId;
-
     private String city;
 
     private String state;
@@ -66,9 +61,7 @@ public class RegisterRequest {
     private MaritalStatus maritalStatus;
 
 
-     
     // Patient information
-     
 
     @NotNull(message = "Date of birth is required")
     @Past(message = "Date of birth must be in the past")

@@ -17,10 +17,8 @@ import com.medcore.features.accountant.entity.Accountant;
 import com.medcore.features.accountant.enums.AccountantStatus;
 import com.medcore.features.accountant.mapper.AccountantMapper;
 import com.medcore.features.accountant.repository.AccountantRepository;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
+
 import com.medcore.features.billing.dto.request.PaymentRequest;
-import com.medcore.features.billing.dto.response.BillResponse;
 import com.medcore.features.billing.dto.response.PaymentResponse;
 import com.medcore.features.billing.enums.BillingStatus;
 import com.medcore.features.billing.enums.PaymentMethod;
@@ -28,9 +26,13 @@ import com.medcore.features.billing.repository.BillRepository;
 import com.medcore.features.billing.service.BillingService;
 
 import com.medcore.features.hospital.entity.Hospital;
+
+import com.medcore.features.notification.service.EmailService;
+
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
+import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
 
 import org.junit.jupiter.api.AfterEach;
@@ -42,9 +44,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -75,72 +77,102 @@ class AccountantServiceImplTest {
     @Mock
     private TenantContextService tenantContextService;
 
+    @Mock
+    private RoleRepository roleRepository;
+
+    @Mock
+    private EmailService emailService;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     @InjectMocks
     private AccountantServiceImpl accountantService;
 
     private User user;
     private Accountant accountant;
     private Hospital hospital;
+    private Role accountantRole;
     private AccountantResponse accountantResponse;
 
     @BeforeEach
-    void setUp() {
+void setUp() {
 
-        hospital = new Hospital();
-        hospital.setId(1L);
+    hospital = new Hospital();
+    hospital.setId(1L);
+    hospital.setName("MedCore Hospital");
 
-        Role role = new Role();
-        role.setName(RoleName.ACCOUNTANT);
+    accountantRole = new Role();
+    accountantRole.setName(RoleName.ACCOUNTANT);
 
-        user = new User();
-        user.setId(10L);
-        user.setEmail("accountant@test.com");
-        user.setRole(role);
-        user.setHospital(hospital);
+    user = new User();
+    user.setId(10L);
+    user.setFullName("John Accountant");
+    user.setEmail("accountant@test.com");
+    user.setPhone("9876543210");
+    user.setRole(accountantRole);
+    user.setHospital(hospital);
 
-        accountant = new Accountant();
-        accountant.setId(100L);
-        accountant.setUser(user);
-        accountant.setHospital(hospital);
-        accountant.setStatus(AccountantStatus.ACTIVE);
+    accountant = new Accountant();
+    accountant.setId(100L);
+    accountant.setUser(user);
+    accountant.setHospital(hospital);
+    accountant.setStatus(AccountantStatus.ACTIVE);
 
-        accountantResponse = AccountantResponse.builder()
-                .id(100L)
-                .build();
+    accountantResponse = AccountantResponse.builder()
+            .id(100L)
+            .build();
 
-        when(tenantContextService.getCurrentHospitalId())
-                .thenReturn(1L);
+    when(tenantContextService.getCurrentHospitalId())
+            .thenReturn(1L);
 
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(
-                        "accountant@test.com",
-                        null,
-                        List.of()
-                )
-        );
-    }
+    SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(
+                    "accountant@test.com",
+                    null,
+                    List.of()
+            )
+    );
+}
 
     @AfterEach
     void tearDown() {
-        SecurityContextHolder.clearContext();
+        org.springframework.security.core.context.SecurityContextHolder
+                .clearContext();
     }
 
 
-     // CREATE ACCOUNTANT
- 
+    // =========================================================
+    // CREATE ACCOUNTANT
+    // =========================================================
+
     @Test
     void createAccountant_shouldCreateSuccessfully() {
 
         CreateAccountantRequest request =
                 new CreateAccountantRequest();
 
- 
-        when(userRepository.findById(10L))
-                .thenReturn(Optional.of(user));
+        request.setFullName("John Accountant");
+        request.setEmail("accountant@test.com");
+        request.setPhone("9876543210");
 
-        when(accountantRepository
-                .existsByUserIdAndDeletedAtIsNull(10L))
+        when(userRepository.existsByEmail("accountant@test.com"))
                 .thenReturn(false);
+
+        when(userRepository.existsByPhone("9876543210"))
+                .thenReturn(false);
+
+        when(roleRepository.findByName(RoleName.ACCOUNTANT))
+                .thenReturn(Optional.of(accountantRole));
+
+        when(tenantContextService.getCurrentHospital())
+                .thenReturn(hospital);
+
+        when(passwordEncoder.encode(anyString()))
+                .thenReturn("encoded-password");
+
+        when(userRepository.save(any(User.class)))
+                .thenReturn(user);
 
         when(accountantMapper.toEntity(request, user))
                 .thenReturn(accountant);
@@ -155,10 +187,12 @@ class AccountantServiceImplTest {
                 accountantService.createAccountant(request);
 
         assertTrue(response.isSuccess());
+
         assertEquals(
                 "Accountant created successfully",
                 response.getMessage()
         );
+
         assertEquals(
                 accountantResponse,
                 response.getData()
@@ -169,92 +203,32 @@ class AccountantServiceImplTest {
                 accountant.getStatus()
         );
 
-        verify(accountantRepository).save(accountant);
+        verify(userRepository)
+                .save(any(User.class));
+
+        verify(accountantRepository)
+                .save(accountant);
+
+        verify(emailService)
+                .sendAccountantCredentials(
+                        eq("accountant@test.com"),
+                        eq("John Accountant"),
+                        anyString(),
+                        eq("MedCore Hospital")
+                );
     }
 
 
     @Test
-    void createAccountant_shouldThrowWhenUserNotFound() {
+    void createAccountant_shouldRejectDuplicateEmail() {
 
         CreateAccountantRequest request =
                 new CreateAccountantRequest();
 
- 
-        when(userRepository.findById(10L))
-                .thenReturn(Optional.empty());
+        request.setEmail("accountant@test.com");
+        request.setPhone("9876543210");
 
-        assertThrows(
-                ResourceNotFoundException.class,
-                () -> accountantService.createAccountant(request)
-        );
-
-        verify(accountantRepository, never())
-                .save(any());
-    }
-
-
-    @Test
-    void createAccountant_shouldThrowWhenUserRoleIsNotAccountant() {
-
-        CreateAccountantRequest request =
-                new CreateAccountantRequest();
-
- 
-        Role role = new Role();
-        role.setName(RoleName.DOCTOR);
-
-        user.setRole(role);
-
-        when(userRepository.findById(10L))
-                .thenReturn(Optional.of(user));
-
-        assertThrows(
-                BusinessException.class,
-                () -> accountantService.createAccountant(request)
-        );
-
-        verify(accountantRepository, never())
-                .save(any());
-    }
-
-
-    @Test
-    void createAccountant_shouldThrowWhenUserBelongsToAnotherHospital() {
-
-        CreateAccountantRequest request =
-                new CreateAccountantRequest();
-
- 
-        Hospital anotherHospital = new Hospital();
-        anotherHospital.setId(99L);
-
-        user.setHospital(anotherHospital);
-
-        when(userRepository.findById(10L))
-                .thenReturn(Optional.of(user));
-
-        assertThrows(
-                BusinessException.class,
-                () -> accountantService.createAccountant(request)
-        );
-
-        verify(accountantRepository, never())
-                .save(any());
-    }
-
-
-    @Test
-    void createAccountant_shouldThrowWhenAccountantAlreadyExists() {
-
-        CreateAccountantRequest request =
-                new CreateAccountantRequest();
-
- 
-        when(userRepository.findById(10L))
-                .thenReturn(Optional.of(user));
-
-        when(accountantRepository
-                .existsByUserIdAndDeletedAtIsNull(10L))
+        when(userRepository.existsByEmail("accountant@test.com"))
                 .thenReturn(true);
 
         assertThrows(
@@ -262,13 +236,77 @@ class AccountantServiceImplTest {
                 () -> accountantService.createAccountant(request)
         );
 
+        verify(userRepository, never())
+                .save(any());
+
+        verify(roleRepository, never())
+                .findByName(any());
+    }
+
+
+    @Test
+    void createAccountant_shouldRejectDuplicatePhone() {
+
+        CreateAccountantRequest request =
+                new CreateAccountantRequest();
+
+        request.setEmail("accountant@test.com");
+        request.setPhone("9876543210");
+
+        when(userRepository.existsByEmail("accountant@test.com"))
+                .thenReturn(false);
+
+        when(userRepository.existsByPhone("9876543210"))
+                .thenReturn(true);
+
+        assertThrows(
+                BusinessException.class,
+                () -> accountantService.createAccountant(request)
+        );
+
+        verify(userRepository, never())
+                .save(any());
+
+        verify(roleRepository, never())
+                .findByName(any());
+    }
+
+
+    @Test
+    void createAccountant_shouldThrowWhenAccountantRoleNotFound() {
+
+        CreateAccountantRequest request =
+                new CreateAccountantRequest();
+
+        request.setEmail("accountant@test.com");
+        request.setPhone("9876543210");
+
+        when(userRepository.existsByEmail("accountant@test.com"))
+                .thenReturn(false);
+
+        when(userRepository.existsByPhone("9876543210"))
+                .thenReturn(false);
+
+        when(roleRepository.findByName(RoleName.ACCOUNTANT))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> accountantService.createAccountant(request)
+        );
+
+        verify(userRepository, never())
+                .save(any());
+
         verify(accountantRepository, never())
                 .save(any());
     }
 
 
-     // GET ACCOUNTANT
- 
+    // =========================================================
+    // GET ACCOUNTANT
+    // =========================================================
+
     @Test
     void getAccountantById_shouldReturnAccountant() {
 
@@ -283,7 +321,11 @@ class AccountantServiceImplTest {
                 accountantService.getAccountantById(100L);
 
         assertTrue(response.isSuccess());
-        assertEquals(accountantResponse, response.getData());
+
+        assertEquals(
+                accountantResponse,
+                response.getData()
+        );
     }
 
 
@@ -301,8 +343,10 @@ class AccountantServiceImplTest {
     }
 
 
-     // GET ALL
- 
+    // =========================================================
+    // GET ALL
+    // =========================================================
+
     @Test
     void getAllAccountants_shouldReturnAccountants() {
 
@@ -317,7 +361,12 @@ class AccountantServiceImplTest {
                 accountantService.getAllAccountants();
 
         assertTrue(response.isSuccess());
-        assertEquals(1, response.getData().size());
+
+        assertEquals(
+                1,
+                response.getData().size()
+        );
+
         assertEquals(
                 accountantResponse,
                 response.getData().get(0)
@@ -325,8 +374,10 @@ class AccountantServiceImplTest {
     }
 
 
-     // UPDATE
- 
+    // =========================================================
+    // UPDATE
+    // =========================================================
+
     @Test
     void updateAccountant_shouldUpdateSuccessfully() {
 
@@ -359,8 +410,10 @@ class AccountantServiceImplTest {
     }
 
 
-     // DELETE
- 
+    // =========================================================
+    // DELETE
+    // =========================================================
+
     @Test
     void deleteAccountant_shouldSoftDelete() {
 
@@ -372,19 +425,26 @@ class AccountantServiceImplTest {
                 accountantService.deleteAccountant(100L);
 
         assertTrue(response.isSuccess());
-        assertNotNull(accountant.getDeletedAt());
+
+        assertNotNull(
+                accountant.getDeletedAt()
+        );
 
         verify(accountantRepository)
                 .save(accountant);
     }
 
 
-     // ACTIVATE / DEACTIVATE
- 
+    // =========================================================
+    // ACTIVATE / DEACTIVATE
+    // =========================================================
+
     @Test
     void activateAccountant_shouldSetActiveStatus() {
 
-        accountant.setStatus(AccountantStatus.INACTIVE);
+        accountant.setStatus(
+                AccountantStatus.INACTIVE
+        );
 
         when(accountantRepository
                 .findByIdAndHospitalIdAndDeletedAtIsNull(100L, 1L))
@@ -400,6 +460,7 @@ class AccountantServiceImplTest {
                 accountantService.activateAccountant(100L);
 
         assertTrue(response.isSuccess());
+
         assertEquals(
                 AccountantStatus.ACTIVE,
                 accountant.getStatus()
@@ -424,6 +485,7 @@ class AccountantServiceImplTest {
                 accountantService.deactivateAccountant(100L);
 
         assertTrue(response.isSuccess());
+
         assertEquals(
                 AccountantStatus.INACTIVE,
                 accountant.getStatus()
@@ -431,8 +493,10 @@ class AccountantServiceImplTest {
     }
 
 
-     // FINANCIAL SUMMARY
- 
+    // =========================================================
+    // FINANCIAL SUMMARY
+    // =========================================================
+
     @Test
     void getFinancialSummary_shouldReturnCorrectSummary() {
 
@@ -457,15 +521,21 @@ class AccountantServiceImplTest {
         FinancialSummaryResponse data =
                 response.getData();
 
-        assertEquals(10L, data.getTotalBills());
+        assertEquals(
+                10L,
+                data.getTotalBills()
+        );
+
         assertEquals(
                 new BigDecimal("50000.00"),
                 data.getTotalBilledAmount()
         );
+
         assertEquals(
                 new BigDecimal("30000.00"),
                 data.getTotalPaidAmount()
         );
+
         assertEquals(
                 new BigDecimal("20000.00"),
                 data.getTotalOutstandingAmount()
@@ -473,8 +543,10 @@ class AccountantServiceImplTest {
     }
 
 
-     // FINANCIAL REPORT
- 
+    // =========================================================
+    // FINANCIAL REPORT
+    // =========================================================
+
     @Test
     void getFinancialReport_shouldThrowWhenDateRangeInvalid() {
 
@@ -488,13 +560,15 @@ class AccountantServiceImplTest {
                 )
         );
 
-        verify(billRepository, never())
-                .getFinancialReport(
-                        anyLong(),
-                        any(),
-                        any(),
-                        any()
-                );
+        verify(
+                billRepository,
+                never()
+        ).getFinancialReport(
+                anyLong(),
+                any(),
+                any(),
+                any()
+        );
     }
 
 
@@ -527,15 +601,21 @@ class AccountantServiceImplTest {
         FinancialReportResponse data =
                 response.getData();
 
-        assertEquals(5L, data.getTotalBills());
+        assertEquals(
+                5L,
+                data.getTotalBills()
+        );
+
         assertEquals(
                 new BigDecimal("25000.00"),
                 data.getTotalBilledAmount()
         );
+
         assertEquals(
                 new BigDecimal("15000.00"),
                 data.getTotalPaidAmount()
         );
+
         assertEquals(
                 new BigDecimal("10000.00"),
                 data.getTotalOutstandingAmount()
@@ -543,8 +623,10 @@ class AccountantServiceImplTest {
     }
 
 
-     // PAYMENT METHOD COLLECTION
- 
+    // =========================================================
+    // PAYMENT METHOD COLLECTION
+    // =========================================================
+
     @Test
     void getPaymentMethodCollection_shouldReturnCollection() {
 
@@ -565,13 +647,25 @@ class AccountantServiceImplTest {
                 accountantService.getPaymentMethodCollection();
 
         assertTrue(response.isSuccess());
-        assertEquals(1, response.getData().size());
+
+        assertEquals(
+                1,
+                response.getData().size()
+        );
 
         PaymentMethodCollectionResponse data =
                 response.getData().get(0);
 
-        assertEquals(PaymentMethod.CASH, data.getPaymentMethod());
-        assertEquals(3L, data.getTransactionCount());
+        assertEquals(
+                PaymentMethod.CASH,
+                data.getPaymentMethod()
+        );
+
+        assertEquals(
+                3L,
+                data.getTransactionCount()
+        );
+
         assertEquals(
                 new BigDecimal("10000.00"),
                 data.getCollectedAmount()
@@ -579,8 +673,10 @@ class AccountantServiceImplTest {
     }
 
 
-     // DASHBOARD
- 
+    // =========================================================
+    // DASHBOARD
+    // =========================================================
+
     @Test
     void getDashboard_shouldReturnDashboard() {
 
@@ -597,12 +693,13 @@ class AccountantServiceImplTest {
                 BillingStatus.CANCELLED
         )).thenReturn(summary);
 
-        when(billRepository
-                .countByHospitalIdAndStatusInAndDeletedAtIsNull(
-                        eq(1L),
-                        anyList()
-                ))
-                .thenReturn(4L);
+        when(
+                billRepository
+                        .countByHospitalIdAndStatusInAndDeletedAtIsNull(
+                                eq(1L),
+                                anyList()
+                        )
+        ).thenReturn(4L);
 
         Object[] paymentRow = new Object[]{
                 PaymentMethod.UPI,
@@ -613,7 +710,9 @@ class AccountantServiceImplTest {
         when(billRepository.getPaymentMethodCollection(
                 1L,
                 BillingStatus.CANCELLED
-        )).thenReturn(List.<Object[]>of(paymentRow));
+        )).thenReturn(
+                List.<Object[]>of(paymentRow)
+        );
 
         ApiResponse<AccountantDashboardResponse> response =
                 accountantService.getDashboard();
@@ -623,20 +722,30 @@ class AccountantServiceImplTest {
         AccountantDashboardResponse data =
                 response.getData();
 
-        assertEquals(10L, data.getTotalBills());
+        assertEquals(
+                10L,
+                data.getTotalBills()
+        );
+
         assertEquals(
                 new BigDecimal("50000.00"),
                 data.getTotalBilledAmount()
         );
+
         assertEquals(
                 new BigDecimal("30000.00"),
                 data.getTotalPaidAmount()
         );
+
         assertEquals(
                 new BigDecimal("20000.00"),
                 data.getTotalOutstandingAmount()
         );
-        assertEquals(4L, data.getOutstandingBills());
+
+        assertEquals(
+                4L,
+                data.getOutstandingBills()
+        );
 
         assertEquals(
                 1,
@@ -645,8 +754,10 @@ class AccountantServiceImplTest {
     }
 
 
-     // PAY BILL
- 
+    // =========================================================
+    // PAY BILL
+    // =========================================================
+
     @Test
     void payBill_shouldDelegateToBillingService() {
 
@@ -668,8 +779,12 @@ class AccountantServiceImplTest {
                         .data(paymentResponse)
                         .build();
 
-        when(billingService.payBill(100L, request))
-                .thenReturn(expected);
+        when(
+                billingService.payBill(
+                        100L,
+                        request
+                )
+        ).thenReturn(expected);
 
         ApiResponse<PaymentResponse> response =
                 accountantService.payBill(
@@ -678,16 +793,28 @@ class AccountantServiceImplTest {
                 );
 
         assertTrue(response.isSuccess());
-        assertEquals(paymentResponse, response.getData());
+
+        assertEquals(
+                paymentResponse,
+                response.getData()
+        );
 
         verify(billingService)
-                .payBill(100L, request);
+                .payBill(
+                        100L,
+                        request
+                );
     }
 
 
-     // HELPER
- 
+    // =========================================================
+    // HELPER
+    // =========================================================
+
     private void mockActiveAccountant() {
+
+        when(tenantContextService.getCurrentHospitalId())
+                .thenReturn(1L);
 
         when(userRepository.findByEmail(anyString()))
                 .thenReturn(Optional.of(user));

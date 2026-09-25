@@ -1,7 +1,6 @@
 package com.medcore.features.patient.entity;
 
 import com.medcore.common.entity.BaseEntity;
-import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.patient.enums.BloodGroup;
 import com.medcore.features.patient.enums.PatientStatus;
 import com.medcore.features.user.entity.User;
@@ -24,10 +23,6 @@ public class Patient extends BaseEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hospital_id", nullable = false)
-    private Hospital hospital;
 
     @Column(nullable = false)
     private LocalDate dateOfBirth;

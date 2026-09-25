@@ -6,6 +6,8 @@ import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
 import com.medcore.common.security.TenantContextService;
+import com.medcore.common.storage.FileStorageService;
+import com.medcore.common.storage.FileValidationService;
 import com.medcore.features.department.entity.Department;
 import com.medcore.features.department.repository.DepartmentRepository;
 import com.medcore.features.doctor.dto.request.CreateDoctorRequest;
@@ -17,10 +19,13 @@ import com.medcore.features.doctor.enums.DoctorStatus;
 import com.medcore.features.doctor.mapper.DoctorMapper;
 import com.medcore.features.doctor.repository.DoctorRepository;
 import com.medcore.features.hospital.entity.Hospital;
+import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
+import com.medcore.features.notification.service.EmailService;
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
+import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +36,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -62,6 +68,21 @@ class DoctorServiceImplTest {
 
     @Mock
     private TenantContextService tenantContextService;
+
+    @Mock
+    private RoleRepository roleRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private EmailService emailService;
+
+    @Mock
+    private FileStorageService fileStorageService;
+
+    @Mock
+    private FileValidationService fileValidationService;
 
     @InjectMocks
     private DoctorServiceImpl doctorService;
@@ -100,50 +121,49 @@ class DoctorServiceImplTest {
                 .build();
     }
 
+    // =========================================================
+    // CREATE
+    // =========================================================
+
     @Test
     void createDoctor_shouldCreateSuccessfully() {
 
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-         request.setDepartmentId(10L);
+        request.setFullName("Dr. John");
+        request.setEmail("john@medcore.com");
+        request.setPhone("9876543210");
+        request.setDepartmentId(10L);
         request.setSpecialization("Cardiology");
         request.setExperienceYears(10);
-        request.setConsultationFee(
-                BigDecimal.valueOf(1000)
-        );
+        request.setConsultationFee(BigDecimal.valueOf(1000));
         request.setQualification("MBBS");
 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
 
-        when(hospital.getId())
-                .thenReturn(1L);
-
-        when(user.getId())
-                .thenReturn(100L);
-
-        when(user.getRole())
-                .thenReturn(role);
-
-        when(role.getName())
-                .thenReturn(RoleName.DOCTOR);
-
-        when(user.getHospital())
-                .thenReturn(hospital);
-
-        when(department.getHospital())
-                .thenReturn(hospital);
-
         when(hospitalRepository
                 .findByIdAndDeletedAtIsNull(1L))
                 .thenReturn(Optional.of(hospital));
 
-        when(userRepository.findById(100L))
-                .thenReturn(Optional.of(user));
+        when(hospital.getStatus())
+                .thenReturn(HospitalStatus.ACTIVE);
 
-        when(doctorRepository.existsByUserId(100L))
+        when(hospital.getName())
+                .thenReturn("Apollo Hospital");
+
+        when(department.getId())
+                .thenReturn(10L);
+
+        when(userRepository.existsByEmail("john@medcore.com"))
                 .thenReturn(false);
+
+        when(userRepository.existsByPhone("9876543210"))
+                .thenReturn(false);
+
+        when(roleRepository.findByName(RoleName.DOCTOR))
+                .thenReturn(Optional.of(role));
 
         when(departmentRepository
                 .findByIdAndHospitalIdAndDeletedAtIsNull(
@@ -152,9 +172,26 @@ class DoctorServiceImplTest {
                 ))
                 .thenReturn(Optional.of(department));
 
+        when(passwordEncoder.encode(any(String.class)))
+                .thenReturn("encoded-password");
+
+        User savedUser = mock(User.class);
+
+        when(savedUser.getId())
+                .thenReturn(100L);
+
+        when(savedUser.getEmail())
+                .thenReturn("john@medcore.com");
+
+        when(savedUser.getFullName())
+                .thenReturn("Dr. John");
+
+        when(userRepository.save(any(User.class)))
+                .thenReturn(savedUser);
+
         when(doctorMapper.toEntity(
                 request,
-                user,
+                savedUser,
                 hospital,
                 department
         )).thenReturn(doctor);
@@ -180,27 +217,19 @@ class DoctorServiceImplTest {
                 result.getData()
         );
 
+        verify(userRepository)
+                .save(any(User.class));
+
         verify(doctorRepository)
                 .save(doctor);
-    }
 
-    @Test
-    void createDoctor_shouldRejectDifferentHospital() {
-
-        CreateDoctorRequest request =
-                new CreateDoctorRequest();
-
- 
-        when(tenantContextService
-                .getCurrentHospitalId())
-                .thenReturn(1L);
-
-        assertThrows(
-                BusinessException.class,
-                () -> doctorService.createDoctor(request)
-        );
-
-        verifyNoInteractions(hospitalRepository);
+        verify(emailService)
+                .sendDoctorCredentials(
+                        eq("john@medcore.com"),
+                        eq("Dr. John"),
+                        any(String.class),
+                        eq("Apollo Hospital")
+                );
     }
 
     @Test
@@ -209,7 +238,6 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
- 
         when(tenantContextService
                 .getCurrentHospitalId())
                 .thenReturn(1L);
@@ -222,15 +250,17 @@ class DoctorServiceImplTest {
                 ResourceNotFoundException.class,
                 () -> doctorService.createDoctor(request)
         );
+
+        verifyNoInteractions(userRepository);
+        verifyNoInteractions(departmentRepository);
+        verifyNoInteractions(roleRepository);
     }
 
     @Test
-    void createDoctor_shouldThrowWhenUserNotFound() {
+    void createDoctor_shouldThrowWhenHospitalInactive() {
 
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
-
-      
 
         when(tenantContextService
                 .getCurrentHospitalId())
@@ -240,53 +270,28 @@ class DoctorServiceImplTest {
                 .findByIdAndDeletedAtIsNull(1L))
                 .thenReturn(Optional.of(hospital));
 
-        when(userRepository.findById(100L))
-                .thenReturn(Optional.empty());
-
-        assertThrows(
-                ResourceNotFoundException.class,
-                () -> doctorService.createDoctor(request)
-        );
-    }
-
-    @Test
-    void createDoctor_shouldRejectWrongRole() {
-
-        CreateDoctorRequest request =
-                new CreateDoctorRequest();
-
-         
-
-        when(tenantContextService
-                .getCurrentHospitalId())
-                .thenReturn(1L);
-
-        when(hospitalRepository
-                .findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(hospital));
-
-        when(userRepository.findById(100L))
-                .thenReturn(Optional.of(user));
-
-        when(user.getRole())
-                .thenReturn(role);
-
-        when(role.getName())
-                .thenReturn(RoleName.PATIENT);
+        when(hospital.getStatus())
+                .thenReturn(HospitalStatus.INACTIVE);
 
         assertThrows(
                 BusinessException.class,
                 () -> doctorService.createDoctor(request)
         );
+
+        verifyNoInteractions(userRepository);
+        verifyNoInteractions(roleRepository);
+        verifyNoInteractions(departmentRepository);
     }
 
     @Test
-    void createDoctor_shouldRejectDuplicateDoctorProfile() {
+    void createDoctor_shouldRejectDuplicateEmail() {
 
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        
+        request.setFullName("Dr. John");
+        request.setEmail("john@medcore.com");
+        request.setPhone("9876543210");
 
         when(tenantContextService
                 .getCurrentHospitalId())
@@ -296,25 +301,102 @@ class DoctorServiceImplTest {
                 .findByIdAndDeletedAtIsNull(1L))
                 .thenReturn(Optional.of(hospital));
 
-        when(userRepository.findById(100L))
-                .thenReturn(Optional.of(user));
+        when(hospital.getStatus())
+                .thenReturn(HospitalStatus.ACTIVE);
 
-        when(user.getRole())
-                .thenReturn(role);
-
-        when(role.getName())
-                .thenReturn(RoleName.DOCTOR);
-
-        when(user.getId())
-                .thenReturn(100L);
-
-        when(doctorRepository.existsByUserId(100L))
+        when(userRepository
+                .existsByEmail("john@medcore.com"))
                 .thenReturn(true);
 
         assertThrows(
                 DuplicateResourceException.class,
                 () -> doctorService.createDoctor(request)
         );
+
+        verify(userRepository, never())
+                .existsByPhone(any());
+
+        verifyNoInteractions(roleRepository);
+        verifyNoInteractions(departmentRepository);
+    }
+
+    @Test
+    void createDoctor_shouldRejectDuplicatePhone() {
+
+        CreateDoctorRequest request =
+                new CreateDoctorRequest();
+
+        request.setFullName("Dr. John");
+        request.setEmail("john@medcore.com");
+        request.setPhone("9876543210");
+
+        when(tenantContextService
+                .getCurrentHospitalId())
+                .thenReturn(1L);
+
+        when(hospitalRepository
+                .findByIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(hospital));
+
+        when(hospital.getStatus())
+                .thenReturn(HospitalStatus.ACTIVE);
+
+        when(userRepository
+                .existsByEmail("john@medcore.com"))
+                .thenReturn(false);
+
+        when(userRepository
+                .existsByPhone("9876543210"))
+                .thenReturn(true);
+
+        assertThrows(
+                DuplicateResourceException.class,
+                () -> doctorService.createDoctor(request)
+        );
+
+        verifyNoInteractions(roleRepository);
+        verifyNoInteractions(departmentRepository);
+    }
+
+    @Test
+    void createDoctor_shouldThrowWhenDoctorRoleNotFound() {
+
+        CreateDoctorRequest request =
+                new CreateDoctorRequest();
+
+        request.setFullName("Dr. John");
+        request.setEmail("john@medcore.com");
+        request.setPhone("9876543210");
+
+        when(tenantContextService
+                .getCurrentHospitalId())
+                .thenReturn(1L);
+
+        when(hospitalRepository
+                .findByIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(hospital));
+
+        when(hospital.getStatus())
+                .thenReturn(HospitalStatus.ACTIVE);
+
+        when(userRepository
+                .existsByEmail("john@medcore.com"))
+                .thenReturn(false);
+
+        when(userRepository
+                .existsByPhone("9876543210"))
+                .thenReturn(false);
+
+        when(roleRepository
+                .findByName(RoleName.DOCTOR))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> doctorService.createDoctor(request)
+        );
+
+        verifyNoInteractions(departmentRepository);
     }
 
     @Test
@@ -323,7 +405,9 @@ class DoctorServiceImplTest {
         CreateDoctorRequest request =
                 new CreateDoctorRequest();
 
-        
+        request.setFullName("Dr. John");
+        request.setEmail("john@medcore.com");
+        request.setPhone("9876543210");
         request.setDepartmentId(10L);
 
         when(tenantContextService
@@ -334,21 +418,20 @@ class DoctorServiceImplTest {
                 .findByIdAndDeletedAtIsNull(1L))
                 .thenReturn(Optional.of(hospital));
 
-        when(userRepository.findById(100L))
-                .thenReturn(Optional.of(user));
+        when(hospital.getStatus())
+                .thenReturn(HospitalStatus.ACTIVE);
 
-        when(user.getRole())
-                .thenReturn(role);
-
-        when(role.getName())
-                .thenReturn(RoleName.DOCTOR);
-
-        when(user.getId())
-                .thenReturn(100L);
-
-        when(doctorRepository
-                .existsByUserId(100L))
+        when(userRepository
+                .existsByEmail("john@medcore.com"))
                 .thenReturn(false);
+
+        when(userRepository
+                .existsByPhone("9876543210"))
+                .thenReturn(false);
+
+        when(roleRepository
+                .findByName(RoleName.DOCTOR))
+                .thenReturn(Optional.of(role));
 
         when(departmentRepository
                 .findByIdAndHospitalIdAndDeletedAtIsNull(
@@ -361,131 +444,23 @@ class DoctorServiceImplTest {
                 ResourceNotFoundException.class,
                 () -> doctorService.createDoctor(request)
         );
+
+        verify(userRepository, never())
+                .save(any());
+
+        verify(doctorRepository, never())
+                .save(any());
     }
 
-    @Test
-    void createDoctor_shouldRejectDepartmentFromAnotherHospital() {
-
-        CreateDoctorRequest request =
-                new CreateDoctorRequest();
-
-         
-        request.setDepartmentId(10L);
-
-        Hospital anotherHospital =
-                mock(Hospital.class);
-
-        when(tenantContextService
-                .getCurrentHospitalId())
-                .thenReturn(1L);
-
-        when(hospitalRepository
-                .findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(hospital));
-
-        when(userRepository.findById(100L))
-                .thenReturn(Optional.of(user));
-
-        when(user.getRole())
-                .thenReturn(role);
-
-        when(role.getName())
-                .thenReturn(RoleName.DOCTOR);
-
-        when(user.getId())
-                .thenReturn(100L);
-
-        when(doctorRepository
-                .existsByUserId(100L))
-                .thenReturn(false);
-
-        when(departmentRepository
-                .findByIdAndHospitalIdAndDeletedAtIsNull(
-                        10L,
-                        1L
-                ))
-                .thenReturn(Optional.of(department));
-
-        when(department.getHospital())
-                .thenReturn(anotherHospital);
-
-        when(anotherHospital.getId())
-                .thenReturn(2L);
-
-        assertThrows(
-                BusinessException.class,
-                () -> doctorService.createDoctor(request)
-        );
-    }
-
-    @Test
-    void createDoctor_shouldRejectUserFromAnotherHospital() {
-
-        CreateDoctorRequest request =
-                new CreateDoctorRequest();
-
-         
-        request.setDepartmentId(10L);
-
-        Hospital anotherHospital =
-                mock(Hospital.class);
-
-        when(tenantContextService
-                .getCurrentHospitalId())
-                .thenReturn(1L);
-
-        when(hospitalRepository
-                .findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(hospital));
-
-        when(userRepository.findById(100L))
-                .thenReturn(Optional.of(user));
-
-        when(user.getRole())
-                .thenReturn(role);
-
-        when(role.getName())
-                .thenReturn(RoleName.DOCTOR);
-
-        when(user.getId())
-                .thenReturn(100L);
-
-        when(doctorRepository
-                .existsByUserId(100L))
-                .thenReturn(false);
-
-        when(departmentRepository
-                .findByIdAndHospitalIdAndDeletedAtIsNull(
-                        10L,
-                        1L
-                ))
-                .thenReturn(Optional.of(department));
-
-        when(department.getHospital())
-                .thenReturn(hospital);
-
-        when(hospital.getId())
-                .thenReturn(1L);
-
-        when(user.getHospital())
-                .thenReturn(anotherHospital);
-
-        when(anotherHospital.getId())
-                .thenReturn(2L);
-
-        assertThrows(
-                BusinessException.class,
-                () -> doctorService.createDoctor(request)
-        );
-    }
+    // =========================================================
+    // GET ALL
+    // =========================================================
 
     @Test
     void getAllDoctors_shouldReturnPagedDoctors() {
 
         Page<Doctor> page =
-                new PageImpl<>(
-                        List.of(doctor)
-                );
+                new PageImpl<>(List.of(doctor));
 
         when(tenantContextService
                 .getCurrentHospitalId())
@@ -514,9 +489,7 @@ class DoctorServiceImplTest {
 
         assertEquals(
                 1,
-                result.getData()
-                        .getItems()
-                        .size()
+                result.getData().getItems().size()
         );
 
         verify(doctorRepository)
@@ -598,6 +571,10 @@ class DoctorServiceImplTest {
         );
     }
 
+    // =========================================================
+    // GET BY ID
+    // =========================================================
+
     @Test
     void getDoctorById_shouldReturnDoctor() {
 
@@ -647,6 +624,10 @@ class DoctorServiceImplTest {
         );
     }
 
+    // =========================================================
+    // UPDATE
+    // =========================================================
+
     @Test
     void updateDoctor_shouldUpdateSuccessfully() {
 
@@ -671,10 +652,12 @@ class DoctorServiceImplTest {
                 ))
                 .thenReturn(Optional.of(doctor));
 
-        when(doctorRepository.save(doctor))
+        when(doctorRepository
+                .save(doctor))
                 .thenReturn(doctor);
 
-        when(doctorMapper.toResponse(doctor))
+        when(doctorMapper
+                .toResponse(doctor))
                 .thenReturn(response);
 
         ApiResponse<DoctorResponse> result =
@@ -728,6 +711,10 @@ class DoctorServiceImplTest {
         );
     }
 
+    // =========================================================
+    // STATUS
+    // =========================================================
+
     @Test
     void updateDoctorStatus_shouldUpdateSuccessfully() {
 
@@ -749,10 +736,12 @@ class DoctorServiceImplTest {
                 ))
                 .thenReturn(Optional.of(doctor));
 
-        when(doctorRepository.save(doctor))
+        when(doctorRepository
+                .save(doctor))
                 .thenReturn(doctor);
 
-        when(doctorMapper.toResponse(doctor))
+        when(doctorMapper
+                .toResponse(doctor))
                 .thenReturn(response);
 
         ApiResponse<DoctorResponse> result =
@@ -802,13 +791,15 @@ class DoctorServiceImplTest {
         );
     }
 
+    // =========================================================
+    // SEARCH
+    // =========================================================
+
     @Test
     void searchDoctors_shouldReturnResults() {
 
         Page<Doctor> page =
-                new PageImpl<>(
-                        List.of(doctor)
-                );
+                new PageImpl<>(List.of(doctor));
 
         when(tenantContextService
                 .getCurrentHospitalId())
@@ -894,6 +885,10 @@ class DoctorServiceImplTest {
         );
     }
 
+    // =========================================================
+    // DELETE
+    // =========================================================
+
     @Test
     void deleteDoctor_shouldSoftDelete() {
 
@@ -908,7 +903,8 @@ class DoctorServiceImplTest {
                 ))
                 .thenReturn(Optional.of(doctor));
 
-        when(doctorRepository.save(doctor))
+        when(doctorRepository
+                .save(doctor))
                 .thenReturn(doctor);
 
         ApiResponse<String> result =
@@ -953,6 +949,10 @@ class DoctorServiceImplTest {
                 .save(any());
     }
 
+    // =========================================================
+    // RESTORE
+    // =========================================================
+
     @Test
     void restoreDoctor_shouldRestoreSuccessfully() {
 
@@ -970,7 +970,8 @@ class DoctorServiceImplTest {
         when(doctor.getDeletedAt())
                 .thenReturn(LocalDateTime.now());
 
-        when(doctorRepository.save(doctor))
+        when(doctorRepository
+                .save(doctor))
                 .thenReturn(doctor);
 
         ApiResponse<String> result =
@@ -1036,13 +1037,15 @@ class DoctorServiceImplTest {
         );
     }
 
+    // =========================================================
+    // SUPER ADMIN
+    // =========================================================
+
     @Test
     void getAllDoctors_shouldWorkForSuperAdmin() {
 
         Page<Doctor> page =
-                new PageImpl<>(
-                        List.of(doctor)
-                );
+                new PageImpl<>(List.of(doctor));
 
         when(tenantContextService
                 .getCurrentHospitalId())

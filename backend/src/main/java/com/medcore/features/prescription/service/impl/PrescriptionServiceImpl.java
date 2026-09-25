@@ -577,16 +577,16 @@ public ApiResponse<PrescriptionResponse> getPatientPrescription(
     User currentUser =
             getCurrentUser();
 
-    Patient currentPatient =
+    Patient patient =
             patientRepository
-                    .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                            currentUser.getId(),
-                            tenantContextService.getCurrentHospitalId()
+                    .findByUserIdAndDeletedAtIsNull(
+                            currentUser.getId()
                     )
                     .orElseThrow(() ->
                             new BusinessException(
-                                    "Only patients can access this endpoint"
-                            ));
+                                    "Only patients can request prescription dispensing"
+                            )
+                    );
 
     Prescription prescription =
             getPrescription(
@@ -601,7 +601,7 @@ public ApiResponse<PrescriptionResponse> getPatientPrescription(
 
     validatePatientPrescriptionAccess(
             prescription,
-            currentPatient
+            patient
     );
 
 
@@ -706,14 +706,14 @@ public ResponseEntity<byte[]> downloadPrescriptionPdf(
 
     Patient currentPatient =
             patientRepository
-                    .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                            currentUser.getId(),
-                            tenantContextService.getCurrentHospitalId()
+                    .findByUserIdAndDeletedAtIsNull(
+                            currentUser.getId()
                     )
                     .orElseThrow(() ->
                             new BusinessException(
                                     "Only patients can download prescriptions"
-                            ));
+                            )
+                    );
 
 
     Prescription prescription =
@@ -927,10 +927,10 @@ private void validatePrescriptionAccess(
 
 
     Patient currentPatient =
-    		patientRepository.findByUserIdAndHospitalIdAndDeletedAtIsNull(
-    		        currentUser.getId(),
-    		        tenantContextService.getCurrentHospitalId()
-    		)
+            patientRepository
+                    .findByUserIdAndDeletedAtIsNull(
+                            currentUser.getId()
+                    )
                     .orElse(null);
 
     if (currentPatient != null) {

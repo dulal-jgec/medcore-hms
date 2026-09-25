@@ -13,25 +13,41 @@ import java.time.LocalTime;
 @Setter
 public class CreateAppointmentRequest {
 
-    @NotNull(message = "Hospital id is required")
+    /*
+     * PATIENT:
+     *     hospitalId comes from selected hospital.
+     *
+     * RECEPTIONIST:
+     *     hospitalId is derived from current tenant.
+     */
     private Long hospitalId;
 
     @NotNull(message = "Doctor id is required")
     private Long doctorId;
 
-    @NotNull(message = "Patient id is required")
+    /*
+     * PATIENT:
+     *     patientId is derived from logged-in patient.
+     *
+     * RECEPTIONIST:
+     *     patientId comes from selected patient.
+     */
     private Long patientId;
 
     @NotNull(message = "Appointment date is required")
-    @FutureOrPresent(message = "Appointment date cannot be in the past")
+    @FutureOrPresent(
+            message = "Appointment date cannot be in the past"
+    )
     private LocalDate appointmentDate;
 
     @NotNull(message = "Start time is required")
     private LocalTime startTime;
 
-    @NotNull(message = "End time is required")
-    private LocalTime endTime;
+    
 
-    @Size(max = 500, message = "Reason cannot exceed 500 characters")
+    @Size(
+            max = 500,
+            message = "Reason cannot exceed 500 characters"
+    )
     private String reason;
 }

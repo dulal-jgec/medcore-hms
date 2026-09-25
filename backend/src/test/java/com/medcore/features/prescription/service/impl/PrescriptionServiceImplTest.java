@@ -40,6 +40,7 @@ import com.medcore.features.prescription.service.PrescriptionPdfService;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.repository.UserRepository;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,7 +61,7 @@ import static org.mockito.Mockito.*;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.junit.jupiter.api.AfterEach;
+
 
 @ExtendWith(MockitoExtension.class)
 class PrescriptionServiceImplTest {
@@ -101,6 +102,7 @@ class PrescriptionServiceImplTest {
     @InjectMocks
     private PrescriptionServiceImpl prescriptionService;
 
+
     private User doctorUser;
     private User patientUser;
 
@@ -113,73 +115,121 @@ class PrescriptionServiceImplTest {
     private PrescriptionItem item;
     private Medicine medicine;
 
-   @BeforeEach
-   void setUp() {
 
-    hospital = new Hospital();
-    hospital.setId(100L);
+    @BeforeEach
+    void setUp() {
 
-    doctorUser = new User();
-    doctorUser.setId(10L);
-    doctorUser.setFullName("Dr. John");
-    doctorUser.setEmail("doctor@test.com");
+        hospital = new Hospital();
+        hospital.setId(100L);
 
-    patientUser = new User();
-    patientUser.setId(20L);
-    patientUser.setFullName("Patient One");
-    patientUser.setEmail("patient@test.com");
 
-    doctor = new Doctor();
-    doctor.setId(1L);
-    doctor.setUser(doctorUser);
-    doctor.setHospital(hospital);
+        // =========================
+        // DOCTOR USER
+        // =========================
 
-    patient = new Patient();
-    patient.setId(2L);
-    patient.setUser(patientUser);
-    patient.setHospital(hospital);
+        doctorUser = new User();
+        doctorUser.setId(10L);
+        doctorUser.setFullName("Dr. John");
+        doctorUser.setEmail("doctor@test.com");
 
-    appointment = new Appointment();
-    appointment.setId(50L);
-    appointment.setDoctor(doctor);
-    appointment.setPatient(patient);
-    appointment.setHospital(hospital);
-    appointment.setStatus(AppointmentStatus.COMPLETED);
 
-    prescription = new Prescription();
-    prescription.setId(1000L);
-    prescription.setAppointment(appointment);
-    prescription.setDoctor(doctor);
-    prescription.setPatient(patient);
-    prescription.setHospital(hospital);
-    prescription.setStatus(PrescriptionStatus.DRAFT);
-    prescription.setSharedWithPatient(false);
+        // =========================
+        // PATIENT USER
+        // =========================
 
-    item = new PrescriptionItem();
-    item.setId(500L);
-    item.setPrescription(prescription);
-    item.setMedicineName("Paracetamol");
-    item.setDosage("1 tablet");
-    item.setQuantity(10);
-    item.setFrequency("Twice daily");
-    item.setDuration("5 days");
+        patientUser = new User();
+        patientUser.setId(20L);
+        patientUser.setFullName("Patient One");
+        patientUser.setEmail("patient@test.com");
 
-    medicine = new Medicine();
-    medicine.setId(100L);
-    medicine.setName("Paracetamol");
-    medicine.setStrength("500mg");
-    medicine.setDosageForm("Tablet");
-    medicine.setActive(true);
 
-    
-}
-   		
-   @AfterEach
-   void tearDown() {
+        // =========================
+        // DOCTOR
+        // =========================
 
-       SecurityContextHolder.clearContext();
-   }
-     
+        doctor = new Doctor();
+        doctor.setId(1L);
+        doctor.setUser(doctorUser);
+        doctor.setHospital(hospital);
+
+
+        // =========================
+        // PATIENT
+        // =========================
+
+        patient = new Patient();
+        patient.setId(2L);
+        patient.setUser(patientUser);
+
+
+        // =========================
+        // APPOINTMENT
+        // =========================
+
+        appointment = new Appointment();
+        appointment.setId(50L);
+        appointment.setDoctor(doctor);
+        appointment.setPatient(patient);
+        appointment.setHospital(hospital);
+        appointment.setStatus(
+                AppointmentStatus.COMPLETED
+        );
+
+
+        // =========================
+        // PRESCRIPTION
+        // =========================
+
+        prescription = new Prescription();
+        prescription.setId(1000L);
+        prescription.setAppointment(appointment);
+        prescription.setDoctor(doctor);
+        prescription.setPatient(patient);
+        prescription.setHospital(hospital);
+        prescription.setStatus(
+                PrescriptionStatus.DRAFT
+        );
+        prescription.setSharedWithPatient(false);
+
+
+        // =========================
+        // PRESCRIPTION ITEM
+        // =========================
+
+        item = new PrescriptionItem();
+        item.setId(500L);
+        item.setPrescription(prescription);
+        item.setMedicineName("Paracetamol");
+        item.setDosage("1 tablet");
+        item.setQuantity(10);
+        item.setFrequency("Twice daily");
+        item.setDuration("5 days");
+
+
+        // =========================
+        // MEDICINE
+        // =========================
+
+        medicine = new Medicine();
+        medicine.setId(100L);
+        medicine.setName("Paracetamol");
+        medicine.setStrength("500mg");
+        medicine.setDosageForm("Tablet");
+        medicine.setActive(true);
+    }
+
+
+    @AfterEach
+    void tearDown() {
+
+        SecurityContextHolder.clearContext();
+    }
+
+
+    // ============================================================
+    // CREATE PRESCRIPTION
+    // ============================================================
+
     @Test
     void createPrescription_shouldCreateSuccessfully() {
 
@@ -225,11 +275,15 @@ class PrescriptionServiceImplTest {
 
         assertTrue(result.isSuccess());
         assertNotNull(result.getData());
-        assertEquals(1000L, result.getData().getId());
+        assertEquals(
+                1000L,
+                result.getData().getId()
+        );
 
         verify(prescriptionRepository)
                 .save(prescription);
     }
+
 
     @Test
     void createPrescription_shouldThrowWhenAppointmentNotFound() {
@@ -241,7 +295,9 @@ class PrescriptionServiceImplTest {
                 .thenReturn(Optional.of(doctorUser));
 
         when(doctorRepository
-                .findByUserIdAndDeletedAtIsNull(doctorUser.getId()))
+                .findByUserIdAndDeletedAtIsNull(
+                        doctorUser.getId()
+                ))
                 .thenReturn(Optional.of(doctor));
 
         CreatePrescriptionRequest request =
@@ -259,20 +315,26 @@ class PrescriptionServiceImplTest {
                         .createPrescription(request)
         );
 
-        verify(prescriptionRepository, never())
-                .save(any());
+        verify(
+                prescriptionRepository,
+                never()
+        ).save(any());
     }
-    		
-    		
+
+
     @Test
     void createPrescription_shouldRejectWrongHospital() {
 
         mockCurrentDoctor();
 
-        Hospital anotherHospital = new Hospital();
+        Hospital anotherHospital =
+                new Hospital();
+
         anotherHospital.setId(200L);
 
-        appointment.setHospital(anotherHospital);
+        appointment.setHospital(
+                anotherHospital
+        );
 
         CreatePrescriptionRequest request =
                 new CreatePrescriptionRequest();
@@ -289,19 +351,26 @@ class PrescriptionServiceImplTest {
                         .createPrescription(request)
         );
 
-        verify(prescriptionRepository, never())
-                .save(any());
+        verify(
+                prescriptionRepository,
+                never()
+        ).save(any());
     }
+
 
     @Test
     void createPrescription_shouldRejectDoctorWhoDoesNotOwnAppointment() {
 
         mockCurrentDoctor();
 
-        Doctor anotherDoctor = new Doctor();
+        Doctor anotherDoctor =
+                new Doctor();
+
         anotherDoctor.setId(999L);
 
-        appointment.setDoctor(anotherDoctor);
+        appointment.setDoctor(
+                anotherDoctor
+        );
 
         CreatePrescriptionRequest request =
                 new CreatePrescriptionRequest();
@@ -318,16 +387,21 @@ class PrescriptionServiceImplTest {
                         .createPrescription(request)
         );
 
-        verify(prescriptionRepository, never())
-                .save(any());
+        verify(
+                prescriptionRepository,
+                never()
+        ).save(any());
     }
+
 
     @Test
     void createPrescription_shouldRejectIncompleteAppointment() {
 
         mockCurrentDoctor();
 
-        appointment.setStatus(AppointmentStatus.SCHEDULED);
+        appointment.setStatus(
+                AppointmentStatus.SCHEDULED
+        );
 
         CreatePrescriptionRequest request =
                 new CreatePrescriptionRequest();
@@ -344,9 +418,12 @@ class PrescriptionServiceImplTest {
                         .createPrescription(request)
         );
 
-        verify(prescriptionRepository, never())
-                .save(any());
+        verify(
+                prescriptionRepository,
+                never()
+        ).save(any());
     }
+
 
     @Test
     void createPrescription_shouldRejectDuplicatePrescription() {
@@ -372,11 +449,16 @@ class PrescriptionServiceImplTest {
                         .createPrescription(request)
         );
 
-        verify(prescriptionRepository, never())
-                .save(any());
+        verify(
+                prescriptionRepository,
+                never()
+        ).save(any());
     }
 
-     
+
+    // ============================================================
+    // ADD MEDICINE
+    // ============================================================
 
     @Test
     void addMedicine_shouldAddExistingMedicineSuccessfully() {
@@ -397,7 +479,8 @@ class PrescriptionServiceImplTest {
                 .findByIdAndDeletedAtIsNull(100L))
                 .thenReturn(Optional.of(medicine));
 
-        when(prescriptionItemRepository.save(any()))
+        when(prescriptionItemRepository
+                .save(any()))
                 .thenReturn(item);
 
         PrescriptionItemResponse response =
@@ -406,7 +489,8 @@ class PrescriptionServiceImplTest {
                         .medicineName("Paracetamol")
                         .build();
 
-        when(prescriptionItemMapper.toResponse(item))
+        when(prescriptionItemMapper
+                .toResponse(item))
                 .thenReturn(response);
 
         ApiResponse<PrescriptionItemResponse> result =
@@ -416,6 +500,7 @@ class PrescriptionServiceImplTest {
                 );
 
         assertTrue(result.isSuccess());
+
         assertEquals(
                 "Paracetamol",
                 result.getData().getMedicineName()
@@ -424,6 +509,7 @@ class PrescriptionServiceImplTest {
         verify(prescriptionItemRepository)
                 .save(any(PrescriptionItem.class));
     }
+
 
     @Test
     void addMedicine_shouldAddManualMedicineSuccessfully() {
@@ -434,21 +520,28 @@ class PrescriptionServiceImplTest {
         AddPrescriptionItemRequest request =
                 new AddPrescriptionItemRequest();
 
-        request.setMedicineName("Special Medicine");
+        request.setMedicineName(
+                "Special Medicine"
+        );
+
         request.setStrength("250mg");
         request.setDosage("1 tablet");
         request.setQuantity(5);
         request.setFrequency("Once daily");
         request.setDuration("5 days");
 
-        when(prescriptionItemRepository.save(any()))
+        when(prescriptionItemRepository
+                .save(any()))
                 .thenReturn(item);
 
-        when(prescriptionItemMapper.toResponse(item))
+        when(prescriptionItemMapper
+                .toResponse(item))
                 .thenReturn(
                         PrescriptionItemResponse.builder()
                                 .id(500L)
-                                .medicineName("Special Medicine")
+                                .medicineName(
+                                        "Special Medicine"
+                                )
                                 .build()
                 );
 
@@ -460,12 +553,15 @@ class PrescriptionServiceImplTest {
 
         assertTrue(result.isSuccess());
 
-        verify(medicineRepository, never())
-                .findByIdAndDeletedAtIsNull(anyLong());
+        verify(
+                medicineRepository,
+                never()
+        ).findByIdAndDeletedAtIsNull(anyLong());
 
         verify(prescriptionItemRepository)
                 .save(any(PrescriptionItem.class));
     }
+
 
     @Test
     void addMedicine_shouldRejectBothMedicineIdAndName() {
@@ -477,7 +573,9 @@ class PrescriptionServiceImplTest {
                 new AddPrescriptionItemRequest();
 
         request.setMedicineId(100L);
-        request.setMedicineName("Paracetamol");
+        request.setMedicineName(
+                "Paracetamol"
+        );
         request.setDosage("1 tablet");
         request.setQuantity(10);
         request.setFrequency("Once daily");
@@ -486,12 +584,18 @@ class PrescriptionServiceImplTest {
         assertThrows(
                 BusinessException.class,
                 () -> prescriptionService
-                        .addMedicine(1000L, request)
+                        .addMedicine(
+                                1000L,
+                                request
+                        )
         );
 
-        verify(prescriptionItemRepository, never())
-                .save(any());
+        verify(
+                prescriptionItemRepository,
+                never()
+        ).save(any());
     }
+
 
     @Test
     void addMedicine_shouldRejectInactiveMedicine() {
@@ -517,12 +621,18 @@ class PrescriptionServiceImplTest {
         assertThrows(
                 BusinessException.class,
                 () -> prescriptionService
-                        .addMedicine(1000L, request)
+                        .addMedicine(
+                                1000L,
+                                request
+                        )
         );
 
-        verify(prescriptionItemRepository, never())
-                .save(any());
+        verify(
+                prescriptionItemRepository,
+                never()
+        ).save(any());
     }
+
 
     @Test
     void addMedicine_shouldRejectFinalizedPrescription() {
@@ -540,14 +650,22 @@ class PrescriptionServiceImplTest {
         assertThrows(
                 BusinessException.class,
                 () -> prescriptionService
-                        .addMedicine(1000L, request)
+                        .addMedicine(
+                                1000L,
+                                request
+                        )
         );
 
-        verify(prescriptionItemRepository, never())
-                .save(any());
+        verify(
+                prescriptionItemRepository,
+                never()
+        ).save(any());
     }
 
-    
+
+    // ============================================================
+    // FINALIZE
+    // ============================================================
 
     @Test
     void finalizePrescription_shouldFinalizeSuccessfully() {
@@ -559,14 +677,16 @@ class PrescriptionServiceImplTest {
                 .existsByPrescriptionIdAndDeletedAtIsNull(1000L))
                 .thenReturn(true);
 
-        when(prescriptionRepository.save(prescription))
+        when(prescriptionRepository
+                .save(prescription))
                 .thenReturn(prescription);
 
         when(prescriptionItemRepository
                 .findByPrescriptionIdAndDeletedAtIsNull(1000L))
                 .thenReturn(List.of(item));
 
-        when(prescriptionItemMapper.toResponse(item))
+        when(prescriptionItemMapper
+                .toResponse(item))
                 .thenReturn(
                         PrescriptionItemResponse.builder()
                                 .id(500L)
@@ -579,7 +699,9 @@ class PrescriptionServiceImplTest {
         )).thenReturn(
                 PrescriptionResponse.builder()
                         .id(1000L)
-                        .status(PrescriptionStatus.FINALIZED)
+                        .status(
+                                PrescriptionStatus.FINALIZED
+                        )
                         .build()
         );
 
@@ -588,6 +710,7 @@ class PrescriptionServiceImplTest {
                         .finalizePrescription(1000L);
 
         assertTrue(result.isSuccess());
+
         assertEquals(
                 PrescriptionStatus.FINALIZED,
                 prescription.getStatus()
@@ -596,6 +719,7 @@ class PrescriptionServiceImplTest {
         verify(prescriptionRepository)
                 .save(prescription);
     }
+
 
     @Test
     void finalizePrescription_shouldRejectEmptyPrescription() {
@@ -613,9 +737,12 @@ class PrescriptionServiceImplTest {
                         .finalizePrescription(1000L)
         );
 
-        verify(prescriptionRepository, never())
-                .save(any());
+        verify(
+                prescriptionRepository,
+                never()
+        ).save(any());
     }
+
 
     @Test
     void finalizePrescription_shouldRejectAlreadyFinalized() {
@@ -633,11 +760,16 @@ class PrescriptionServiceImplTest {
                         .finalizePrescription(1000L)
         );
 
-        verify(prescriptionRepository, never())
-                .save(any());
+        verify(
+                prescriptionRepository,
+                never()
+        ).save(any());
     }
 
-    
+
+    // ============================================================
+    // SHARE PRESCRIPTION
+    // ============================================================
 
     @Test
     void sharePrescription_shouldShareSuccessfully() {
@@ -649,14 +781,16 @@ class PrescriptionServiceImplTest {
                 PrescriptionStatus.FINALIZED
         );
 
-        when(prescriptionRepository.save(prescription))
+        when(prescriptionRepository
+                .save(prescription))
                 .thenReturn(prescription);
 
         when(prescriptionItemRepository
                 .findByPrescriptionIdAndDeletedAtIsNull(1000L))
                 .thenReturn(List.of(item));
 
-        when(prescriptionItemMapper.toResponse(item))
+        when(prescriptionItemMapper
+                .toResponse(item))
                 .thenReturn(
                         PrescriptionItemResponse.builder()
                                 .id(500L)
@@ -677,6 +811,7 @@ class PrescriptionServiceImplTest {
                         .sharePrescriptionWithPatient(1000L);
 
         assertTrue(result.isSuccess());
+
         assertTrue(
                 prescription.getSharedWithPatient()
         );
@@ -684,6 +819,7 @@ class PrescriptionServiceImplTest {
         verify(prescriptionRepository)
                 .save(prescription);
     }
+
 
     @Test
     void sharePrescription_shouldRejectDraft() {
@@ -697,22 +833,29 @@ class PrescriptionServiceImplTest {
                         .sharePrescriptionWithPatient(1000L)
         );
 
-        verify(prescriptionRepository, never())
-                .save(any());
+        verify(
+                prescriptionRepository,
+                never()
+        ).save(any());
     }
 
-    
+
+    // ============================================================
+    // PATIENT PRESCRIPTION
+    // ============================================================
 
     @Test
     void getPatientPrescription_shouldAllowCorrectPatient() {
 
         mockCurrentUser(patientUser);
 
+        /*
+         * Patient is globally identified by User ID.
+         *
+         * patientUser.id = 20L
+         */
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        20L,
-                        100L
-                ))
+                .findByUserIdAndDeletedAtIsNull(20L))
                 .thenReturn(Optional.of(patient));
 
         mockPrescription();
@@ -720,13 +863,15 @@ class PrescriptionServiceImplTest {
         prescription.setStatus(
                 PrescriptionStatus.FINALIZED
         );
+
         prescription.setSharedWithPatient(true);
 
         when(prescriptionItemRepository
                 .findByPrescriptionIdAndDeletedAtIsNull(1000L))
                 .thenReturn(List.of(item));
 
-        when(prescriptionItemMapper.toResponse(item))
+        when(prescriptionItemMapper
+                .toResponse(item))
                 .thenReturn(
                         PrescriptionItemResponse.builder()
                                 .id(500L)
@@ -750,32 +895,46 @@ class PrescriptionServiceImplTest {
         assertNotNull(result.getData());
     }
 
+
     @Test
     void getPatientPrescription_shouldRejectWrongPatient() {
 
-    	User anotherUser = new User();
-    	anotherUser.setId(99L);
-    	anotherUser.setEmail("another@test.com");
+        User anotherUser =
+                new User();
 
-        Patient anotherPatient = new Patient();
+        anotherUser.setId(99L);
+        anotherUser.setEmail(
+                "another@test.com"
+        );
+
+        Patient anotherPatient =
+                new Patient();
+
         anotherPatient.setId(999L);
-        anotherPatient.setUser(anotherUser);
-        anotherPatient.setHospital(hospital);
+        anotherPatient.setUser(
+                anotherUser
+        );
 
         mockCurrentUser(anotherUser);
 
+        /*
+         * Current user ID = 99L.
+         *
+         * The service must search using 99L,
+         * not the old hospital-based Patient lookup.
+         */
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        99L,
-                        100L
-                ))
-                .thenReturn(Optional.of(anotherPatient));
+                .findByUserIdAndDeletedAtIsNull(99L))
+                .thenReturn(
+                        Optional.of(anotherPatient)
+                );
 
         mockPrescription();
 
         prescription.setStatus(
                 PrescriptionStatus.FINALIZED
         );
+
         prescription.setSharedWithPatient(true);
 
         assertThrows(
@@ -784,9 +943,14 @@ class PrescriptionServiceImplTest {
                         .getPatientPrescription(1000L)
         );
 
-        verify(prescriptionItemRepository, never())
-                .findByPrescriptionIdAndDeletedAtIsNull(anyLong());
+        verify(
+                prescriptionItemRepository,
+                never()
+        ).findByPrescriptionIdAndDeletedAtIsNull(
+                anyLong()
+        );
     }
+
 
     @Test
     void getPatientPrescription_shouldRejectUnsharedPrescription() {
@@ -794,17 +958,17 @@ class PrescriptionServiceImplTest {
         mockCurrentUser(patientUser);
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        20L,
-                        100L
-                ))
-                .thenReturn(Optional.of(patient));
+                .findByUserIdAndDeletedAtIsNull(20L))
+                .thenReturn(
+                        Optional.of(patient)
+                );
 
         mockPrescription();
 
         prescription.setStatus(
                 PrescriptionStatus.FINALIZED
         );
+
         prescription.setSharedWithPatient(false);
 
         assertThrows(
@@ -814,7 +978,10 @@ class PrescriptionServiceImplTest {
         );
     }
 
-     
+
+    // ============================================================
+    // DELETE MEDICINE
+    // ============================================================
 
     @Test
     void deleteMedicine_shouldSoftDeleteSuccessfully() {
@@ -827,7 +994,9 @@ class PrescriptionServiceImplTest {
                         500L,
                         1000L
                 ))
-                .thenReturn(Optional.of(item));
+                .thenReturn(
+                        Optional.of(item)
+                );
 
         ApiResponse<Void> result =
                 prescriptionService
@@ -837,24 +1006,30 @@ class PrescriptionServiceImplTest {
                         );
 
         assertTrue(result.isSuccess());
-        assertNotNull(item.getDeletedAt());
+
+        assertNotNull(
+                item.getDeletedAt()
+        );
 
         verify(prescriptionItemRepository)
                 .save(item);
     }
 
-     
+
+    // ============================================================
+    // DOWNLOAD PDF
+    // ============================================================
+
     @Test
     void downloadPrescriptionPdf_shouldGeneratePdfSuccessfully() {
 
         mockCurrentUser(patientUser);
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        20L,
-                        100L
-                ))
-                .thenReturn(Optional.of(patient));
+                .findByUserIdAndDeletedAtIsNull(20L))
+                .thenReturn(
+                        Optional.of(patient)
+                );
 
         mockPrescription();
 
@@ -869,7 +1044,9 @@ class PrescriptionServiceImplTest {
 
         when(prescriptionItemRepository
                 .findByPrescriptionIdAndDeletedAtIsNull(1000L))
-                .thenReturn(List.of(item));
+                .thenReturn(
+                        List.of(item)
+                );
 
         when(prescriptionPdfService
                 .generatePrescriptionPdf(
@@ -880,7 +1057,9 @@ class PrescriptionServiceImplTest {
 
         ResponseEntity<byte[]> result =
                 prescriptionService
-                        .downloadPrescriptionPdf(1000L);
+                        .downloadPrescriptionPdf(
+                                1000L
+                        );
 
         assertEquals(
                 200,
@@ -900,17 +1079,17 @@ class PrescriptionServiceImplTest {
         );
     }
 
+
     @Test
     void downloadPrescriptionPdf_shouldRejectUnsharedPrescription() {
 
         mockCurrentUser(patientUser);
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        20L,
-                        100L
-                ))
-                .thenReturn(Optional.of(patient));
+                .findByUserIdAndDeletedAtIsNull(20L))
+                .thenReturn(
+                        Optional.of(patient)
+                );
 
         mockPrescription();
 
@@ -923,17 +1102,24 @@ class PrescriptionServiceImplTest {
         assertThrows(
                 BusinessException.class,
                 () -> prescriptionService
-                        .downloadPrescriptionPdf(1000L)
+                        .downloadPrescriptionPdf(
+                                1000L
+                        )
         );
 
-        verify(prescriptionPdfService, never())
-                .generatePrescriptionPdf(
-                        any(),
-                        any()
-                );
+        verify(
+                prescriptionPdfService,
+                never()
+        ).generatePrescriptionPdf(
+                any(),
+                any()
+        );
     }
 
-     
+
+    // ============================================================
+    // HELPERS
+    // ============================================================
 
     private void mockCurrentDoctor() {
 
@@ -944,13 +1130,22 @@ class PrescriptionServiceImplTest {
                 .thenReturn(100L);
 
         when(userRepository
-                .findByEmail(doctorUser.getEmail()))
-                .thenReturn(Optional.of(doctorUser));
+                .findByEmail(
+                        doctorUser.getEmail()
+                ))
+                .thenReturn(
+                        Optional.of(doctorUser)
+                );
 
         when(doctorRepository
-                .findByUserIdAndDeletedAtIsNull(doctorUser.getId()))
-                .thenReturn(Optional.of(doctor));
+                .findByUserIdAndDeletedAtIsNull(
+                        doctorUser.getId()
+                ))
+                .thenReturn(
+                        Optional.of(doctor)
+                );
     }
+
 
     private void mockCurrentUser(User user) {
 
@@ -961,10 +1156,15 @@ class PrescriptionServiceImplTest {
                 .thenReturn(100L);
 
         when(userRepository
-                .findByEmail(user.getEmail()))
-                .thenReturn(Optional.of(user));
+                .findByEmail(
+                        user.getEmail()
+                ))
+                .thenReturn(
+                        Optional.of(user)
+                );
     }
-    
+
+
     private void authenticate(User user) {
 
         Authentication authentication =
@@ -974,9 +1174,13 @@ class PrescriptionServiceImplTest {
                         List.of()
                 );
 
-        SecurityContextHolder.getContext()
-                .setAuthentication(authentication);
+        SecurityContextHolder
+                .getContext()
+                .setAuthentication(
+                        authentication
+                );
     }
+
 
     private void mockPrescription() {
 
@@ -985,8 +1189,11 @@ class PrescriptionServiceImplTest {
                         1000L,
                         100L
                 ))
-                .thenReturn(Optional.of(prescription));
+                .thenReturn(
+                        Optional.of(prescription)
+                );
     }
+
 
     private AddPrescriptionItemRequest
     validManualMedicineRequest() {
@@ -994,7 +1201,10 @@ class PrescriptionServiceImplTest {
         AddPrescriptionItemRequest request =
                 new AddPrescriptionItemRequest();
 
-        request.setMedicineName("Manual Medicine");
+        request.setMedicineName(
+                "Manual Medicine"
+        );
+
         request.setStrength("100mg");
         request.setDosage("1 tablet");
         request.setQuantity(10);

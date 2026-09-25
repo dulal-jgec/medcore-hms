@@ -1,6 +1,5 @@
 package com.medcore.features.patient.mapper;
 
-import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.patient.dto.request.CreatePatientRequest;
 import com.medcore.features.patient.dto.request.UpdatePatientRequest;
 import com.medcore.features.patient.dto.response.PatientResponse;
@@ -15,12 +14,11 @@ public class PatientMapper {
 
     public Patient toEntity(
             CreatePatientRequest request,
-            User user,
-            Hospital hospital) {
+            User user) 
+    {
 
         return Patient.builder()
                 .user(user)
-                .hospital(hospital)
                 .dateOfBirth(request.getDateOfBirth())
                 .bloodGroup(request.getBloodGroup())
                 .emergencyContactName(
@@ -56,8 +54,6 @@ public class PatientMapper {
             .gender(user.getGender())
             .maritalStatus(user.getMaritalStatus())
 
-            .hospitalId(patient.getHospital().getId())
-            .hospitalName(patient.getHospital().getName())
 
             .dateOfBirth(patient.getDateOfBirth())
             .bloodGroup(patient.getBloodGroup())

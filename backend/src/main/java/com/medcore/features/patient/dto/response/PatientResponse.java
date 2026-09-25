@@ -33,8 +33,7 @@ public class PatientResponse {
 	private Gender gender;
 	private MaritalStatus maritalStatus;
 
-	private Long hospitalId;
-	private String hospitalName;
+	 
 
 	private LocalDate dateOfBirth;
 	private BloodGroup bloodGroup;

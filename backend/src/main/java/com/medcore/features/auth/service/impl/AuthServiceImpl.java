@@ -18,8 +18,6 @@ import com.medcore.features.auth.dto.response.RefreshTokenResult;
 import com.medcore.features.auth.mapper.AuthMapper;
 import com.medcore.features.auth.service.AuthService;
 import com.medcore.features.auth.service.RefreshTokenService;
-import com.medcore.features.hospital.entity.Hospital;
-import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.patient.entity.Patient;
 import com.medcore.features.patient.enums.PatientStatus;
 import com.medcore.features.patient.repository.PatientRepository;
@@ -37,10 +35,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.medcore.features.auth.dto.response.UserProfileResponse;
 import com.medcore.features.auth.entity.RefreshToken;
-import com.medcore.features.auth.dto.request.RefreshTokenRequest;
-import com.medcore.features.hospital.enums.HospitalStatus;
-import org.springframework.transaction.annotation.Transactional;
-
+  
 
 
 @Service
@@ -51,8 +46,7 @@ public class AuthServiceImpl implements AuthService {
 			LoggerFactory.getLogger(AuthServiceImpl.class);
 
     private final UserRepository userRepository;
-    private final HospitalRepository hospitalRepository;
-    private final RoleRepository roleRepository;
+     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
@@ -61,96 +55,76 @@ public class AuthServiceImpl implements AuthService {
     private final PatientRepository patientRepository;
     
     
-    @Transactional
-    @Override
-    public ApiResponse<String> register(RegisterRequest request) {
+   @Transactional
+@Override
+public ApiResponse<String> register(RegisterRequest request) {
 
-         
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new BusinessException("Passwords do not match");
-        }
-
-        String email = request.getEmail().trim().toLowerCase();
-        
-        if (userRepository.existsByEmail(email)) {
-            throw new DuplicateResourceException("Email already exists");
-        }
-        
-        String phone = request.getPhone().trim();
-        
-        if (userRepository.existsByPhone(phone)) {
-            throw new DuplicateResourceException("Phone number already exists");
-        }
-
-        Hospital hospital = hospitalRepository
-                .findById(request.getHospitalId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Hospital not found"));
-
-        if (hospital.getDeletedAt() != null) {
-            throw new BusinessException("Hospital is not available");
-        }
-
-        if (hospital.getStatus() != HospitalStatus.ACTIVE) {
-            throw new BusinessException("Hospital is not active");
-        }
-        
-         
-        Role role = roleRepository.findByName(RoleName.PATIENT)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Patient role not found"));
-
-        // Encode Password
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-
-        // DTO -> Entity
-        User user = AuthMapper.toUser(
-                request,
-                hospital,
-                role,
-                encodedPassword,
-                email
-        );
-
-        // Save User
-        userRepository.save(user);
-        
-        Patient patient = Patient.builder()
-                .user(user)
-                .hospital(hospital)
-                .dateOfBirth(request.getDateOfBirth())
-                .bloodGroup(request.getBloodGroup())
-                .emergencyContactName(
-                        request.getEmergencyContactName().trim()
-                )
-                .emergencyContactPhone(
-                        request.getEmergencyContactPhone().trim()
-                )
-                .emergencyContactRelation(
-                        request.getEmergencyContactRelation().trim()
-                )
-                .allergies(request.getAllergies())
-                .chronicConditions(request.getChronicConditions())
-                .status(PatientStatus.ACTIVE)
-                .build();
-
-        patientRepository.save(patient);
-
-        patientRepository.save(patient);
-        
-        log.info(
-        		"User registered successfully: userId={}, role={}",
-        		user.getId(),
-        		role.getName()
-        		);
-
-        // Response
-        return ApiResponse.<String>builder()
-                .success(true)
-                .message("User registered successfully")
-                .data("Registration completed")
-                .build();
+    if (!request.getPassword().equals(request.getConfirmPassword())) {
+        throw new BusinessException("Passwords do not match");
     }
+
+    String email = request.getEmail().trim().toLowerCase();
+
+    if (userRepository.existsByEmail(email)) {
+        throw new DuplicateResourceException("Email already exists");
+    }
+
+    String phone = request.getPhone().trim();
+
+    if (userRepository.existsByPhone(phone)) {
+        throw new DuplicateResourceException("Phone number already exists");
+    }
+
+    Role role = roleRepository.findByName(RoleName.PATIENT)
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Patient role not found"
+                    ));
+
+    String encodedPassword =
+            passwordEncoder.encode(request.getPassword());
+
+    User user = AuthMapper.toUser(
+            request,
+            role,
+            encodedPassword,
+            email
+    );
+
+    userRepository.save(user);
+
+    Patient patient = Patient.builder()
+            .user(user)
+            .dateOfBirth(request.getDateOfBirth())
+            .bloodGroup(request.getBloodGroup())
+            .emergencyContactName(
+                    request.getEmergencyContactName().trim()
+            )
+            .emergencyContactPhone(
+                    request.getEmergencyContactPhone().trim()
+            )
+            .emergencyContactRelation(
+                    request.getEmergencyContactRelation().trim()
+            )
+            .allergies(request.getAllergies())
+            .chronicConditions(request.getChronicConditions())
+            .status(PatientStatus.ACTIVE)
+            .build();
+
+    patientRepository.save(patient);
+
+    log.info(
+            "User registered successfully: userId={}, role={}",
+            user.getId(),
+            role.getName()
+    );
+
+    return ApiResponse.<String>builder()
+            .success(true)
+            .message("User registered successfully")
+            .data("Registration completed")
+            .build();
+}
     
     @Override
     public ApiResponse<AuthResponse> login(LoginRequest request) {
@@ -218,7 +192,11 @@ public ApiResponse<UserProfileResponse> getCurrentUser() {
                     .email(user.getEmail())
                     .phone(user.getPhone())
                     .role(user.getRole().getName().name())
-                    .hospitalName(user.getHospital().getName())
+                    .hospitalName(
+                            user.getHospital() != null
+                                    ? user.getHospital().getName()
+                                    : null
+                    )
                     .build();
 
     return ApiResponse.<UserProfileResponse>builder()

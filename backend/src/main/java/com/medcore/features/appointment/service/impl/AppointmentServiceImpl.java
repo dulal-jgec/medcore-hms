@@ -4,10 +4,12 @@ import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
+import com.medcore.common.security.TenantContextService;
 
 import com.medcore.features.appointment.dto.request.CreateAppointmentRequest;
 import com.medcore.features.appointment.dto.request.UpdateAppointmentStatusRequest;
 import com.medcore.features.appointment.dto.response.AppointmentResponse;
+import com.medcore.features.appointment.dto.response.AvailableSlotResponse;
 import com.medcore.features.appointment.entity.Appointment;
 import com.medcore.features.appointment.enums.AppointmentStatus;
 import com.medcore.features.appointment.mapper.AppointmentMapper;
@@ -16,44 +18,51 @@ import com.medcore.features.appointment.service.AppointmentService;
 
 import com.medcore.features.doctor.entity.Doctor;
 import com.medcore.features.doctor.entity.DoctorSchedule;
-import com.medcore.features.doctor.enums.DayOfWeek;
+import com.medcore.features.doctor.enums.DoctorStatus;
 import com.medcore.features.doctor.repository.DoctorRepository;
 import com.medcore.features.doctor.repository.DoctorScheduleRepository;
-import org.springframework.transaction.annotation.Transactional;
-import java.util.Set;
+
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.repository.HospitalRepository;
-import com.medcore.features.doctor.enums.DoctorStatus;
-import com.medcore.features.patient.enums.PatientStatus;
+
 import com.medcore.features.patient.entity.Patient;
+import com.medcore.features.patient.enums.PatientStatus;
 import com.medcore.features.patient.repository.PatientRepository;
 
+import com.medcore.features.user.entity.User;
+import com.medcore.features.user.enums.RoleName;
+import com.medcore.features.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import org.springframework.stereotype.Service;
- 
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDate;
-import java.util.List;
 import java.time.LocalDateTime;
-import com.medcore.common.security.TenantContextService;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AppointmentServiceImpl
         implements AppointmentService {
-	
-	private static final Logger log = 
-			LoggerFactory.getLogger(AppointmentServiceImpl.class);
-			
+
+    private static final Logger log =
+            LoggerFactory.getLogger(AppointmentServiceImpl.class);
 
     private final AppointmentRepository appointmentRepository;
     private final HospitalRepository hospitalRepository;
@@ -62,51 +71,90 @@ public class AppointmentServiceImpl
     private final DoctorScheduleRepository doctorScheduleRepository;
     private final AppointmentMapper appointmentMapper;
     private final TenantContextService tenantContextService;
+    private final UserRepository userRepository;
 
-    
+
+     
 
     @Override
     @Transactional
     public ApiResponse<AppointmentResponse> createAppointment(
             CreateAppointmentRequest request) {
-    		
-    	
-    	
-        if (!request.getStartTime().isBefore(request.getEndTime())) {
-            throw new BusinessException(
-                    "Start time must be before end time"
-            );
-        }
 
         Long currentHospitalId =
                 tenantContextService.getCurrentHospitalId();
 
-        Long hospitalId;
-        
-        
+        RoleName currentRole = getCurrentRole();
 
-        if (currentHospitalId == null) {
-            // SUPER_ADMIN
-            hospitalId = request.getHospitalId();
-        } else {
-            // HOSPITAL_ADMIN
-            if (!request.getHospitalId().equals(currentHospitalId)) {
+        Long hospitalId;
+        Patient patient;
+
+         
+
+        if (currentRole == RoleName.PATIENT) {
+
+            if (request.getHospitalId() == null) {
                 throw new BusinessException(
-                        "You cannot create an appointment for another hospital"
+                        "Hospital is required for appointment"
+                );
+            }
+
+            hospitalId = request.getHospitalId();
+
+            patient = getCurrentPatient();
+
+        }
+
+         // RECEPTIONIST
+ 
+        else if (currentRole == RoleName.RECEPTIONIST) {
+
+            if (currentHospitalId == null) {
+                throw new BusinessException(
+                        "Hospital context is required"
                 );
             }
 
             hospitalId = currentHospitalId;
+
+            if (request.getPatientId() == null) {
+                throw new BusinessException(
+                        "Patient id is required"
+                );
+            }
+
+            patient = patientRepository
+                    .findByIdAndDeletedAtIsNull(
+                            request.getPatientId()
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Patient not found"
+                            )
+                    );
+
+        } else {
+
+            throw new BusinessException(
+                    "Only patient and receptionist can create appointments"
+            );
         }
 
+
+         // HOSPITAL
+ 
         Hospital hospital =
                 hospitalRepository
                         .findByIdAndDeletedAtIsNull(hospitalId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Hospital not found"
-                                ));
+                                )
+                        );
 
+
+         // DOCTOR
+ 
         Doctor doctor =
                 doctorRepository
                         .findByIdAndDeletedAtIsNull(
@@ -115,52 +163,52 @@ public class AppointmentServiceImpl
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Doctor not found"
-                                ));
+                                )
+                        );
 
-        Patient patient =
-                patientRepository
-                        .findByIdAndDeletedAtIsNull(
-                                request.getPatientId()
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Patient not found"
-                                ));
 
+ 
         if (!doctor.getHospital().getId().equals(hospitalId)) {
+
             throw new BusinessException(
                     "Doctor does not belong to the selected hospital"
             );
         }
 
-        if (!patient.getHospital().getId().equals(hospitalId)) {
-            throw new BusinessException(
-                    "Patient does not belong to the selected hospital"
-            );
-        }
-        
+
+  
         if (doctor.getStatus() != DoctorStatus.ACTIVE) {
+
             throw new BusinessException(
                     "Appointment cannot be created for inactive doctor"
             );
         }
 
+
+ 
         if (patient.getStatus() != PatientStatus.ACTIVE) {
+
             throw new BusinessException(
                     "Appointment cannot be created for inactive patient"
             );
         }
-        
-        if (request.getAppointmentDate().isBefore(LocalDate.now())) {
+
+
+         
+
+        if (request.getAppointmentDate()
+                .isBefore(LocalDate.now())) {
+
             throw new BusinessException(
                     "Appointment date cannot be in the past"
             );
         }
 
-       
 
-        DayOfWeek dayOfWeek =
-                DayOfWeek.valueOf(
+         
+
+        com.medcore.features.doctor.enums.DayOfWeek dayOfWeek =
+                com.medcore.features.doctor.enums.DayOfWeek.valueOf(
                         request.getAppointmentDate()
                                 .getDayOfWeek()
                                 .name()
@@ -173,41 +221,72 @@ public class AppointmentServiceImpl
                                 dayOfWeek
                         );
 
-        boolean withinSchedule =
-                schedules.stream()
-                        .anyMatch(schedule ->
-                                !request.getStartTime()
-                                        .isBefore(
-                                                schedule.getStartTime()
-                                        )
-                                        &&
-                                !request.getEndTime()
-                                        .isAfter(
-                                                schedule.getEndTime()
-                                        )
-                        );
 
-        if (!withinSchedule) {
+         
+
+        LocalTime startTime =
+                request.getStartTime();
+
+        int duration =
+                doctor.getConsultationDurationMinutes();
+
+        if (duration <= 0) {
 
             throw new BusinessException(
-                    "Doctor is not available during the requested time"
+                    "Doctor consultation duration is not configured"
             );
         }
+
+
+        // Backend calculates end time.
+        LocalTime endTime =
+                startTime.plusMinutes(duration);
+
+
+        
+        boolean validSlot = schedules.stream()
+                .filter(schedule ->
+                        Boolean.TRUE.equals(
+                                schedule.getAvailable()
+                        )
+                )
+                .anyMatch(schedule ->
+                        !startTime.isBefore(
+                                schedule.getStartTime()
+                        )
+                        &&
+                        !endTime.isAfter(
+                                schedule.getEndTime()
+                        )
+                );
+
+        if (!validSlot) {
+
+            throw new BusinessException(
+                    "Selected time is not a valid appointment slot"
+            );
+        }
+
+
+        
 
         boolean alreadyBooked =
                 appointmentRepository.existsOverlappingAppointment(
                         doctor.getId(),
                         request.getAppointmentDate(),
-                        request.getStartTime(),
-                        request.getEndTime()
+                        startTime,
+                        endTime
                 );
 
         if (alreadyBooked) {
 
             throw new BusinessException(
-                    "Doctor already has an appointment during this time"
+                    "Selected appointment slot is already booked"
             );
         }
+
+
+        
 
         Appointment appointment =
                 appointmentMapper.toEntity(
@@ -217,21 +296,30 @@ public class AppointmentServiceImpl
                         patient
                 );
 
+        // Mapper should calculate/set these from request/doctor.
+        // If mapper currently needs endTime, we will update it next.
+
+
         Appointment savedAppointment =
                 appointmentRepository.save(
                         appointment
                 );
 
+
         log.info(
-                "Appointment created: appointmentId={}, hospitalId={}, doctorId={}, patientId={}, appointmentDate={}",
+                "Appointment created: appointmentId={}, hospitalId={}, doctorId={}, patientId={}, appointmentDate={}, startTime={}, endTime={}",
                 savedAppointment.getId(),
                 hospitalId,
                 doctor.getId(),
                 patient.getId(),
-                request.getAppointmentDate()
+                request.getAppointmentDate(),
+                startTime,
+                endTime
         );
 
-        return ApiResponse.<AppointmentResponse>builder()
+
+        return ApiResponse
+                .<AppointmentResponse>builder()
                 .success(true)
                 .message("Appointment created successfully")
                 .data(
@@ -243,540 +331,649 @@ public class AppointmentServiceImpl
     }
 
 
-    
+     
 
-@Override
-@Transactional(readOnly = true)
-public ApiResponse<PageResponse<AppointmentResponse>> getAllAppointments(
-        int page,
-        int size,
-        String sortBy,
-        String sortDir) {
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<AvailableSlotResponse>> getAvailableSlots(
+            Long doctorId,
+            LocalDate appointmentDate) {
 
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
+        
 
-    if (page < 0) {
-        throw new BusinessException(
-                "Page must be greater than or equal to 0"
-        );
-    }
-
-    if (size < 1 || size > 100) {
-        throw new BusinessException(
-                "Page size must be between 1 and 100"
-        );
-    }
-
-    Set<String> allowedSortFields = Set.of(
-            "id",
-            "appointmentDate",
-            "startTime",
-            "endTime",
-            "createdAt",
-            "updatedAt"
-    );
-
-    if (!allowedSortFields.contains(sortBy)) {
-        throw new BusinessException(
-                "Invalid sort field: " + sortBy
-        );
-    }
-
-    sortDir = sortDir.trim().toLowerCase();
-
-    if (!sortDir.equals("asc") && !sortDir.equals("desc")) {
-        throw new BusinessException(
-                "Sort direction must be 'asc' or 'desc'"
-        );
-    }
-
-    Sort sort = sortDir.equals("desc")
-            ? Sort.by(sortBy).descending()
-            : Sort.by(sortBy).ascending();
-
-    Pageable pageable =
-            PageRequest.of(page, size, sort);
-
-    Page<Appointment> appointmentPage;
-
-    if (hospitalId == null) {
-
-        // SUPER_ADMIN → all hospitals
-        appointmentPage =
-                appointmentRepository
-                        .findByDeletedAtIsNull(pageable);
-
-    } else {
-
-        // HOSPITAL_ADMIN → only own hospital
-        appointmentPage =
-                appointmentRepository
-                        .findByHospitalIdAndDeletedAtIsNull(
-                                hospitalId,
-                                pageable
-                        );
-    }
-
-    List<AppointmentResponse> items =
-            appointmentPage.getContent()
-                    .stream()
-                    .map(appointmentMapper::toResponse)
-                    .toList();
-
-    PageResponse<AppointmentResponse> response =
-            PageResponse.<AppointmentResponse>builder()
-                    .items(items)
-                    .page(appointmentPage.getNumber())
-                    .size(appointmentPage.getSize())
-                    .totalElements(
-                            appointmentPage.getTotalElements()
-                    )
-                    .totalPages(
-                            appointmentPage.getTotalPages()
-                    )
-                    .first(appointmentPage.isFirst())
-                    .last(appointmentPage.isLast())
-                    .hasNext(appointmentPage.hasNext())
-                    .hasPrevious(appointmentPage.hasPrevious())
-                    .build();
-
-    return ApiResponse.<PageResponse<AppointmentResponse>>builder()
-            .success(true)
-            .message("Appointments fetched successfully")
-            .data(response)
-            .build();
-}
-
-
-    
-@Override
-@Transactional(readOnly = true)
-public ApiResponse<AppointmentResponse> getAppointmentById(
-        Long appointmentId) {
-
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
-
-    Appointment appointment;
-
-    if (hospitalId == null) {
-
-        // SUPER_ADMIN → can access any hospital
-        appointment =
-                appointmentRepository
-                        .findByIdAndDeletedAtIsNull(appointmentId)
+        Doctor doctor =
+                doctorRepository
+                        .findByIdAndDeletedAtIsNull(doctorId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
-                                        "Appointment not found"
-                                ));
+                                        "Doctor not found"
+                                )
+                        );
 
-    } else {
 
-        // HOSPITAL_ADMIN → only own hospital
-        appointment =
-                appointmentRepository
-                        .findByIdAndHospitalIdAndDeletedAtIsNull(
-                                appointmentId,
-                                hospitalId
+        
+
+        if (doctor.getStatus() != DoctorStatus.ACTIVE) {
+
+            throw new BusinessException(
+                    "Appointments are not available for this doctor"
+            );
+        }
+
+
+         
+
+        com.medcore.features.doctor.enums.DayOfWeek dayOfWeek =
+                com.medcore.features.doctor.enums.DayOfWeek.valueOf(
+                        appointmentDate
+                                .getDayOfWeek()
+                                .name()
+                );
+
+        List<DoctorSchedule> schedules =
+                doctorScheduleRepository
+                        .findByDoctorIdAndDayOfWeekAndDeletedAtIsNull(
+                                doctorId,
+                                dayOfWeek
+                        );
+
+
+        List<AvailableSlotResponse> slots =
+                new ArrayList<>();
+
+
+        int duration =
+                doctor.getConsultationDurationMinutes();
+
+
+        if (duration <= 0) {
+
+            throw new BusinessException(
+                    "Doctor consultation duration is not configured"
+            );
+        }
+
+
+        
+        for (DoctorSchedule schedule : schedules) {
+
+            // Skip unavailable schedule
+            if (!Boolean.TRUE.equals(
+                    schedule.getAvailable()
+            )) {
+                continue;
+            }
+
+
+            LocalTime slotStart =
+                    schedule.getStartTime();
+
+
+            while (!slotStart
+                    .plusMinutes(duration)
+                    .isAfter(schedule.getEndTime())) {
+
+                LocalTime slotEnd =
+                        slotStart.plusMinutes(duration);
+
+
+                boolean booked =
+                        appointmentRepository
+                                .existsOverlappingAppointment(
+                                        doctorId,
+                                        appointmentDate,
+                                        slotStart,
+                                        slotEnd
+                                );
+
+
+                slots.add(
+                        AvailableSlotResponse
+                                .builder()
+                                .startTime(slotStart)
+                                .endTime(slotEnd)
+                                .available(!booked)
+                                .build()
+                );
+
+
+                slotStart = slotEnd;
+            }
+        }
+
+
+        return ApiResponse
+                .<List<AvailableSlotResponse>>builder()
+                .success(true)
+                .message(
+                        "Appointment slots fetched successfully"
+                )
+                .data(slots)
+                .build();
+    }
+
+
+ 
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<AppointmentResponse>>
+    getAllAppointments(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+
+        validatePagination(page, size);
+
+
+        Set<String> allowedSortFields =
+                Set.of(
+                        "startTime",
+                        "endTime",
+                        "appointmentDate",
+                        "createdAt"
+                );
+
+
+        if (!allowedSortFields.contains(sortBy)) {
+
+            throw new BusinessException(
+                    "Invalid sort field: " + sortBy
+            );
+        }
+
+
+        sortDir =
+                sortDir.trim().toLowerCase();
+
+
+        if (!sortDir.equals("asc")
+                && !sortDir.equals("desc")) {
+
+            throw new BusinessException(
+                    "Sort direction must be 'asc' or 'desc'"
+            );
+        }
+
+
+        Sort sort =
+                sortDir.equals("desc")
+                        ? Sort.by(sortBy).descending()
+                        : Sort.by(sortBy).ascending();
+
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        sort
+                );
+
+
+        Page<Appointment> appointmentPage;
+
+
+        if (hospitalId == null) {
+
+            appointmentPage =
+                    appointmentRepository
+                            .findByDeletedAtIsNull(
+                                    pageable
+                            );
+
+        } else {
+
+            appointmentPage =
+                    appointmentRepository
+                            .findByHospitalIdAndDeletedAtIsNull(
+                                    hospitalId,
+                                    pageable
+                            );
+        }
+
+
+        return buildPageResponse(
+                appointmentPage,
+                "Appointments fetched successfully"
+        );
+    }
+
+
+   
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<AppointmentResponse>
+    getAppointmentById(Long appointmentId) {
+
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+
+        Appointment appointment;
+
+
+        if (hospitalId == null) {
+
+            appointment =
+                    appointmentRepository
+                            .findByIdAndDeletedAtIsNull(
+                                    appointmentId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Appointment not found"
+                                    )
+                            );
+
+        } else {
+
+            appointment =
+                    appointmentRepository
+                            .findByIdAndHospitalIdAndDeletedAtIsNull(
+                                    appointmentId,
+                                    hospitalId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Appointment not found"
+                                    )
+                            );
+        }
+
+
+        return ApiResponse
+                .<AppointmentResponse>builder()
+                .success(true)
+                .message("Appointment fetched successfully")
+                .data(
+                        appointmentMapper.toResponse(
+                                appointment
+                        )
+                )
+                .build();
+    }
+
+
+   
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<AppointmentResponse>>
+    getDoctorAppointments(
+            Long doctorId,
+            int page,
+            int size) {
+
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+
+        validatePagination(page, size);
+
+
+        Doctor doctor;
+
+
+        if (hospitalId == null) {
+
+            doctor =
+                    doctorRepository
+                            .findByIdAndDeletedAtIsNull(
+                                    doctorId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    )
+                            );
+
+        } else {
+
+            doctor =
+                    doctorRepository
+                            .findByIdAndHospitalIdAndDeletedAtIsNull(
+                                    doctorId,
+                                    hospitalId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    )
+                            );
+        }
+
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size
+                );
+
+
+        Page<Appointment> appointmentPage;
+
+
+        if (hospitalId == null) {
+
+            appointmentPage =
+                    appointmentRepository
+                            .findByDoctorIdAndDeletedAtIsNull(
+                                    doctor.getId(),
+                                    pageable
+                            );
+
+        } else {
+
+            appointmentPage =
+                    appointmentRepository
+                            .findByDoctorIdAndHospitalIdAndDeletedAtIsNull(
+                                    doctor.getId(),
+                                    hospitalId,
+                                    pageable
+                            );
+        }
+
+
+        return buildPageResponse(
+                appointmentPage,
+                "Doctor appointments fetched successfully"
+        );
+    }
+
+
+   
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<AppointmentResponse>>
+    getPatientAppointments(
+            Long patientId,
+            int page,
+            int size) {
+
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+
+        validatePagination(page, size);
+
+
+        Patient patient =
+                patientRepository
+                        .findByIdAndDeletedAtIsNull(
+                                patientId
                         )
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
-                                        "Appointment not found"
-                                ));
-    }
-
-    return ApiResponse.<AppointmentResponse>builder()
-            .success(true)
-            .message("Appointment fetched successfully")
-            .data(
-                    appointmentMapper.toResponse(appointment)
-            )
-            .build();
-}
+                                        "Patient not found"
+                                )
+                        );
 
 
-    
- @Override
-@Transactional(readOnly = true)
-public ApiResponse<PageResponse<AppointmentResponse>> getDoctorAppointments(
-        Long doctorId,
-        int page,
-        int size) {
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size
+                );
 
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
 
-    if (page < 0) {
-        throw new BusinessException(
-                "Page must be greater than or equal to 0"
+        Page<Appointment> appointmentPage;
+
+
+        if (hospitalId == null) {
+
+            appointmentPage =
+                    appointmentRepository
+                            .findByPatientIdAndDeletedAtIsNull(
+                                    patient.getId(),
+                                    pageable
+                            );
+
+        } else {
+
+            appointmentPage =
+                    appointmentRepository
+                            .findByPatientIdAndHospitalIdAndDeletedAtIsNull(
+                                    patient.getId(),
+                                    hospitalId,
+                                    pageable
+                            );
+        }
+
+
+        return buildPageResponse(
+                appointmentPage,
+                "Patient appointments fetched successfully"
         );
     }
 
-    if (size < 1 || size > 100) {
-        throw new BusinessException(
-                "Page size must be between 1 and 100"
+
+  
+    @Override
+    @Transactional
+    public ApiResponse<AppointmentResponse>
+    updateAppointmentStatus(
+            Long appointmentId,
+            UpdateAppointmentStatusRequest request) {
+
+        Appointment appointment =
+                getHospitalScopedAppointment(
+                        appointmentId
+                );
+
+
+        AppointmentStatus currentStatus =
+                appointment.getStatus();
+
+        AppointmentStatus newStatus =
+                request.getStatus();
+
+
+        validateStatusTransition(
+                currentStatus,
+                newStatus
         );
-    }
 
-    Doctor doctor;
 
-    if (hospitalId == null) {
+        appointment.setStatus(newStatus);
 
-        // SUPER_ADMIN
-        doctor = doctorRepository
-                .findByIdAndDeletedAtIsNull(doctorId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Doctor not found"
-                        ));
 
-    } else {
+        Appointment savedAppointment =
+                appointmentRepository.save(
+                        appointment
+                );
 
-        // HOSPITAL_ADMIN
-        doctor = doctorRepository
-                .findByIdAndHospitalIdAndDeletedAtIsNull(
-                        doctorId,
-                        hospitalId
+
+        return ApiResponse
+                .<AppointmentResponse>builder()
+                .success(true)
+                .message(
+                        "Appointment status updated successfully"
                 )
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Doctor not found"
-                        ));
-    }
-
-    Pageable pageable =
-            PageRequest.of(page, size);
-
-    Page<Appointment> appointmentPage;
-
-    if (hospitalId == null) {
-
-        appointmentPage =
-                appointmentRepository
-                        .findByDoctorIdAndDeletedAtIsNull(
-                                doctor.getId(),
-                                pageable
-                        );
-
-    } else {
-
-        appointmentPage =
-                appointmentRepository
-                        .findByDoctorIdAndHospitalIdAndDeletedAtIsNull(
-                                doctor.getId(),
-                                hospitalId,
-                                pageable
-                        );
-    }
-
-    List<AppointmentResponse> items =
-            appointmentPage.getContent()
-                    .stream()
-                    .map(appointmentMapper::toResponse)
-                    .toList();
-
-    PageResponse<AppointmentResponse> response =
-            PageResponse.<AppointmentResponse>builder()
-                    .items(items)
-                    .page(appointmentPage.getNumber())
-                    .size(appointmentPage.getSize())
-                    .totalElements(
-                            appointmentPage.getTotalElements()
-                    )
-                    .totalPages(
-                            appointmentPage.getTotalPages()
-                    )
-                    .first(appointmentPage.isFirst())
-                    .last(appointmentPage.isLast())
-                    .hasNext(appointmentPage.hasNext())
-                    .hasPrevious(appointmentPage.hasPrevious())
-                    .build();
-
-    return ApiResponse.<PageResponse<AppointmentResponse>>builder()
-            .success(true)
-            .message("Doctor appointments fetched successfully")
-            .data(response)
-            .build();
-}
-
-    
-@Override
-@Transactional(readOnly = true)
-public ApiResponse<PageResponse<AppointmentResponse>> getPatientAppointments(
-        Long patientId,
-        int page,
-        int size) {
-
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
-
-    if (page < 0) {
-        throw new BusinessException(
-                "Page must be greater than or equal to 0"
-        );
-    }
-
-    if (size < 1 || size > 100) {
-        throw new BusinessException(
-                "Page size must be between 1 and 100"
-        );
-    }
-
-    Patient patient;
-
-    if (hospitalId == null) {
-
-        // SUPER_ADMIN
-        patient = patientRepository
-                .findByIdAndDeletedAtIsNull(patientId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Patient not found"
-                        ));
-
-    } else {
-
-        // HOSPITAL_ADMIN
-        patient = patientRepository
-                .findByIdAndHospitalIdAndDeletedAtIsNull(
-                        patientId,
-                        hospitalId
-                )
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Patient not found"
-                        ));
-    }
-
-    Pageable pageable =
-            PageRequest.of(page, size);
-
-    Page<Appointment> appointmentPage;
-
-    if (hospitalId == null) {
-
-        appointmentPage =
-                appointmentRepository
-                        .findByPatientIdAndDeletedAtIsNull(
-                                patient.getId(),
-                                pageable
-                        );
-
-    } else {
-
-        appointmentPage =
-                appointmentRepository
-                        .findByPatientIdAndHospitalIdAndDeletedAtIsNull(
-                                patient.getId(),
-                                hospitalId,
-                                pageable
-                        );
-    }
-
-    List<AppointmentResponse> items =
-            appointmentPage.getContent()
-                    .stream()
-                    .map(appointmentMapper::toResponse)
-                    .toList();
-
-    PageResponse<AppointmentResponse> response =
-            PageResponse.<AppointmentResponse>builder()
-                    .items(items)
-                    .page(appointmentPage.getNumber())
-                    .size(appointmentPage.getSize())
-                    .totalElements(
-                            appointmentPage.getTotalElements()
-                    )
-                    .totalPages(
-                            appointmentPage.getTotalPages()
-                    )
-                    .first(appointmentPage.isFirst())
-                    .last(appointmentPage.isLast())
-                    .hasNext(appointmentPage.hasNext())
-                    .hasPrevious(appointmentPage.hasPrevious())
-                    .build();
-
-    return ApiResponse.<PageResponse<AppointmentResponse>>builder()
-            .success(true)
-            .message("Patient appointments fetched successfully")
-            .data(response)
-            .build();
-}
-
-
-
-@Override
-@Transactional
-public ApiResponse<AppointmentResponse> updateAppointmentStatus(
-        Long appointmentId,
-        UpdateAppointmentStatusRequest request) {
-
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
-
-    Appointment appointment;
-
-    if (hospitalId == null) {
-
-        // SUPER_ADMIN
-        appointment =
-                appointmentRepository
-                        .findByIdAndDeletedAtIsNull(appointmentId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appointment not found"
-                                ));
-
-    } else {
-
-        // HOSPITAL_ADMIN / hospital user
-        appointment =
-                appointmentRepository
-                        .findByIdAndHospitalIdAndDeletedAtIsNull(
-                                appointmentId,
-                                hospitalId
+                .data(
+                        appointmentMapper.toResponse(
+                                savedAppointment
                         )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appointment not found"
-                                ));
+                )
+                .build();
     }
 
-    AppointmentStatus currentStatus =
-            appointment.getStatus();
 
-    AppointmentStatus newStatus =
-            request.getStatus();
+  
+    @Override
+    @Transactional
+    public ApiResponse<String>
+    cancelAppointment(Long appointmentId) {
 
-    // Validate status transition
-    validateStatusTransition(
-            currentStatus,
-            newStatus
-    );
+        Appointment appointment =
+                getHospitalScopedAppointment(
+                        appointmentId
+                );
 
-    appointment.setStatus(newStatus);
 
-    Appointment savedAppointment =
-            appointmentRepository.save(appointment);
+        if (appointment.getStatus()
+                == AppointmentStatus.CHECKED_IN) {
 
-    log.info(
-            "Appointment status updated: appointmentId={}, hospitalId={}, fromStatus={}, toStatus={}",
-            appointmentId,
-            hospitalId,
-            currentStatus,
-            newStatus
-    );
+            throw new BusinessException(
+                    "Checked-in appointment cannot be cancelled"
+            );
+        }
 
-    return ApiResponse.<AppointmentResponse>builder()
-            .success(true)
-            .message("Appointment status updated successfully")
-            .data(
-                    appointmentMapper.toResponse(
-                            savedAppointment
-                    )
-            )
-            .build();
-}
+
+        if (appointment.getStatus()
+                == AppointmentStatus.CANCELLED) {
+
+            throw new BusinessException(
+                    "Appointment is already cancelled"
+            );
+        }
+
+
+        appointment.setStatus(
+                AppointmentStatus.CANCELLED
+        );
+
+
+        appointmentRepository.save(
+                appointment
+        );
+
+
+        return ApiResponse
+                .<String>builder()
+                .success(true)
+                .message(
+                        "Appointment cancelled successfully"
+                )
+                .data("Cancelled")
+                .build();
+    }
 
 
      
 
-@Override
-@Transactional
-public ApiResponse<String> cancelAppointment(
-        Long appointmentId) {
+    @Override
+    @Transactional
+    public ApiResponse<String>
+    deleteAppointment(Long appointmentId) {
 
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
+        Appointment appointment =
+                getHospitalScopedAppointment(
+                        appointmentId
+                );
 
-    Appointment appointment;
 
-    if (hospitalId == null) {
-
-        // SUPER_ADMIN
-        appointment =
-                appointmentRepository
-                        .findByIdAndDeletedAtIsNull(appointmentId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appointment not found"
-                                ));
-
-    } else {
-
-        // HOSPITAL_ADMIN
-        appointment =
-                appointmentRepository
-                        .findByIdAndHospitalIdAndDeletedAtIsNull(
-                                appointmentId,
-                                hospitalId
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appointment not found"
-                                ));
-    }
-
-    if (appointment.getStatus() == AppointmentStatus.CHECKED_IN) {
-        throw new BusinessException(
-                "Checked-in appointment cannot be cancelled"
+        appointment.setDeletedAt(
+                LocalDateTime.now()
         );
-    }
 
-    if (appointment.getStatus()
-            == AppointmentStatus.CANCELLED) {
 
-        throw new BusinessException(
-                "Appointment is already cancelled"
+        appointmentRepository.save(
+                appointment
         );
+
+
+        return ApiResponse
+                .<String>builder()
+                .success(true)
+                .message(
+                        "Appointment deleted successfully"
+                )
+                .data("Deleted")
+                .build();
     }
 
-    appointment.setStatus(
-            AppointmentStatus.CANCELLED
-    );
 
-    appointmentRepository.save(appointment);
+   
 
-    log.info(
-            "Appointment cancelled: appointmentId={}, hospitalId={}",
-            appointmentId,
-            hospitalId
-    );
+    @Override
+    @Transactional
+    public ApiResponse<String>
+    restoreAppointment(Long appointmentId) {
 
-    return ApiResponse.<String>builder()
-            .success(true)
-            .message("Appointment cancelled successfully")
-            .data("Cancelled")
-            .build();
-}
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+
+        Appointment appointment;
+
+
+        if (hospitalId == null) {
+
+            appointment =
+                    appointmentRepository
+                            .findById(appointmentId)
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Appointment not found"
+                                    )
+                            );
+
+        } else {
+
+            appointment =
+                    appointmentRepository
+                            .findByIdAndHospitalId(
+                                    appointmentId,
+                                    hospitalId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Appointment not found"
+                                    )
+                            );
+        }
+
+
+        if (appointment.getDeletedAt() == null) {
+
+            throw new BusinessException(
+                    "Appointment is already active"
+            );
+        }
+
+
+        appointment.setDeletedAt(null);
+
+
+        appointmentRepository.save(
+                appointment
+        );
+
+
+        return ApiResponse
+                .<String>builder()
+                .success(true)
+                .message(
+                        "Appointment restored successfully"
+                )
+                .data("Restored")
+                .build();
+    }
 
 
     
-@Override
-@Transactional
-public ApiResponse<String> deleteAppointment(Long appointmentId) {
 
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
+    @Override
+    @Transactional
+    public ApiResponse<AppointmentResponse>
+    checkInAppointment(Long appointmentId) {
 
-    Appointment appointment;
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
 
-    if (hospitalId == null) {
 
-        // SUPER_ADMIN
-        appointment =
-                appointmentRepository
-                        .findByIdAndDeletedAtIsNull(appointmentId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appointment not found"
-                                ));
+        if (hospitalId == null) {
 
-    } else {
+            throw new BusinessException(
+                    "Hospital context is required for check-in"
+            );
+        }
 
-        // HOSPITAL_ADMIN
-        appointment =
+
+        Appointment appointment =
                 appointmentRepository
                         .findByIdAndHospitalIdAndDeletedAtIsNull(
                                 appointmentId,
@@ -785,286 +982,372 @@ public ApiResponse<String> deleteAppointment(Long appointmentId) {
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Appointment not found"
-                                ));
+                                )
+                        );
+
+
+        if (appointment.getStatus()
+                != AppointmentStatus.SCHEDULED
+                &&
+                appointment.getStatus()
+                != AppointmentStatus.CONFIRMED) {
+
+            throw new BusinessException(
+                    "Only scheduled or confirmed appointments can be checked in"
+            );
+        }
+
+
+        appointment.setStatus(
+                AppointmentStatus.CHECKED_IN
+        );
+
+
+        Appointment savedAppointment =
+                appointmentRepository.save(
+                        appointment
+                );
+
+
+        return ApiResponse
+                .<AppointmentResponse>builder()
+                .success(true)
+                .message(
+                        "Patient checked in successfully"
+                )
+                .data(
+                        appointmentMapper.toResponse(
+                                savedAppointment
+                        )
+                )
+                .build();
     }
 
-    appointment.setDeletedAt(LocalDateTime.now());
 
-    appointmentRepository.save(appointment);
+    
 
-    log.info(
-            "Appointment deleted: appointmentId={}, hospitalId={}",
-            appointmentId,
-            hospitalId
-    );
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<AppointmentResponse>>
+    getTodayAppointments(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
 
-    return ApiResponse.<String>builder()
-            .success(true)
-            .message("Appointment deleted successfully")
-            .data("Deleted")
-            .build();
-}
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+
+        if (hospitalId == null) {
+
+            throw new BusinessException(
+                    "Hospital context is required"
+            );
+        }
+
+
+        validatePagination(page, size);
+
+
+        Set<String> allowedSortFields =
+                Set.of(
+                        "startTime",
+                        "endTime",
+                        "appointmentDate",
+                        "createdAt"
+                );
+
+
+        if (!allowedSortFields.contains(sortBy)) {
+
+            throw new BusinessException(
+                    "Invalid sort field: " + sortBy
+            );
+        }
+
+
+        sortDir =
+                sortDir.trim().toLowerCase();
+
+
+        if (!sortDir.equals("asc")
+                && !sortDir.equals("desc")) {
+
+            throw new BusinessException(
+                    "Sort direction must be 'asc' or 'desc'"
+            );
+        }
+
+
+        Sort sort =
+                sortDir.equals("desc")
+                        ? Sort.by(sortBy).descending()
+                        : Sort.by(sortBy).ascending();
+
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        sort
+                );
+
+
+        Page<Appointment> appointments =
+                appointmentRepository
+                        .findByHospitalIdAndAppointmentDateAndDeletedAtIsNull(
+                                hospitalId,
+                                LocalDate.now(),
+                                pageable
+                        );
+
+
+        return buildPageResponse(
+                appointments,
+                "Today's appointments fetched successfully"
+        );
+    }
 
 
      
-@Override
-@Transactional
-public ApiResponse<String> restoreAppointment(
-        Long appointmentId) {
 
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
+    private RoleName getCurrentRole() {
 
-    Appointment appointment;
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
 
-    if (hospitalId == null) {
 
-        // SUPER_ADMIN
-        appointment =
-                appointmentRepository
-                        .findById(appointmentId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appointment not found"
-                                ));
+        if (authentication == null
+                || authentication.getName() == null) {
 
-    } else {
+            throw new BusinessException(
+                    "Authenticated user not found"
+            );
+        }
 
-        // HOSPITAL_ADMIN
-        appointment =
-                appointmentRepository
-                        .findByIdAndHospitalId(
-                                appointmentId,
-                                hospitalId
+
+        User user =
+                userRepository
+                        .findByEmailWithRole(
+                                authentication.getName()
                         )
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
-                                        "Appointment not found"
-                                ));
+                                        "User not found"
+                                )
+                        );
+
+
+        return user.getRole().getName();
     }
 
-    if (appointment.getDeletedAt() == null) {
 
-        throw new BusinessException(
-                "Appointment is already active"
-        );
+    private Patient getCurrentPatient() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+
+        if (authentication == null
+                || authentication.getName() == null) {
+
+            throw new BusinessException(
+                    "Authenticated user not found"
+            );
+        }
+
+
+        User user =
+                userRepository
+                        .findByEmailWithRole(
+                                authentication.getName()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "User not found"
+                                )
+                        );
+
+
+        return patientRepository
+                .findByUserIdAndDeletedAtIsNull(
+                        user.getId()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Patient profile not found"
+                        )
+                );
     }
 
-    appointment.setDeletedAt(null);
 
-    appointmentRepository.save(appointment);
+    private Appointment getHospitalScopedAppointment(
+            Long appointmentId) {
 
-    log.info(
-            "Appointment restored: appointmentId={}, hospitalId={}",
-            appointmentId,
-            hospitalId
-    );
-
-    return ApiResponse.<String>builder()
-            .success(true)
-            .message("Appointment restored successfully")
-            .data("Restored")
-            .build();
-}
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
 
 
-    
-@Override
-@Transactional
-public ApiResponse<AppointmentResponse> checkInAppointment(
-        Long appointmentId) {
+        if (hospitalId == null) {
 
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
-
-    if (hospitalId == null) {
-        throw new BusinessException(
-                "Super Admin cannot perform patient check-in"
-        );
-    }
-
-    Appointment appointment =
-            appointmentRepository
-                    .findByIdAndHospitalIdAndDeletedAtIsNull(
-                            appointmentId,
-                            hospitalId
+            return appointmentRepository
+                    .findByIdAndDeletedAtIsNull(
+                            appointmentId
                     )
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
                                     "Appointment not found"
-                            ));
-
-    if (appointment.getStatus() != AppointmentStatus.SCHEDULED
-            && appointment.getStatus() != AppointmentStatus.CONFIRMED) {
-
-        throw new BusinessException(
-                "Only scheduled or confirmed appointments can be checked in"
-        );
-    }
-
-    appointment.setStatus(
-            AppointmentStatus.CHECKED_IN
-    );
-
-    Appointment savedAppointment =
-            appointmentRepository.save(appointment);
-
-    log.info(
-            "Patient checked in: appointmentId={}, hospitalId={}, doctorId={}, patientId={}",
-            appointmentId,
-            hospitalId,
-            appointment.getDoctor().getId(),
-            appointment.getPatient().getId()
-    );
-
-    return ApiResponse.<AppointmentResponse>builder()
-            .success(true)
-            .message("Patient checked in successfully")
-            .data(
-                    appointmentMapper.toResponse(
-                            savedAppointment
-                    )
-            )
-            .build();
-}
-
-
-     
- 
-    
-    
-  @Override
-@Transactional(readOnly = true)
-public ApiResponse<PageResponse<AppointmentResponse>> getTodayAppointments(
-        int page,
-        int size,
-        String sortBy,
-        String sortDir) {
-
-    Long hospitalId =
-            tenantContextService.getCurrentHospitalId();
-
-    if (hospitalId == null) {
-        throw new BusinessException(
-                "Super Admin cannot access hospital-specific appointments"
-        );
-    }
-
-    if (page < 0) {
-        throw new BusinessException(
-                "Page must be greater than or equal to 0"
-        );
-    }
-
-    if (size < 1 || size > 100) {
-        throw new BusinessException(
-                "Page size must be between 1 and 100"
-        );
-    }
-
-    Set<String> allowedSortFields = Set.of(
-            "startTime",
-            "endTime",
-            "appointmentDate",
-            "createdAt"
-    );
-
-    if (!allowedSortFields.contains(sortBy)) {
-        throw new BusinessException(
-                "Invalid sort field: " + sortBy
-        );
-    }
-
-    sortDir = sortDir.trim().toLowerCase();
-
-    if (!sortDir.equals("asc") && !sortDir.equals("desc")) {
-        throw new BusinessException(
-                "Sort direction must be 'asc' or 'desc'"
-        );
-    }
-
-    Sort sort = sortDir.equals("desc")
-            ? Sort.by(sortBy).descending()
-            : Sort.by(sortBy).ascending();
-
-    Pageable pageable =
-            PageRequest.of(page, size, sort);
-
-    Page<Appointment> appointments =
-            appointmentRepository
-                    .findByHospitalIdAndAppointmentDateAndDeletedAtIsNull(
-                            hospitalId,
-                            LocalDate.now(),
-                            pageable
+                            )
                     );
+        }
 
-    List<AppointmentResponse> content =
-            appointments.getContent()
-                    .stream()
-                    .map(appointmentMapper::toResponse)
-                    .toList();
 
-    PageResponse<AppointmentResponse> response =
-            PageResponse.<AppointmentResponse>builder()
-                    .items(content)
-                    .page(appointments.getNumber())
-                    .size(appointments.getSize())
-                    .totalElements(appointments.getTotalElements())
-                    .totalPages(appointments.getTotalPages())
-                    .first(appointments.isFirst())
-                    .last(appointments.isLast())
-                    .hasNext(appointments.hasNext())
-                    .hasPrevious(appointments.hasPrevious())
-                    .build();
+        return appointmentRepository
+                .findByIdAndHospitalIdAndDeletedAtIsNull(
+                        appointmentId,
+                        hospitalId
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Appointment not found"
+                        )
+                );
+    }
 
-    return ApiResponse.<PageResponse<AppointmentResponse>>builder()
-            .success(true)
-            .message("Today's appointments fetched successfully")
-            .data(response)
-            .build();
-}
-  private void validateStatusTransition(
-	        AppointmentStatus currentStatus,
-	        AppointmentStatus newStatus) {
 
-	    if (currentStatus == newStatus) {
-	        throw new BusinessException(
-	                "Appointment is already in " + currentStatus + " status"
-	        );
-	    }
+    private void validatePagination(
+            int page,
+            int size) {
 
-	    if (currentStatus == AppointmentStatus.COMPLETED
-	            || currentStatus == AppointmentStatus.CANCELLED
-	            || currentStatus == AppointmentStatus.NO_SHOW) {
+        if (page < 0) {
 
-	        throw new BusinessException(
-	                "Appointment status cannot be changed from "
-	                        + currentStatus
-	        );
-	    }
+            throw new BusinessException(
+                    "Page must be greater than or equal to 0"
+            );
+        }
 
-	    boolean valid = switch (currentStatus) {
 
-	        case SCHEDULED ->
-	                newStatus == AppointmentStatus.CONFIRMED
-	                        || newStatus == AppointmentStatus.CANCELLED;
+        if (size < 1 || size > 100) {
 
-	        case CONFIRMED ->
-	                newStatus == AppointmentStatus.CHECKED_IN
-	                        || newStatus == AppointmentStatus.CANCELLED
-	                        || newStatus == AppointmentStatus.NO_SHOW;
+            throw new BusinessException(
+                    "Page size must be between 1 and 100"
+            );
+        }
+    }
 
-	        case CHECKED_IN ->
-	                newStatus == AppointmentStatus.COMPLETED;
 
-	        default -> false;
-	    };
+    private ApiResponse<PageResponse<AppointmentResponse>>
+    buildPageResponse(
+            Page<Appointment> appointmentPage,
+            String message) {
 
-	    if (!valid) {
-	        throw new BusinessException(
-	                "Invalid appointment status transition: "
-	                        + currentStatus + " → " + newStatus
-	        );
-	    }
-	}
+        List<AppointmentResponse> items =
+                appointmentPage
+                        .getContent()
+                        .stream()
+                        .map(appointmentMapper::toResponse)
+                        .toList();
+
+
+        PageResponse<AppointmentResponse> response =
+                PageResponse
+                        .<AppointmentResponse>builder()
+                        .items(items)
+                        .page(appointmentPage.getNumber())
+                        .size(appointmentPage.getSize())
+                        .totalElements(
+                                appointmentPage.getTotalElements()
+                        )
+                        .totalPages(
+                                appointmentPage.getTotalPages()
+                        )
+                        .first(
+                                appointmentPage.isFirst()
+                        )
+                        .last(
+                                appointmentPage.isLast()
+                        )
+                        .hasNext(
+                                appointmentPage.hasNext()
+                        )
+                        .hasPrevious(
+                                appointmentPage.hasPrevious()
+                        )
+                        .build();
+
+
+        return ApiResponse
+                .<PageResponse<AppointmentResponse>>builder()
+                .success(true)
+                .message(message)
+                .data(response)
+                .build();
+    }
+
+
+    private void validateStatusTransition(
+            AppointmentStatus currentStatus,
+            AppointmentStatus newStatus) {
+
+        if (currentStatus == newStatus) {
+
+            throw new BusinessException(
+                    "Appointment is already in "
+                            + currentStatus
+                            + " status"
+            );
+        }
+
+
+        if (currentStatus == AppointmentStatus.COMPLETED
+                || currentStatus == AppointmentStatus.CANCELLED
+                || currentStatus == AppointmentStatus.NO_SHOW) {
+
+            throw new BusinessException(
+                    "Appointment status cannot be changed from "
+                            + currentStatus
+            );
+        }
+
+
+        boolean valid =
+                switch (currentStatus) {
+
+                    case SCHEDULED ->
+                            newStatus
+                                    == AppointmentStatus.CONFIRMED
+                                    || newStatus
+                                    == AppointmentStatus.CANCELLED;
+
+                    case CONFIRMED ->
+                            newStatus
+                                    == AppointmentStatus.CHECKED_IN
+                                    || newStatus
+                                    == AppointmentStatus.CANCELLED
+                                    || newStatus
+                                    == AppointmentStatus.NO_SHOW;
+
+                    case CHECKED_IN ->
+                            newStatus
+                                    == AppointmentStatus.COMPLETED;
+
+                    default -> false;
+                };
+
+
+        if (!valid) {
+
+            throw new BusinessException(
+                    "Invalid appointment status transition: "
+                            + currentStatus
+                            + " → "
+                            + newStatus
+            );
+        }
+    }
 }

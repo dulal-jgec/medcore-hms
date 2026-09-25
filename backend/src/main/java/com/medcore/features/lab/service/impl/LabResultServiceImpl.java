@@ -611,11 +611,10 @@ public class LabResultServiceImpl
              * the currently authenticated user.
              */
             boolean isPatient =
-                    patientRepository
-                            .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                                    currentUser.getId(),
-                                    order.getHospital().getId()
-                            )
+            		patientRepository
+            	    .findByUserIdAndDeletedAtIsNull(
+            	        currentUser.getId()
+            	    )
                             .map(
                                     patient ->
                                             order.getPatient() != null

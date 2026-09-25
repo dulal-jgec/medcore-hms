@@ -3,9 +3,9 @@ package com.medcore.features.auth.service.impl;
 import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.DuplicateResourceException;
 import com.medcore.common.exception.ResourceNotFoundException;
+import com.medcore.common.response.ApiResponse;
 import com.medcore.common.security.jwt.JwtProperties;
 import com.medcore.common.security.jwt.JwtService;
-import com.medcore.common.response.ApiResponse;
 
 import com.medcore.features.auth.dto.request.LoginRequest;
 import com.medcore.features.auth.dto.request.RegisterRequest;
@@ -15,9 +15,8 @@ import com.medcore.features.auth.dto.response.UserProfileResponse;
 import com.medcore.features.auth.entity.RefreshToken;
 import com.medcore.features.auth.service.RefreshTokenService;
 
-import com.medcore.features.hospital.entity.Hospital;
-import com.medcore.features.hospital.enums.HospitalStatus;
-import com.medcore.features.hospital.repository.HospitalRepository;
+import com.medcore.features.patient.entity.Patient;
+import com.medcore.features.patient.repository.PatientRepository;
 
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
@@ -31,16 +30,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -55,10 +55,10 @@ class AuthServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
-    private HospitalRepository hospitalRepository;
+    private RoleRepository roleRepository;
 
     @Mock
-    private RoleRepository roleRepository;
+    private PatientRepository patientRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -78,23 +78,11 @@ class AuthServiceImplTest {
     @InjectMocks
     private AuthServiceImpl authService;
 
-    private Hospital hospital;
     private Role patientRole;
     private User user;
 
-
-    // =========================================================
-    // SETUP
-    // =========================================================
-
     @BeforeEach
     void setUp() {
-
-        hospital = new Hospital();
-
-        hospital.setId(1L);
-        hospital.setName("MedCore Hospital");
-        hospital.setStatus(HospitalStatus.ACTIVE);
 
         patientRole = new Role();
 
@@ -108,14 +96,12 @@ class AuthServiceImplTest {
         user.setFullName("Test User");
         user.setPhone("9876543210");
         user.setRole(patientRole);
-        user.setHospital(hospital);
+        user.setHospital(null);
         user.setStatus(UserStatus.ACTIVE);
     }
 
-
     @AfterEach
     void tearDown() {
-
         SecurityContextHolder.clearContext();
     }
 
@@ -135,16 +121,20 @@ class AuthServiceImplTest {
         request.setPhone("9876543210");
         request.setPassword("password123");
         request.setConfirmPassword("password123");
-        request.setHospitalId(1L);
+
+        request.setEmergencyContactName("John Doe");
+        request.setEmergencyContactPhone("9999999999");
+        request.setEmergencyContactRelation("Father");
+
+        request.setDateOfBirth(
+                LocalDate.of(2002, 5, 10)
+        );
 
         when(userRepository.existsByEmail("test@example.com"))
                 .thenReturn(false);
 
         when(userRepository.existsByPhone("9876543210"))
                 .thenReturn(false);
-
-        when(hospitalRepository.findById(1L))
-                .thenReturn(Optional.of(hospital));
 
         when(roleRepository.findByName(RoleName.PATIENT))
                 .thenReturn(Optional.of(patientRole));
@@ -154,6 +144,9 @@ class AuthServiceImplTest {
 
         when(userRepository.save(any(User.class)))
                 .thenReturn(user);
+
+        when(patientRepository.save(any(Patient.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         ApiResponse<String> response =
                 authService.register(request);
@@ -173,6 +166,9 @@ class AuthServiceImplTest {
         verify(userRepository)
                 .save(any(User.class));
 
+        verify(patientRepository)
+                .save(any(Patient.class));
+
         verify(passwordEncoder)
                 .encode("password123");
     }
@@ -188,7 +184,6 @@ class AuthServiceImplTest {
         request.setPhone("9876543210");
         request.setPassword("password123");
         request.setConfirmPassword("different");
-        request.setHospitalId(1L);
 
         assertThrows(
                 BusinessException.class,
@@ -197,9 +192,9 @@ class AuthServiceImplTest {
 
         verifyNoInteractions(
                 userRepository,
-                hospitalRepository,
                 roleRepository,
-                passwordEncoder
+                passwordEncoder,
+                patientRepository
         );
     }
 
@@ -214,7 +209,6 @@ class AuthServiceImplTest {
         request.setPhone("9876543210");
         request.setPassword("password123");
         request.setConfirmPassword("password123");
-        request.setHospitalId(1L);
 
         when(userRepository.existsByEmail("test@example.com"))
                 .thenReturn(true);
@@ -228,9 +222,9 @@ class AuthServiceImplTest {
                 .existsByEmail("test@example.com");
 
         verifyNoInteractions(
-                hospitalRepository,
                 roleRepository,
-                passwordEncoder
+                passwordEncoder,
+                patientRepository
         );
     }
 
@@ -245,7 +239,6 @@ class AuthServiceImplTest {
         request.setPhone("9876543210");
         request.setPassword("password123");
         request.setConfirmPassword("password123");
-        request.setHospitalId(1L);
 
         when(userRepository.existsByEmail("test@example.com"))
                 .thenReturn(false);
@@ -262,111 +255,9 @@ class AuthServiceImplTest {
                 .existsByPhone("9876543210");
 
         verifyNoInteractions(
-                hospitalRepository,
                 roleRepository,
-                passwordEncoder
-        );
-    }
-
-
-    @Test
-    void register_shouldRejectWhenHospitalNotFound() {
-
-        RegisterRequest request =
-                new RegisterRequest();
-
-        request.setEmail("test@example.com");
-        request.setPhone("9876543210");
-        request.setPassword("password123");
-        request.setConfirmPassword("password123");
-        request.setHospitalId(1L);
-
-        when(userRepository.existsByEmail("test@example.com"))
-                .thenReturn(false);
-
-        when(userRepository.existsByPhone("9876543210"))
-                .thenReturn(false);
-
-        when(hospitalRepository.findById(1L))
-                .thenReturn(Optional.empty());
-
-        assertThrows(
-                ResourceNotFoundException.class,
-                () -> authService.register(request)
-        );
-
-        verifyNoInteractions(
-                roleRepository,
-                passwordEncoder
-        );
-    }
-
-
-    @Test
-    void register_shouldRejectInactiveHospital() {
-
-        RegisterRequest request =
-                new RegisterRequest();
-
-        request.setEmail("test@example.com");
-        request.setPhone("9876543210");
-        request.setPassword("password123");
-        request.setConfirmPassword("password123");
-        request.setHospitalId(1L);
-
-        hospital.setStatus(
-                HospitalStatus.INACTIVE
-        );
-
-        when(userRepository.existsByEmail("test@example.com"))
-                .thenReturn(false);
-
-        when(userRepository.existsByPhone("9876543210"))
-                .thenReturn(false);
-
-        when(hospitalRepository.findById(1L))
-                .thenReturn(Optional.of(hospital));
-
-        assertThrows(
-                BusinessException.class,
-                () -> authService.register(request)
-        );
-
-        verifyNoInteractions(
-                roleRepository,
-                passwordEncoder
-        );
-    }
-
-
-    @Test
-    void register_shouldRejectDeletedHospital() {
-
-        RegisterRequest request =
-                new RegisterRequest();
-
-        request.setEmail("test@example.com");
-        request.setPhone("9876543210");
-        request.setPassword("password123");
-        request.setConfirmPassword("password123");
-        request.setHospitalId(1L);
-
-        hospital.setDeletedAt(
-                LocalDateTime.now()
-        );
-
-        when(userRepository.existsByEmail("test@example.com"))
-                .thenReturn(false);
-
-        when(userRepository.existsByPhone("9876543210"))
-                .thenReturn(false);
-
-        when(hospitalRepository.findById(1L))
-                .thenReturn(Optional.of(hospital));
-
-        assertThrows(
-                BusinessException.class,
-                () -> authService.register(request)
+                passwordEncoder,
+                patientRepository
         );
     }
 
@@ -381,16 +272,12 @@ class AuthServiceImplTest {
         request.setPhone("9876543210");
         request.setPassword("password123");
         request.setConfirmPassword("password123");
-        request.setHospitalId(1L);
 
         when(userRepository.existsByEmail("test@example.com"))
                 .thenReturn(false);
 
         when(userRepository.existsByPhone("9876543210"))
                 .thenReturn(false);
-
-        when(hospitalRepository.findById(1L))
-                .thenReturn(Optional.of(hospital));
 
         when(roleRepository.findByName(RoleName.PATIENT))
                 .thenReturn(Optional.empty());
@@ -400,7 +287,10 @@ class AuthServiceImplTest {
                 () -> authService.register(request)
         );
 
-        verifyNoInteractions(passwordEncoder);
+        verifyNoInteractions(
+                passwordEncoder,
+                patientRepository
+        );
     }
 
 
@@ -539,9 +429,7 @@ class AuthServiceImplTest {
                 new RefreshToken();
 
         refreshToken.setUser(user);
-
         refreshToken.setRevoked(false);
-
         refreshToken.setExpiryDate(
                 LocalDateTime.now().plusDays(1)
         );
@@ -667,51 +555,80 @@ class AuthServiceImplTest {
     // =========================================================
 
     @Test
-void getCurrentUser_shouldReturnUserProfile() {
+    void getCurrentUser_shouldReturnUserProfile() {
 
-    Authentication authentication =
-            mock(Authentication.class);
+        Authentication authentication =
+                mock(Authentication.class);
 
-    when(authentication.getName())
-            .thenReturn("test@example.com");
+        when(authentication.getName())
+                .thenReturn("test@example.com");
 
-    SecurityContextHolder
-            .getContext()
-            .setAuthentication(authentication);
+        SecurityContextHolder
+                .getContext()
+                .setAuthentication(authentication);
 
-    when(userRepository.findByEmail("test@example.com"))
-            .thenReturn(Optional.of(user));
+        when(userRepository
+                .findWithRoleAndHospitalByEmail(
+                        "test@example.com"
+                ))
+                .thenReturn(Optional.of(user));
 
-    ApiResponse<UserProfileResponse> response =
-            authService.getCurrentUser();
+        ApiResponse<UserProfileResponse> response =
+                authService.getCurrentUser();
 
-    assertTrue(response.isSuccess());
+        assertTrue(response.isSuccess());
 
-    assertEquals(
-            100L,
-            response.getData().getId()
-    );
+        assertEquals(
+                100L,
+                response.getData().getId()
+        );
 
-    assertEquals(
-            "Test User",
-            response.getData().getFullName()
-    );
+        assertEquals(
+                "Test User",
+                response.getData().getFullName()
+        );
 
-    assertEquals(
-            "test@example.com",
-            response.getData().getEmail()
-    );
+        assertEquals(
+                "test@example.com",
+                response.getData().getEmail()
+        );
 
-    assertEquals(
-            "PATIENT",
-            response.getData().getRole()
-    );
+        assertEquals(
+                "PATIENT",
+                response.getData().getRole()
+        );
 
-    assertEquals(
-            "MedCore Hospital",
-            response.getData().getHospitalName()
-    );
-}
+        // Patient has no hospital now
+        assertNull(
+                response.getData().getHospitalName()
+        );
+    }
+
+
+    @Test
+    void getCurrentUser_shouldThrowWhenUserNotFound() {
+
+        Authentication authentication =
+                mock(Authentication.class);
+
+        when(authentication.getName())
+                .thenReturn("test@example.com");
+
+        SecurityContextHolder
+                .getContext()
+                .setAuthentication(authentication);
+
+        when(userRepository
+                .findWithRoleAndHospitalByEmail(
+                        "test@example.com"
+                ))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> authService.getCurrentUser()
+        );
+    }
 
 
     // =========================================================
@@ -725,15 +642,11 @@ void getCurrentUser_shouldReturnUserProfile() {
                 mock(Authentication.class);
 
         when(authentication.getName())
-                .thenReturn(
-                        "test@example.com"
-                );
+                .thenReturn("test@example.com");
 
         SecurityContextHolder
                 .getContext()
-                .setAuthentication(
-                        authentication
-                );
+                .setAuthentication(authentication);
 
         when(userRepository.findByEmail(
                 "test@example.com"

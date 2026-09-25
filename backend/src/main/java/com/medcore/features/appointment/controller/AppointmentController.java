@@ -5,10 +5,14 @@ import com.medcore.common.response.PageResponse;
 import com.medcore.features.appointment.dto.request.CreateAppointmentRequest;
 import com.medcore.features.appointment.dto.request.UpdateAppointmentStatusRequest;
 import com.medcore.features.appointment.dto.response.AppointmentResponse;
+import com.medcore.features.appointment.dto.response.AvailableSlotResponse;
 import com.medcore.features.appointment.service.AppointmentService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -264,6 +268,24 @@ public class AppointmentController {
         return ResponseEntity.ok(
                 appointmentService.restoreAppointment(
                         appointmentId
+                )
+        );
+    }
+    
+ // AVAILABLE APPOINTMENT SLOTS
+
+    @GetMapping("/available-slots")
+    public ResponseEntity<ApiResponse<List<AvailableSlotResponse>>>
+    getAvailableSlots(
+
+            @RequestParam Long doctorId,
+
+            @RequestParam LocalDate appointmentDate) {
+
+        return ResponseEntity.ok(
+                appointmentService.getAvailableSlots(
+                        doctorId,
+                        appointmentDate
                 )
         );
     }

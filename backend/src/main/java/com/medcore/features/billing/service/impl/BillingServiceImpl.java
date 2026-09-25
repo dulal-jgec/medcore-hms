@@ -121,14 +121,13 @@ public class BillingServiceImpl
                 );
             }
 
-            if (appointment.getPatient().getHospital() == null
-                    || !appointment.getPatient()
-                    .getHospital()
+            if (appointment.getHospital() == null
+                    || !appointment.getHospital()
                     .getId()
                     .equals(hospitalId)) {
 
                 throw new BusinessException(
-                        "Patient does not belong to the current hospital"
+                        "You are not authorized to access this appointment"
                 );
             }
         }

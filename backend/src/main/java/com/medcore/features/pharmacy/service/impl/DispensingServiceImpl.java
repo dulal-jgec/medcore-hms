@@ -88,9 +88,9 @@ public class DispensingServiceImpl
 
         Patient patient =
                 patientRepository
-                        .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                                currentUser.getId(),
-                                hospitalId
+                        .findByUserIdAndDeletedAtIsNull(
+                                currentUser.getId()
+                                 
                         )
                         .orElseThrow(() ->
                                 new BusinessException(

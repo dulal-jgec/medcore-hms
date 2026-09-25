@@ -34,7 +34,9 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+
 import com.medcore.common.cache.TenantCacheEvictService;
+
 @ExtendWith(MockitoExtension.class)
 class DepartmentServiceImplTest {
 
@@ -49,7 +51,7 @@ class DepartmentServiceImplTest {
 
     @Mock
     private TenantContextService tenantContextService;
-    
+
     @Mock
     private TenantCacheEvictService tenantCacheEvictService;
 
@@ -96,11 +98,17 @@ class DepartmentServiceImplTest {
                 .build();
     }
 
+    // ============================================================
+    // CREATE DEPARTMENT
+    // ============================================================
+
     @Test
     void createDepartment_shouldCreateSuccessfully() {
 
-        CreateDepartmentRequest request = new CreateDepartmentRequest();
-         request.setName("Cardiology");
+        CreateDepartmentRequest request =
+                new CreateDepartmentRequest();
+
+        request.setName("Cardiology");
         request.setCode("CARD");
         request.setDescription("Heart department");
 
@@ -111,11 +119,13 @@ class DepartmentServiceImplTest {
                 .thenReturn(Optional.of(hospital));
 
         when(departmentRepository.existsByHospitalIdAndNameIgnoreCase(
-                1L, "Cardiology"))
+                1L,
+                "Cardiology"))
                 .thenReturn(false);
 
         when(departmentRepository.existsByHospitalIdAndCodeIgnoreCase(
-                1L, "CARD"))
+                1L,
+                "CARD"))
                 .thenReturn(false);
 
         when(departmentMapper.toEntity(request, hospital))
@@ -131,33 +141,49 @@ class DepartmentServiceImplTest {
                 departmentService.createDepartment(request);
 
         assertTrue(result.isSuccess());
-        assertEquals("Department created successfully", result.getMessage());
-        assertEquals(response, result.getData());
 
-        verify(departmentRepository).save(department);
+        assertEquals(
+                "Department created successfully",
+                result.getMessage()
+        );
+
+        assertEquals(
+                response,
+                result.getData()
+        );
+
+        verify(departmentRepository)
+                .save(department);
     }
 
     @Test
-    void createDepartment_shouldRejectDifferentHospital() {
+    void createDepartment_shouldRejectWhenHospitalContextMissing() {
 
-        CreateDepartmentRequest request = new CreateDepartmentRequest();
- 
+        CreateDepartmentRequest request =
+                new CreateDepartmentRequest();
+
         when(tenantContextService.getCurrentHospitalId())
-                .thenReturn(1L);
+                .thenReturn(null);
 
         assertThrows(
                 BusinessException.class,
                 () -> departmentService.createDepartment(request)
         );
 
+        verify(tenantContextService)
+                .getCurrentHospitalId();
+
         verifyNoInteractions(hospitalRepository);
+        verifyNoInteractions(departmentRepository);
     }
 
     @Test
     void createDepartment_shouldRejectDuplicateName() {
 
-        CreateDepartmentRequest request = new CreateDepartmentRequest();
-         request.setName("Cardiology");
+        CreateDepartmentRequest request =
+                new CreateDepartmentRequest();
+
+        request.setName("Cardiology");
         request.setCode("CARD");
 
         when(tenantContextService.getCurrentHospitalId())
@@ -167,7 +193,8 @@ class DepartmentServiceImplTest {
                 .thenReturn(Optional.of(hospital));
 
         when(departmentRepository.existsByHospitalIdAndNameIgnoreCase(
-                1L, "Cardiology"))
+                1L,
+                "Cardiology"))
                 .thenReturn(true);
 
         assertThrows(
@@ -175,14 +202,17 @@ class DepartmentServiceImplTest {
                 () -> departmentService.createDepartment(request)
         );
 
-        verify(departmentRepository, never()).save(any());
+        verify(departmentRepository, never())
+                .save(any());
     }
 
     @Test
     void createDepartment_shouldRejectDuplicateCode() {
 
-        CreateDepartmentRequest request = new CreateDepartmentRequest();
-         request.setName("Cardiology");
+        CreateDepartmentRequest request =
+                new CreateDepartmentRequest();
+
+        request.setName("Cardiology");
         request.setCode("CARD");
 
         when(tenantContextService.getCurrentHospitalId())
@@ -192,11 +222,13 @@ class DepartmentServiceImplTest {
                 .thenReturn(Optional.of(hospital));
 
         when(departmentRepository.existsByHospitalIdAndNameIgnoreCase(
-                1L, "Cardiology"))
+                1L,
+                "Cardiology"))
                 .thenReturn(false);
 
         when(departmentRepository.existsByHospitalIdAndCodeIgnoreCase(
-                1L, "CARD"))
+                1L,
+                "CARD"))
                 .thenReturn(true);
 
         assertThrows(
@@ -204,14 +236,16 @@ class DepartmentServiceImplTest {
                 () -> departmentService.createDepartment(request)
         );
 
-        verify(departmentRepository, never()).save(any());
+        verify(departmentRepository, never())
+                .save(any());
     }
 
     @Test
     void createDepartment_shouldThrowWhenHospitalNotFound() {
 
-        CreateDepartmentRequest request = new CreateDepartmentRequest();
- 
+        CreateDepartmentRequest request =
+                new CreateDepartmentRequest();
+
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
 
@@ -224,6 +258,10 @@ class DepartmentServiceImplTest {
         );
     }
 
+    // ============================================================
+    // GET DEPARTMENT BY ID
+    // ============================================================
+
     @Test
     void getDepartmentById_shouldReturnDepartment() {
 
@@ -231,7 +269,8 @@ class DepartmentServiceImplTest {
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalIdAndDeletedAtIsNull(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.of(department));
 
         when(departmentMapper.toResponse(department))
@@ -251,7 +290,8 @@ class DepartmentServiceImplTest {
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalIdAndDeletedAtIsNull(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.empty());
 
         assertThrows(
@@ -259,6 +299,10 @@ class DepartmentServiceImplTest {
                 () -> departmentService.getDepartmentById(10L)
         );
     }
+
+    // ============================================================
+    // UPDATE DEPARTMENT
+    // ============================================================
 
     @Test
     void updateDepartment_shouldUpdateSuccessfully() {
@@ -274,15 +318,18 @@ class DepartmentServiceImplTest {
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalIdAndDeletedAtIsNull(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.of(department));
 
         when(departmentRepository.existsByHospitalIdAndNameIgnoreCase(
-                1L, "Neurology"))
+                1L,
+                "Neurology"))
                 .thenReturn(false);
 
         when(departmentRepository.existsByHospitalIdAndCodeIgnoreCase(
-                1L, "NEUR"))
+                1L,
+                "NEUR"))
                 .thenReturn(false);
 
         when(departmentRepository.save(department))
@@ -292,12 +339,18 @@ class DepartmentServiceImplTest {
                 .thenReturn(response);
 
         ApiResponse<DepartmentResponse> result =
-                departmentService.updateDepartment(10L, request);
+                departmentService.updateDepartment(
+                        10L,
+                        request
+                );
 
         assertTrue(result.isSuccess());
 
         verify(departmentMapper)
-                .updateEntity(department, request);
+                .updateEntity(
+                        department,
+                        request
+                );
 
         verify(departmentRepository)
                 .save(department);
@@ -316,19 +369,25 @@ class DepartmentServiceImplTest {
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalIdAndDeletedAtIsNull(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.of(department));
 
         when(departmentRepository.existsByHospitalIdAndNameIgnoreCase(
-                1L, "Neurology"))
+                1L,
+                "Neurology"))
                 .thenReturn(true);
 
         assertThrows(
                 DuplicateResourceException.class,
-                () -> departmentService.updateDepartment(10L, request)
+                () -> departmentService.updateDepartment(
+                        10L,
+                        request
+                )
         );
 
-        verify(departmentRepository, never()).save(any());
+        verify(departmentRepository, never())
+                .save(any());
     }
 
     @Test
@@ -344,24 +403,35 @@ class DepartmentServiceImplTest {
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalIdAndDeletedAtIsNull(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.of(department));
 
         when(departmentRepository.existsByHospitalIdAndNameIgnoreCase(
-                1L, "Neurology"))
+                1L,
+                "Neurology"))
                 .thenReturn(false);
 
         when(departmentRepository.existsByHospitalIdAndCodeIgnoreCase(
-                1L, "NEUR"))
+                1L,
+                "NEUR"))
                 .thenReturn(true);
 
         assertThrows(
                 DuplicateResourceException.class,
-                () -> departmentService.updateDepartment(10L, request)
+                () -> departmentService.updateDepartment(
+                        10L,
+                        request
+                )
         );
 
-        verify(departmentRepository, never()).save(any());
+        verify(departmentRepository, never())
+                .save(any());
     }
+
+    // ============================================================
+    // UPDATE STATUS
+    // ============================================================
 
     @Test
     void updateDepartmentStatus_shouldUpdateSuccessfully() {
@@ -369,13 +439,16 @@ class DepartmentServiceImplTest {
         UpdateDepartmentStatusRequest request =
                 new UpdateDepartmentStatusRequest();
 
-        request.setStatus(DepartmentStatus.INACTIVE);
+        request.setStatus(
+                DepartmentStatus.INACTIVE
+        );
 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalIdAndDeletedAtIsNull(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.of(department));
 
         when(departmentRepository.save(department))
@@ -385,15 +458,20 @@ class DepartmentServiceImplTest {
                 .thenReturn(response);
 
         ApiResponse<DepartmentResponse> result =
-                departmentService.updateDepartmentStatus(10L, request);
+                departmentService.updateDepartmentStatus(
+                        10L,
+                        request
+                );
 
         assertTrue(result.isSuccess());
+
         assertEquals(
                 DepartmentStatus.INACTIVE,
                 department.getStatus()
         );
 
-        verify(departmentRepository).save(department);
+        verify(departmentRepository)
+                .save(department);
     }
 
     @Test
@@ -406,22 +484,33 @@ class DepartmentServiceImplTest {
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalIdAndDeletedAtIsNull(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.of(department));
 
         assertThrows(
                 BusinessException.class,
-                () -> departmentService.updateDepartmentStatus(10L, request)
+                () -> departmentService.updateDepartmentStatus(
+                        10L,
+                        request
+                )
         );
 
-        verify(departmentRepository, never()).save(any());
+        verify(departmentRepository, never())
+                .save(any());
     }
+
+    // ============================================================
+    // GET ALL DEPARTMENTS
+    // ============================================================
 
     @Test
     void getAllDepartments_shouldReturnPagedDepartments() {
 
         Page<Department> page =
-                new PageImpl<>(List.of(department));
+                new PageImpl<>(
+                        List.of(department)
+                );
 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
@@ -443,6 +532,7 @@ class DepartmentServiceImplTest {
                 );
 
         assertTrue(result.isSuccess());
+
         assertEquals(
                 1,
                 result.getData().getItems().size()
@@ -506,11 +596,17 @@ class DepartmentServiceImplTest {
         );
     }
 
+    // ============================================================
+    // SEARCH
+    // ============================================================
+
     @Test
     void searchDepartments_shouldReturnResults() {
 
         Page<Department> page =
-                new PageImpl<>(List.of(department));
+                new PageImpl<>(
+                        List.of(department)
+                );
 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
@@ -533,6 +629,7 @@ class DepartmentServiceImplTest {
                 );
 
         assertTrue(result.isSuccess());
+
         assertEquals(
                 1,
                 result.getData().getItems().size()
@@ -555,6 +652,10 @@ class DepartmentServiceImplTest {
         );
     }
 
+    // ============================================================
+    // DELETE
+    // ============================================================
+
     @Test
     void deleteDepartment_shouldSoftDelete() {
 
@@ -562,7 +663,8 @@ class DepartmentServiceImplTest {
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalIdAndDeletedAtIsNull(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.of(department));
 
         when(departmentRepository.save(department))
@@ -572,22 +674,37 @@ class DepartmentServiceImplTest {
                 departmentService.deleteDepartment(10L);
 
         assertTrue(result.isSuccess());
-        assertEquals("Deleted", result.getData());
-        assertNotNull(department.getDeletedAt());
 
-        verify(departmentRepository).save(department);
+        assertEquals(
+                "Deleted",
+                result.getData()
+        );
+
+        assertNotNull(
+                department.getDeletedAt()
+        );
+
+        verify(departmentRepository)
+                .save(department);
     }
+
+    // ============================================================
+    // RESTORE
+    // ============================================================
 
     @Test
     void restoreDepartment_shouldRestoreSuccessfully() {
 
-        department.setDeletedAt(LocalDateTime.now());
+        department.setDeletedAt(
+                LocalDateTime.now()
+        );
 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalId(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.of(department));
 
         when(departmentRepository.save(department))
@@ -597,10 +714,18 @@ class DepartmentServiceImplTest {
                 departmentService.restoreDepartment(10L);
 
         assertTrue(result.isSuccess());
-        assertEquals("Restored", result.getData());
-        assertNull(department.getDeletedAt());
 
-        verify(departmentRepository).save(department);
+        assertEquals(
+                "Restored",
+                result.getData()
+        );
+
+        assertNull(
+                department.getDeletedAt()
+        );
+
+        verify(departmentRepository)
+                .save(department);
     }
 
     @Test
@@ -612,7 +737,8 @@ class DepartmentServiceImplTest {
                 .thenReturn(1L);
 
         when(departmentRepository.findByIdAndHospitalId(
-                10L, 1L))
+                10L,
+                1L))
                 .thenReturn(Optional.of(department));
 
         assertThrows(
@@ -620,6 +746,7 @@ class DepartmentServiceImplTest {
                 () -> departmentService.restoreDepartment(10L)
         );
 
-        verify(departmentRepository, never()).save(any());
+        verify(departmentRepository, never())
+                .save(any());
     }
 }

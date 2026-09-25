@@ -21,13 +21,8 @@ public class DoctorScheduleController {
 
     private final DoctorScheduleService doctorScheduleService;
 
-
-    // =========================================================
-    // HOSPITAL ADMIN
-    // =========================================================
-
     @PostMapping
-    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'DOCTOR')")
     public ResponseEntity<ApiResponse<DoctorScheduleResponse>> createSchedule(
             @Valid @RequestBody CreateDoctorScheduleRequest request) {
 
@@ -38,9 +33,8 @@ public class DoctorScheduleController {
                 );
     }
 
-
     @PutMapping("/{scheduleId}")
-    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'DOCTOR')")
     public ResponseEntity<ApiResponse<DoctorScheduleResponse>> updateSchedule(
             @PathVariable Long scheduleId,
             @Valid @RequestBody UpdateDoctorScheduleRequest request) {
@@ -53,9 +47,8 @@ public class DoctorScheduleController {
         );
     }
 
-
     @DeleteMapping("/{scheduleId}")
-    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'DOCTOR')")
     public ResponseEntity<ApiResponse<String>> deleteSchedule(
             @PathVariable Long scheduleId) {
 
@@ -63,11 +56,6 @@ public class DoctorScheduleController {
                 doctorScheduleService.deleteSchedule(scheduleId)
         );
     }
-
-
-    // =========================================================
-    // HOSPITAL ADMIN + DOCTOR
-    // =========================================================
 
     @GetMapping("/doctor/{doctorId}")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'DOCTOR')")

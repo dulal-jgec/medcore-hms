@@ -1,7 +1,6 @@
 package com.medcore.features.auth.mapper;
 
 import com.medcore.features.auth.dto.request.RegisterRequest;
-import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.UserStatus;
@@ -13,7 +12,6 @@ public class AuthMapper {
 
     public static User toUser(
             RegisterRequest request,
-            Hospital hospital,
             Role role,
             String encodedPassword,
             String email) {
@@ -32,7 +30,6 @@ public class AuthMapper {
                 .maritalStatus(request.getMaritalStatus())
 
                 .password(encodedPassword)
-                .hospital(hospital)
                 .role(role)
                 .status(UserStatus.PENDING_VERIFICATION)
                 .emailVerified(false)

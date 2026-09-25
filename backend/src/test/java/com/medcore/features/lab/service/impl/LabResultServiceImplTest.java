@@ -42,7 +42,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
-
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
@@ -50,7 +49,6 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-
 
 @ExtendWith(MockitoExtension.class)
 class LabResultServiceImplTest {
@@ -98,7 +96,6 @@ class LabResultServiceImplTest {
     private Patient patient;
     private Hospital hospital;
 
-
     @BeforeEach
     void setUp() {
 
@@ -118,7 +115,6 @@ class LabResultServiceImplTest {
                 .build();
     }
 
-
     // ============================================================
     // HELPER METHODS
     // ============================================================
@@ -132,7 +128,6 @@ class LabResultServiceImplTest {
                 .thenReturn(RoleName.LAB_TECHNICIAN);
     }
 
-
     private void mockDoctorRole() {
 
         when(user.getRole())
@@ -141,7 +136,6 @@ class LabResultServiceImplTest {
         when(role.getName())
                 .thenReturn(RoleName.DOCTOR);
     }
-
 
     private void mockPatientRole() {
 
@@ -152,7 +146,6 @@ class LabResultServiceImplTest {
                 .thenReturn(RoleName.PATIENT);
     }
 
-
     private void mockSuperAdminRole() {
 
         when(user.getRole())
@@ -162,13 +155,11 @@ class LabResultServiceImplTest {
                 .thenReturn(RoleName.SUPER_ADMIN);
     }
 
-
     private void mockCurrentUser(String email) {
 
         when(userRepository.findByEmail(email))
                 .thenReturn(Optional.of(user));
     }
-
 
     private void mockLabOrderItem() {
 
@@ -179,7 +170,6 @@ class LabResultServiceImplTest {
         when(orderItem.getLabOrder())
                 .thenReturn(labOrder);
     }
-
 
     private void mockHospital(
             Long currentHospitalId,
@@ -195,7 +185,6 @@ class LabResultServiceImplTest {
                 .thenReturn(orderHospitalId);
     }
 
-
     private CreateLabResultRequest createRequest() {
 
         CreateLabResultRequest request =
@@ -210,7 +199,6 @@ class LabResultServiceImplTest {
         return request;
     }
 
-
     // ============================================================
     // CREATE RESULT
     // ============================================================
@@ -218,8 +206,7 @@ class LabResultServiceImplTest {
     @Test
     void createResult_shouldCreateSuccessfullyAndCompleteOrder() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -302,12 +289,10 @@ class LabResultServiceImplTest {
         ).existsByLabOrderItemIdAndDeletedAtIsNull(10L);
     }
 
-
     @Test
     void createResult_shouldCreateSuccessfullyWhenResultsArePending() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -380,12 +365,10 @@ class LabResultServiceImplTest {
                 .evictLabOrders();
     }
 
-
     @Test
     void createResult_shouldThrowWhenCurrentUserNotFound() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         when(userRepository.findByEmail("lab@medcore.com"))
                 .thenReturn(Optional.empty());
@@ -410,12 +393,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void createResult_shouldRejectNonLabTechnician() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("doctor@medcore.com");
         mockDoctorRole();
@@ -440,12 +421,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void createResult_shouldRejectNullRole() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("user@medcore.com");
 
@@ -471,12 +450,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labOrderItemRepository);
     }
 
-
     @Test
     void createResult_shouldThrowWhenItemNotFound() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -504,12 +481,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void createResult_shouldRejectItemWithoutLabOrder() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -540,12 +515,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void createResult_shouldRejectWrongHospital() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -571,12 +544,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void createResult_shouldRejectNullHospitalForTenantUser() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -607,12 +578,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void createResult_shouldRejectNonProcessingOrder() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -641,12 +610,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void createResult_shouldRejectDuplicateResult() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -683,7 +650,6 @@ class LabResultServiceImplTest {
 
         verifyNoInteractions(tenantCacheEvictService);
     }
-
 
     // ============================================================
     // GET RESULT
@@ -745,7 +711,6 @@ class LabResultServiceImplTest {
                 .toResponse(labResult);
     }
 
-
     @Test
     void getResult_shouldReturnResultForPatient() {
 
@@ -765,10 +730,7 @@ class LabResultServiceImplTest {
                 .thenReturn(300L);
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        200L,
-                        1L
-                ))
+                .findByUserIdAndDeletedAtIsNull(200L))
                 .thenReturn(Optional.of(patient));
 
         when(labResultRepository
@@ -801,7 +763,6 @@ class LabResultServiceImplTest {
             );
         }
     }
-
 
     @Test
     void getResult_shouldReturnResultForLabTechnician() {
@@ -840,7 +801,6 @@ class LabResultServiceImplTest {
         verifyNoInteractions(doctorRepository);
         verifyNoInteractions(patientRepository);
     }
-
 
     @Test
     void getResult_shouldReturnResultForSuperAdminWithoutHospitalContext() {
@@ -882,7 +842,6 @@ class LabResultServiceImplTest {
         verifyNoInteractions(patientRepository);
     }
 
-
     @Test
     void getResult_shouldRejectNonSuperAdminWithoutHospitalContext() {
 
@@ -909,7 +868,6 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void getResult_shouldThrowWhenCurrentUserNotFound() {
 
@@ -932,7 +890,6 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labOrderItemRepository);
         verifyNoInteractions(labResultRepository);
     }
-
 
     @Test
     void getResult_shouldThrowWhenItemNotFound() {
@@ -958,7 +915,6 @@ class LabResultServiceImplTest {
 
         verifyNoInteractions(labResultRepository);
     }
-
 
     @Test
     void getResult_shouldRejectItemWithoutLabOrder() {
@@ -988,7 +944,6 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void getResult_shouldRejectWrongHospital() {
 
@@ -1014,7 +969,6 @@ class LabResultServiceImplTest {
         verifyNoInteractions(patientRepository);
         verifyNoInteractions(labResultRepository);
     }
-
 
     @Test
     void getResult_shouldRejectDoctorWhoDoesNotOwnOrder() {
@@ -1060,39 +1014,37 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void getResult_shouldRejectDoctorWhenDoctorProfileNotFound() {
 
-    mockCurrentUser("doctor@medcore.com");
-    mockDoctorRole();
+        mockCurrentUser("doctor@medcore.com");
+        mockDoctorRole();
 
-    when(user.getId())
-            .thenReturn(100L);
+        when(user.getId())
+                .thenReturn(100L);
 
-    mockLabOrderItem();
-    mockHospital(1L, 1L);
+        mockLabOrderItem();
+        mockHospital(1L, 1L);
 
-    when(doctorRepository
-            .findByUserIdAndDeletedAtIsNull(100L))
-            .thenReturn(Optional.empty());
+        when(doctorRepository
+                .findByUserIdAndDeletedAtIsNull(100L))
+                .thenReturn(Optional.empty());
 
-    try (MockedStatic<SecurityUtil> securityMock =
-                 mockStatic(SecurityUtil.class)) {
+        try (MockedStatic<SecurityUtil> securityMock =
+                     mockStatic(SecurityUtil.class)) {
 
-        securityMock
-                .when(SecurityUtil::getCurrentUsername)
-                .thenReturn("doctor@medcore.com");
+            securityMock
+                    .when(SecurityUtil::getCurrentUsername)
+                    .thenReturn("doctor@medcore.com");
 
-        assertThrows(
-                BusinessException.class,
-                () -> labResultService.getResult(10L)
-        );
+            assertThrows(
+                    BusinessException.class,
+                    () -> labResultService.getResult(10L)
+            );
+        }
+
+        verifyNoInteractions(labResultRepository);
     }
-
-    verifyNoInteractions(labResultRepository);
-}
-
 
     @Test
     void getResult_shouldRejectPatientWhoDoesNotOwnOrder() {
@@ -1119,10 +1071,7 @@ class LabResultServiceImplTest {
                 .thenReturn(999L);
 
         when(patientRepository
-                .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                        200L,
-                        1L
-                ))
+                .findByUserIdAndDeletedAtIsNull(200L))
                 .thenReturn(Optional.of(anotherPatient));
 
         try (MockedStatic<SecurityUtil> securityMock =
@@ -1141,42 +1090,37 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void getResult_shouldRejectPatientWhenPatientProfileNotFound() {
 
-    mockCurrentUser("patient@medcore.com");
-    mockPatientRole();
+        mockCurrentUser("patient@medcore.com");
+        mockPatientRole();
 
-    when(user.getId())
-            .thenReturn(200L);
+        when(user.getId())
+                .thenReturn(200L);
 
-    mockLabOrderItem();
-    mockHospital(1L, 1L);
+        mockLabOrderItem();
+        mockHospital(1L, 1L);
 
-    when(patientRepository
-            .findByUserIdAndHospitalIdAndDeletedAtIsNull(
-                    200L,
-                    1L
-            ))
-            .thenReturn(Optional.empty());
+        when(patientRepository
+                .findByUserIdAndDeletedAtIsNull(200L))
+                .thenReturn(Optional.empty());
 
-    try (MockedStatic<SecurityUtil> securityMock =
-                 mockStatic(SecurityUtil.class)) {
+        try (MockedStatic<SecurityUtil> securityMock =
+                     mockStatic(SecurityUtil.class)) {
 
-        securityMock
-                .when(SecurityUtil::getCurrentUsername)
-                .thenReturn("patient@medcore.com");
+            securityMock
+                    .when(SecurityUtil::getCurrentUsername)
+                    .thenReturn("patient@medcore.com");
 
-        assertThrows(
-                BusinessException.class,
-                () -> labResultService.getResult(10L)
-        );
+            assertThrows(
+                    BusinessException.class,
+                    () -> labResultService.getResult(10L)
+            );
+        }
+
+        verifyNoInteractions(labResultRepository);
     }
-
-    verifyNoInteractions(labResultRepository);
-}
-
 
     @Test
     void getResult_shouldRejectUnauthorizedUser() {
@@ -1209,7 +1153,6 @@ class LabResultServiceImplTest {
         verifyNoInteractions(doctorRepository);
         verifyNoInteractions(patientRepository);
     }
-
 
     @Test
     void getResult_shouldThrowWhenResultNotFound() {
@@ -1251,13 +1194,14 @@ class LabResultServiceImplTest {
         }
     }
 
+    // ============================================================
+    // UPDATE RESULT
+    // ============================================================
 
-       
     @Test
     void updateResult_shouldUpdateSuccessfully() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         request.setResultValue("150");
         request.setRemarks("Updated");
@@ -1334,12 +1278,10 @@ class LabResultServiceImplTest {
                 .evictLabOrders();
     }
 
-
     @Test
     void updateResult_shouldSetAbnormalFalseWhenRequestAbnormalIsNull() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         request.setResultValue("150");
         request.setRemarks("Updated");
@@ -1386,12 +1328,10 @@ class LabResultServiceImplTest {
                 .save(labResult);
     }
 
-
     @Test
     void updateResult_shouldRejectNonLabTechnician() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("doctor@medcore.com");
         mockDoctorRole();
@@ -1416,12 +1356,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void updateResult_shouldThrowWhenCurrentUserNotFound() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         when(userRepository.findByEmail("lab@medcore.com"))
                 .thenReturn(Optional.empty());
@@ -1446,12 +1384,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void updateResult_shouldThrowWhenItemNotFound() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -1479,12 +1415,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void updateResult_shouldRejectItemWithoutLabOrder() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -1515,12 +1449,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void updateResult_shouldRejectWrongHospital() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -1546,12 +1478,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void updateResult_shouldRejectNullHospitalForTenantUser() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -1582,12 +1512,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void updateResult_shouldRejectNonProcessingOrder() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
@@ -1616,12 +1544,10 @@ class LabResultServiceImplTest {
         verifyNoInteractions(labResultRepository);
     }
 
-
     @Test
     void updateResult_shouldThrowWhenResultNotFound() {
 
-        CreateLabResultRequest request =
-                createRequest();
+        CreateLabResultRequest request = createRequest();
 
         mockCurrentUser("lab@medcore.com");
         mockLabTechnician();
