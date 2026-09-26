@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -30,9 +30,24 @@ const BLOOD_GROUPS = [
   { value: "O_POSITIVE", label: "O+" },
   { value: "O_NEGATIVE", label: "O-" },
 ];
+
 const GENDERS = ["Male", "Female", "Other"];
 
 export default function RegisterPatientPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-brand" />
+        </div>
+      }
+    >
+      <RegisterPatientContent />
+    </Suspense>
+  );
+}
+
+function RegisterPatientContent() {
   const router = useRouter();
   const params = useSearchParams();
   const returnTo = params.get("returnTo");
@@ -213,7 +228,9 @@ export default function RegisterPatientPage() {
               >
                 <option value="">Select gender</option>
                 {GENDERS.map((g) => (
-                  <option key={g} value={g}>{g}</option>
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -251,7 +268,9 @@ export default function RegisterPatientPage() {
             <Field label="Relationship">
               <Input
                 value={form.emergencyContactRelation}
-                onChange={(e) => update("emergencyContactRelation", e.target.value)}
+                onChange={(e) =>
+                  update("emergencyContactRelation", e.target.value)
+                }
                 placeholder="e.g. Spouse"
                 className="h-11"
               />
@@ -259,7 +278,9 @@ export default function RegisterPatientPage() {
             <Field label="Phone">
               <Input
                 value={form.emergencyContactPhone}
-                onChange={(e) => update("emergencyContactPhone", e.target.value)}
+                onChange={(e) =>
+                  update("emergencyContactPhone", e.target.value)
+                }
                 placeholder="+91 90000 00000"
                 className="h-11"
               />
