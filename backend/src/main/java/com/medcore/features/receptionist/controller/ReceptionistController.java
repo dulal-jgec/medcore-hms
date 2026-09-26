@@ -6,6 +6,7 @@ import com.medcore.features.appointment.dto.response.AppointmentResponse;
 import com.medcore.features.patient.dto.request.CreatePatientRequest;
 import com.medcore.features.patient.dto.response.PatientResponse;
 import com.medcore.features.receptionist.dto.request.CreateReceptionistRequest;
+import com.medcore.features.receptionist.dto.request.CreateWalkInPatientRequest;
 import com.medcore.features.receptionist.dto.request.UpdateReceptionistRequest;
 import com.medcore.features.receptionist.dto.response.ReceptionistResponse;
 import com.medcore.features.receptionist.service.ReceptionistService;
@@ -36,6 +37,15 @@ public class ReceptionistController {
             @Valid @RequestBody CreateReceptionistRequest request) {
 
         return receptionistService.createReceptionist(request);
+    }
+    
+    @PostMapping("/patients/walk-in")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('RECEPTIONIST')")
+    public ApiResponse<PatientResponse> registerWalkInPatient(
+            @Valid @RequestBody CreateWalkInPatientRequest request) {
+
+        return receptionistService.registerWalkInPatient(request);
     }
     
     @PreAuthorize("hasRole('RECEPTIONIST')")

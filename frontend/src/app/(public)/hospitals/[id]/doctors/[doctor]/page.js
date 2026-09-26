@@ -4,19 +4,17 @@ import {
   ArrowLeft,
   Award,
   Briefcase,
-  Calendar,
   Clock,
   GraduationCap,
   Languages,
-  Mail,
-  Phone,
   ShieldCheck,
   Stethoscope,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { getPublicDoctor } from "@/services/public-doctor.service";
 import PublicImage from "@/components/public-hospital/shared/public-image";
+import BookAppointmentButton from "@/components/public-hospital/doctors/book-appointment-button";
+import { getPublicDoctor } from "@/services/public-doctor.service";
 
 export default async function DoctorDetailsPage({ params }) {
   const { id, doctor } = await params;
@@ -83,6 +81,14 @@ export default async function DoctorDetailsPage({ params }) {
                   Approximately {doctorData.consultationDurationMinutes} minutes
                 </p>
               )}
+
+              <BookAppointmentButton
+                hospitalId={id}
+                hospitalName={doctorData.hospitalName}
+                doctor={doctorData}
+                size="lg"
+                className="mt-5 w-full bg-brand text-brand-foreground hover:bg-brand/90"
+              />
             </div>
           )}
         </aside>
@@ -182,12 +188,11 @@ export default async function DoctorDetailsPage({ params }) {
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3 border-t border-border pt-8">
-            <Button asChild size="lg">
-              <Link href={`/hospitals/${id}/doctors`}>
-                <Calendar className="mr-2 h-4 w-4" />
-                Book appointment
-              </Link>
-            </Button>
+            <BookAppointmentButton
+              hospitalId={id}
+              hospitalName={doctorData.hospitalName}
+              doctor={doctorData}
+            />
 
             <Button asChild size="lg" variant="outline">
               <Link href={`/hospitals/${id}`}>Back to hospital</Link>

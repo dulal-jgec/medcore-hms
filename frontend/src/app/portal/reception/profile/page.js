@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import {
   getMyReceptionistProfile,
   updateMyReceptionistProfile,
-  uploadMyReceptionistProfileImage,
+  uploadReceptionistProfileImage,
 } from "@/services/receptionist.service";
 
 const schema = z.object({
@@ -84,9 +84,7 @@ export default function ReceptionistProfilePage() {
       setLoading(true);
       setError("");
 
-      const result =
-        await getMyReceptionistProfile();
-
+      const result = await getMyReceptionistProfile();
       const data = result.data;
 
       setProfile(data);
@@ -94,14 +92,10 @@ export default function ReceptionistProfilePage() {
       reset({
         bio: data.bio || "",
         languages: data.languages || "",
-        emergencyContact:
-          data.emergencyContact || "",
+        emergencyContact: data.emergencyContact || "",
       });
     } catch (err) {
-      setError(
-        err.message ||
-          "Failed to load receptionist profile."
-      );
+      setError(err.message || "Failed to load receptionist profile.");
     } finally {
       setLoading(false);
     }
@@ -112,13 +106,11 @@ export default function ReceptionistProfilePage() {
       setError("");
       setSaved(false);
 
-      const result =
-        await updateMyReceptionistProfile({
-          bio: data.bio || null,
-          languages: data.languages || null,
-          emergencyContact:
-            data.emergencyContact || null,
-        });
+      const result = await updateMyReceptionistProfile({
+        bio: data.bio || null,
+        languages: data.languages || null,
+        emergencyContact: data.emergencyContact || null,
+      });
 
       setProfile(result.data);
       setEditing(false);
@@ -128,10 +120,7 @@ export default function ReceptionistProfilePage() {
         setSaved(false);
       }, 3000);
     } catch (err) {
-      setError(
-        err.message ||
-          "Failed to update profile."
-      );
+      setError(err.message || "Failed to update profile.");
     }
   }
 
@@ -139,8 +128,7 @@ export default function ReceptionistProfilePage() {
     reset({
       bio: profile?.bio || "",
       languages: profile?.languages || "",
-      emergencyContact:
-        profile?.emergencyContact || "",
+      emergencyContact: profile?.emergencyContact || "",
     });
 
     setEditing(false);
@@ -153,25 +141,17 @@ export default function ReceptionistProfilePage() {
   async function handleImageChange(event) {
     const file = event.target.files?.[0];
 
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     try {
       setUploadingImage(true);
       setError("");
 
-      const result =
-        await uploadMyReceptionistProfileImage(
-          file
-        );
+      const result = await uploadReceptionistProfileImage(file);
 
       setProfile(result.data);
     } catch (err) {
-      setError(
-        err.message ||
-          "Failed to upload profile image."
-      );
+      setError(err.message || "Failed to upload profile image.");
     } finally {
       setUploadingImage(false);
       event.target.value = "";
@@ -201,14 +181,11 @@ export default function ReceptionistProfilePage() {
     );
   }
 
-  const initials =
-    profile.name?.charAt(0)?.toUpperCase() || "R";
+  const initials = profile.name?.charAt(0)?.toUpperCase() || "R";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-
       {/* Header */}
-
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-brand">
           Profile
@@ -224,11 +201,9 @@ export default function ReceptionistProfilePage() {
       </div>
 
       {/* Success */}
-
       {saved && (
         <div className="mt-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand-soft/50 px-4 py-3 text-sm">
           <CheckCircle2 className="h-4 w-4 text-brand" />
-
           <p className="font-medium text-brand-soft-foreground">
             Profile updated successfully.
           </p>
@@ -236,7 +211,6 @@ export default function ReceptionistProfilePage() {
       )}
 
       {/* Error */}
-
       {error && (
         <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
@@ -244,17 +218,11 @@ export default function ReceptionistProfilePage() {
       )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-12">
-
         {/* LEFT */}
-
         <aside className="lg:col-span-4">
-
           <div className="rounded-2xl border border-border bg-card p-6">
-
             <div className="flex flex-col items-center text-center">
-
               <div className="relative">
-
                 {profile.profileImageUrl ? (
                   <img
                     src={profile.profileImageUrl}
@@ -295,8 +263,7 @@ export default function ReceptionistProfilePage() {
               </h2>
 
               <p className="mt-1 text-sm font-medium text-brand">
-                {profile.designation ||
-                  "Receptionist"}
+                {profile.designation || "Receptionist"}
               </p>
 
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -311,7 +278,6 @@ export default function ReceptionistProfilePage() {
             </div>
 
             <dl className="mt-6 space-y-3 border-t border-border pt-5 text-sm">
-
               <Row
                 icon={User}
                 label="Receptionist ID"
@@ -321,81 +287,46 @@ export default function ReceptionistProfilePage() {
               <Row
                 icon={Briefcase}
                 label="Designation"
-                value={
-                  profile.designation ||
-                  "Not specified"
-                }
+                value={profile.designation || "Not specified"}
               />
 
               <Row
                 icon={Calendar}
                 label="Joined on"
-                value={formatDate(
-                  profile.createdAt
-                )}
+                value={formatDate(profile.createdAt)}
               />
-
             </dl>
           </div>
-
         </aside>
 
         {/* RIGHT */}
-
         <div className="space-y-6 lg:col-span-8">
-
           {/* Account Information */}
-
           <SectionCard
             title="Account information"
             desc="These details are managed by hospital administration."
           >
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
-
-              <InfoRow
-                icon={User}
-                label="Full name"
-                value={profile.name}
-              />
-
+              <InfoRow icon={User} label="Full name" value={profile.name} />
               <InfoRow
                 icon={Briefcase}
                 label="Role"
-                value={
-                  profile.designation ||
-                  "Receptionist"
-                }
+                value={profile.designation || "Receptionist"}
               />
-
-              <InfoRow
-                icon={Mail}
-                label="Email"
-                value={profile.email}
-              />
-
-              <InfoRow
-                icon={Phone}
-                label="Phone"
-                value={profile.phone}
-              />
-
+              <InfoRow icon={Mail} label="Email" value={profile.email} />
+              <InfoRow icon={Phone} label="Phone" value={profile.phone} />
             </div>
 
             <div className="mt-5 flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
-
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-
               <p className="text-xs leading-5 text-muted-foreground">
-                Your name, email, phone number,
-                hospital and designation are managed
-                by hospital administration.
+                Your name, email, phone number, hospital and designation are
+                managed by hospital administration.
               </p>
-
             </div>
           </SectionCard>
 
           {/* Personal Profile */}
-
           <SectionCard
             title="Personal information"
             desc="You can update the following information."
@@ -404,9 +335,7 @@ export default function ReceptionistProfilePage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() =>
-                    setEditing(true)
-                  }
+                  onClick={() => setEditing(true)}
                 >
                   <Pencil className="mr-1.5 h-3.5 w-3.5" />
                   Edit
@@ -414,19 +343,12 @@ export default function ReceptionistProfilePage() {
               )
             }
           >
-
             {editing ? (
               <form
-                onSubmit={handleSubmit(
-                  onSubmit
-                )}
+                onSubmit={handleSubmit(onSubmit)}
                 className="mt-5 space-y-5"
               >
-
-                <Field
-                  label="Bio"
-                  error={errors.bio?.message}
-                >
+                <Field label="Bio" error={errors.bio?.message}>
                   <textarea
                     {...register("bio")}
                     rows={4}
@@ -435,10 +357,7 @@ export default function ReceptionistProfilePage() {
                   />
                 </Field>
 
-                <Field
-                  label="Languages"
-                  error={errors.languages?.message}
-                >
+                <Field label="Languages" error={errors.languages?.message}>
                   <Input
                     {...register("languages")}
                     placeholder="English, Bengali, Hindi"
@@ -448,79 +367,47 @@ export default function ReceptionistProfilePage() {
 
                 <Field
                   label="Emergency contact"
-                  error={
-                    errors.emergencyContact
-                      ?.message
-                  }
+                  error={errors.emergencyContact?.message}
                 >
                   <Input
-                    {...register(
-                      "emergencyContact"
-                    )}
+                    {...register("emergencyContact")}
                     placeholder="10-digit mobile number"
                     className="h-11"
                   />
                 </Field>
 
                 <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-5">
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={cancelEdit}
-                  >
+                  <Button type="button" variant="outline" onClick={cancelEdit}>
                     <X className="mr-1.5 h-4 w-4" />
                     Cancel
                   </Button>
 
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                  >
+                  <Button type="submit" disabled={isSubmitting}>
                     <Save className="mr-1.5 h-4 w-4" />
-
-                    {isSubmitting
-                      ? "Saving..."
-                      : "Save changes"}
+                    {isSubmitting ? "Saving..." : "Save changes"}
                   </Button>
-
                 </div>
               </form>
             ) : (
               <div className="mt-5 grid gap-5 sm:grid-cols-2">
-
                 <InfoRow
                   icon={HeartPulse}
                   label="Bio"
-                  value={
-                    profile.bio ||
-                    "No bio added"
-                  }
+                  value={profile.bio || "No bio added"}
                 />
-
                 <InfoRow
                   icon={Languages}
                   label="Languages"
-                  value={
-                    profile.languages ||
-                    "Not specified"
-                  }
+                  value={profile.languages || "Not specified"}
                 />
-
                 <InfoRow
                   icon={Phone}
                   label="Emergency contact"
-                  value={
-                    profile.emergencyContact ||
-                    "Not specified"
-                  }
+                  value={profile.emergencyContact || "Not specified"}
                 />
-
               </div>
             )}
-
           </SectionCard>
-
         </div>
       </div>
     </div>
@@ -531,117 +418,66 @@ export default function ReceptionistProfilePage() {
    COMPONENTS
    ========================================================= */
 
-function SectionCard({
-  title,
-  desc,
-  action,
-  children,
-}) {
+function SectionCard({ title, desc, action, children }) {
   return (
     <div className="rounded-2xl border border-border bg-card">
-
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
-
         <div>
-          <h2 className="text-base font-semibold tracking-tight">
-            {title}
-          </h2>
-
+          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
           {desc && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {desc}
-            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
           )}
         </div>
-
         {action}
       </div>
 
-      <div className="p-5 sm:p-6">
-        {children}
-      </div>
-
+      <div className="p-5 sm:p-6">{children}</div>
     </div>
   );
 }
 
-function Row({
-  icon: Icon,
-  label,
-  value,
-}) {
+function Row({ icon: Icon, label, value }) {
   return (
     <div className="flex items-center justify-between gap-3">
-
       <dt className="flex items-center gap-2 text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </dt>
 
-      <dd className="truncate text-right font-medium">
-        {value}
-      </dd>
-
+      <dd className="truncate text-right font-medium">{value}</dd>
     </div>
   );
 }
 
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-}) {
+function InfoRow({ icon: Icon, label, value }) {
   return (
     <div>
-
       <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
 
-      <p className="mt-1.5 break-words text-sm font-medium">
-        {value}
-      </p>
-
+      <p className="mt-1.5 break-words text-sm font-medium">{value}</p>
     </div>
   );
 }
 
-function Field({
-  label,
-  error,
-  children,
-}) {
+function Field({ label, error, children }) {
   return (
     <div>
-
-      <label className="mb-1.5 block text-sm font-medium">
-        {label}
-      </label>
-
+      <label className="mb-1.5 block text-sm font-medium">{label}</label>
       {children}
-
       {error && (
-        <p className="mt-1.5 text-xs text-destructive">
-          {error}
-        </p>
+        <p className="mt-1.5 text-xs text-destructive">{error}</p>
       )}
-
     </div>
   );
 }
 
 function formatDate(value) {
-  if (!value) {
-    return "Not available";
-  }
-
+  if (!value) return "Not available";
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
+  if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",

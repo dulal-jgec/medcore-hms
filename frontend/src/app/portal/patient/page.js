@@ -1,60 +1,142 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  CalendarCheck,
-  Pill,
-  FlaskConical,
-  Wallet,
-  Clock,
-  Heart,
-  Activity,
-  Droplets,
-  Weight,
-  TrendingUp,
-  ArrowUpRight,
-  ChevronRight,
-  CheckCircle2,
   AlertCircle,
+  ArrowUpRight,
+  CalendarDays,
+  CalendarX2,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Droplets,
+  Heart,
+  Loader2,
   MapPin,
   Plus,
-  FileText,
+  ShieldCheck,
   Sparkles,
+  Stethoscope,
+  User,
+  XCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  PATIENT,
-  PATIENT_VITALS,
-  UPCOMING_APPOINTMENTS,
-  PRESCRIPTIONS,
-  LAB_REPORTS,
-  BILLS,
-  getPatientStats,
-} from "@/lib/patient-mock-data";
+import { cn } from "@/lib/utils";
 
-export default function PatientDashboard() {
-  const stats = getPatientStats();
-  const nextAppointment = UPCOMING_APPOINTMENTS[0];
-  const activePrescriptions = PRESCRIPTIONS.filter((p) => p.status === "active");
-  const recentReports = LAB_REPORTS.slice(0, 3);
-  const pendingBills = BILLS.filter((b) => b.status === "pending");
+import { getMyPatientProfile } from "@/services/patient.service";
+import { getPatientAppointments } from "@/services/appointment.service";
 
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+const PAGE_SIZE = 100;
 
-  const today = new Date().toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+export default function PatientDashboardPage() {
+  const [patient, setPatient] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const profileRes = await getMyPatientProfile();
+        const me = profileRes.data;
+        if (!mounted) return;
+        setPatient(me);
+
+        const result = await getPatientAppointments(me.id, {
+          page: 0,
+          size: PAGE_SIZE,
+        });
+        if (!mounted) return;
+
+        setAppointments(result.data?.items || result.data?.content || []);
+      } catch (err) {
+        if (!mounted) return;
+        setError(err.message || "Unable to load your dashboard.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const today = toIsoDate(new Date());
+
+  const stats = useMemo(() => {
+    const upcoming = appointments
+      .filter(
+        (a) =>
+          a.appointmentDate >= today &&
+          !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(a.status)
+      )
+      .sort((a, b) =>
+        (a.appointmentDate + " " + (a.startTime || "")).localeCompare(
+          b.appointmentDate + " " + (b.startTime || "")
+        )
+      );
+
+    const past = appointments.filter(
+      (a) =>
+        a.status === "COMPLETED" ||
+        (a.appointmentDate < today && a.status !== "CANCELLED")
+    );
+
+    const cancelled = appointments.filter((a) => a.status === "CANCELLED");
+
+    const uniqueDoctors = new Set(
+      appointments.map((a) => a.doctorId).filter(Boolean)
+    );
+
+    return {
+      upcoming,
+      past,
+      cancelled,
+      next: upcoming[0] || null,
+      uniqueDoctors: uniqueDoctors.size,
+    };
+  }, [appointments, today]);
+
+  const greeting = getGreeting();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-brand" />
+      </div>
+    );
+  }
+
+  if (error || !patient) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <h1 className="mt-5 text-xl font-semibold">
+          Unable to load your dashboard
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {error || "Patient profile is missing."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-      {/* ══════════ HERO BANNER ══════════ */}
+      {/* ══════════ HERO ══════════ */}
       <div className="relative overflow-hidden rounded-3xl bg-primary p-6 sm:p-8 lg:p-10">
-        {/* Dotted texture */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.07]"
@@ -64,7 +146,6 @@ export default function PatientDashboard() {
             backgroundSize: "24px 24px",
           }}
         />
-        {/* Green glow */}
         <div
           aria-hidden
           className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-brand/20 blur-3xl"
@@ -74,22 +155,43 @@ export default function PatientDashboard() {
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 text-xs font-medium text-primary-foreground/70">
               <Sparkles className="h-3.5 w-3.5 text-brand" />
-              <span>{today}</span>
+              <span>
+                {new Date().toLocaleDateString("en-IN", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}
+              </span>
             </div>
+
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl lg:text-4xl">
-              {greeting}, {PATIENT.fullName.split(" ")[0]}
+              {greeting}, {patient.fullName || patient.user?.fullName || "there"} 👋
             </h1>
+
             <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">
               You have{" "}
               <span className="font-semibold text-primary-foreground">
-                {stats.upcoming} upcoming appointments
+                {stats.upcoming.length} upcoming appointment
+                {stats.upcoming.length !== 1 ? "s" : ""}
               </span>{" "}
-              and{" "}
-              <span className="font-semibold text-primary-foreground">
-                {stats.newReports} new lab reports
-              </span>{" "}
-              to review.
+              and {stats.past.length} completed visit
+              {stats.past.length !== 1 ? "s" : ""}.
             </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-primary-foreground/70">
+              {patient.bloodGroup && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Droplets className="h-3.5 w-3.5 text-brand" />
+                  {patient.bloodGroup}
+                </span>
+              )}
+              {patient.user?.email && (
+                <span className="inline-flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5" />
+                  {patient.user.email}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -98,8 +200,8 @@ export default function PatientDashboard() {
               size="lg"
               className="bg-brand text-brand-foreground hover:bg-brand/90"
             >
-              <Link href="/portal/patient/appointments">
-                
+              <Link href="/hospitals">
+                <Plus className="mr-1.5 h-4 w-4" />
                 Book appointment
               </Link>
             </Button>
@@ -109,394 +211,271 @@ export default function PatientDashboard() {
               variant="outline"
               className="border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
             >
-              <Link href="/portal/patient/lab-reports">
-                View reports
+              <Link href="/portal/patient/appointments">
+                My appointments
               </Link>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ══════════ NEXT APPOINTMENT — hero card ══════════ */}
-      {nextAppointment && (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="grid gap-0 lg:grid-cols-12">
-            {/* Left: appointment details */}
-            <div className="lg:col-span-8 lg:border-r lg:border-border">
-              <div className="p-6 sm:p-8">
+      {/* ══════════ STATS ══════════ */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={CalendarDays}
+          label="Upcoming"
+          value={stats.upcoming.length}
+          sub="scheduled visits"
+          href="/portal/patient/appointments"
+          accent
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label="Completed"
+          value={stats.past.length}
+          sub="all time"
+          href="/portal/patient/appointments"
+        />
+        <StatCard
+          icon={Stethoscope}
+          label="Doctors consulted"
+          value={stats.uniqueDoctors}
+          sub="unique doctors"
+          href="/portal/patient/appointments"
+        />
+        <StatCard
+          icon={XCircle}
+          label="Cancelled"
+          value={stats.cancelled.length}
+          sub="all time"
+          href="/portal/patient/appointments"
+        />
+      </div>
+
+      {/* ══════════ NEXT APPOINTMENT ══════════ */}
+      {stats.next && (
+        <div className="mt-6 overflow-hidden rounded-2xl border-2 border-brand bg-gradient-to-br from-brand-soft/60 to-brand-soft/20">
+          <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand text-brand-foreground">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-foreground/80">
+                  {new Date(
+                    stats.next.appointmentDate + "T00:00:00"
+                  ).toLocaleString("en-IN", { month: "short" })}
+                </p>
+                <p className="text-xl font-bold leading-tight">
+                  {new Date(
+                    stats.next.appointmentDate + "T00:00:00"
+                  ).getDate()}
+                </p>
+              </div>
+
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="flex h-2 w-2 rounded-full bg-brand" />
-                  <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-brand-soft-foreground">
                     Next appointment
                   </p>
                 </div>
-
-                <div className="mt-5 flex flex-col gap-6 sm:flex-row sm:items-center">
-                  {/* Date box — larger, more prominent */}
-                  <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-2xl border border-border bg-gradient-to-br from-brand-soft to-brand-soft/50">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-brand-soft-foreground">
-                      {new Date(nextAppointment.date).toLocaleString("en-IN", {
-                        month: "short",
-                      })}
-                    </p>
-                    <p className="text-3xl font-bold leading-none text-brand-soft-foreground">
-                      {new Date(nextAppointment.date).getDate()}
-                    </p>
-                    <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-brand-soft-foreground/80">
-                      {new Date(nextAppointment.date).toLocaleString("en-IN", {
-                        weekday: "short",
-                      })}
-                    </p>
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-xl font-bold tracking-tight">
-                      {nextAppointment.doctorName}
-                    </h2>
-                    <p className="mt-1 text-sm font-medium text-brand">
-                      {nextAppointment.specialty}
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="h-4 w-4" />
-                        {nextAppointment.time}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="h-4 w-4" />
-                        {nextAppointment.department}
-                      </span>
-                    </div>
-
-                    {nextAppointment.reason && (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        Reason: {nextAppointment.reason}
-                      </p>
-                    )}
-                  </div>
+                <p className="mt-1.5 text-xl font-bold tracking-tight">
+                  {stats.next.doctorName}
+                </p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {formatTime(stats.next.startTime)} –{" "}
+                    {formatTime(stats.next.endTime)}
+                  </span>
+                  {stats.next.hospitalName && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {stats.next.hospitalName}
+                    </span>
+                  )}
                 </div>
-
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <Button asChild>
-                    <Link href="/portal/patient/appointments">
-                      View details
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/portal/patient/appointments">Reschedule</Link>
-                  </Button>
-                </div>
+                {stats.next.reason && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                      Reason:
+                    </span>{" "}
+                    {stats.next.reason}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Right: patient identity */}
-            <div className="bg-muted/30 p-6 sm:p-8 lg:col-span-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Your profile
-              </p>
-
-              <div className="mt-5 flex items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand text-2xl font-bold text-brand-foreground">
-                  {PATIENT.fullName.charAt(0)}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold">
-                    {PATIENT.fullName}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    MC-{String(PATIENT.id).padStart(5, "0")}
-                  </p>
-                </div>
-              </div>
-
-              <dl className="mt-6 space-y-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Blood group</dt>
-                  <dd className="font-semibold text-destructive">
-                    {PATIENT.bloodGroup}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Age</dt>
-                  <dd className="font-medium">{PATIENT.age} years</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Phone</dt>
-                  <dd className="truncate font-medium">{PATIENT.phone}</dd>
-                </div>
-              </dl>
-
-              <Link
-                href="/portal/patient/profile"
-                className="mt-5 inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
-              >
-                View full profile
-                <ChevronRight className="h-3 w-3" />
-              </Link>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button size="lg" asChild>
+                <Link
+                  href={`/portal/patient/appointments#apt-${stats.next.id}`}
+                >
+                  View details
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ══════════ HEALTH SNAPSHOT ══════════ */}
-      <div className="mt-6">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold tracking-tight">
-              Health snapshot
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Last updated {PATIENT_VITALS.lastUpdated}
-            </p>
+      {/* ══════════ RECENT APPOINTMENTS ══════════ */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <div className="rounded-2xl border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold tracking-tight">
+                  Recent appointments
+                </h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Latest bookings and visits
+                </p>
+              </div>
+              <Link
+                href="/portal/patient/appointments"
+                className="flex items-center gap-1 text-xs font-medium text-brand hover:underline"
+              >
+                View all
+                <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+
+            {appointments.length === 0 ? (
+              <div className="px-6 py-14 text-center">
+                <CalendarDays className="mx-auto h-10 w-10 text-muted-foreground" />
+                <p className="mt-4 text-sm font-semibold">
+                  No appointments yet
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Book your first appointment to get started.
+                </p>
+                <Button asChild className="mt-5">
+                  <Link href="/hospitals">
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    Browse hospitals
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {appointments.slice(0, 5).map((apt) => (
+                  <li
+                    key={apt.id}
+                    className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30 sm:p-5"
+                  >
+                    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border border-brand/20 bg-brand-soft/60">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-soft-foreground/80">
+                        {new Date(
+                          apt.appointmentDate + "T00:00:00"
+                        ).toLocaleString("en-IN", { month: "short" })}
+                      </p>
+                      <p className="text-base font-bold leading-tight text-brand-soft-foreground">
+                        {new Date(
+                          apt.appointmentDate + "T00:00:00"
+                        ).getDate()}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">
+                        {apt.doctorName}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {formatTime(apt.startTime)} – {formatTime(apt.endTime)}
+                        {apt.hospitalName && ` · ${apt.hospitalName}`}
+                      </p>
+                    </div>
+
+                    <StatusPill status={apt.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          <Link
-            href="/portal/patient/profile"
-            className="text-xs font-medium text-brand hover:underline"
-          >
-            Full history
-          </Link>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <VitalCard
-            icon={Activity}
-            label="Blood pressure"
-            value={PATIENT_VITALS.bloodPressure.value}
-            unit={PATIENT_VITALS.bloodPressure.unit}
-            status={PATIENT_VITALS.bloodPressure.status}
-          />
-          <VitalCard
-            icon={Droplets}
-            label="Blood sugar"
-            value={PATIENT_VITALS.bloodSugar.value}
-            unit={PATIENT_VITALS.bloodSugar.unit}
-            status={PATIENT_VITALS.bloodSugar.status}
-          />
-          <VitalCard
-            icon={Weight}
-            label="Weight"
-            value={PATIENT_VITALS.weight.value}
-            unit={PATIENT_VITALS.weight.unit}
-            status={PATIENT_VITALS.weight.status}
-          />
-          <VitalCard
-            icon={Heart}
-            label="Heart rate"
-            value={PATIENT_VITALS.heartRate.value}
-            unit={PATIENT_VITALS.heartRate.unit}
-            status={PATIENT_VITALS.heartRate.status}
-          />
+        {/* Health profile peek */}
+        <div className="rounded-2xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <h2 className="text-base font-semibold tracking-tight">
+              Health profile
+            </h2>
+            <Link
+              href="/portal/patient/profile"
+              className="text-xs font-medium text-brand hover:underline"
+            >
+              Edit
+            </Link>
+          </div>
+
+          <div className="space-y-4 p-5">
+            <ProfileRow
+              icon={Droplets}
+              label="Blood group"
+              value={patient.bloodGroup || "Not set"}
+            />
+            <ProfileRow
+              icon={Heart}
+              label="Allergies"
+              value={patient.allergies || "None recorded"}
+            />
+            <ProfileRow
+              icon={ShieldCheck}
+              label="Chronic conditions"
+              value={patient.chronicConditions || "None recorded"}
+            />
+            <ProfileRow
+              icon={User}
+              label="Emergency contact"
+              value={
+                patient.emergencyContactName
+                  ? `${patient.emergencyContactName}${
+                      patient.emergencyContactRelation
+                        ? ` (${patient.emergencyContactRelation})`
+                        : ""
+                    }`
+                  : "Not set"
+              }
+            />
+          </div>
         </div>
       </div>
 
-      {/* ══════════ QUICK ACCESS TILES ══════════ */}
+      {/* ══════════ QUICK ACTIONS ══════════ */}
       <div className="mt-8">
-        <h2 className="text-lg font-bold tracking-tight">Quick access</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Jump to what you need
+        <h2 className="text-base font-semibold tracking-tight">
+          Quick actions
+        </h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Common tasks you can do from here
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <ActionTile
-            icon={CalendarCheck}
-            label="Appointments"
-            desc={`${stats.upcoming} upcoming`}
-            href="/portal/patient/appointments"
+            icon={Plus}
+            label="Book appointment"
+            desc="Find a doctor"
+            href="/hospitals"
             accent
           />
           <ActionTile
-            icon={Pill}
-            label="Prescriptions"
-            desc={`${stats.activePrescriptions} active`}
-            href="/portal/patient/prescriptions"
+            icon={CalendarDays}
+            label="My appointments"
+            desc="View all visits"
+            href="/portal/patient/appointments"
           />
           <ActionTile
-            icon={FlaskConical}
-            label="Lab reports"
-            desc={`${stats.newReports} ready`}
-            href="/portal/patient/lab-reports"
+            icon={User}
+            label="My profile"
+            desc="Update your details"
+            href="/portal/patient/profile"
           />
           <ActionTile
-            icon={Wallet}
-            label="Bills"
-            desc={`₹${stats.pendingAmount} pending`}
-            href="/portal/patient/bills"
-            alert={stats.pendingBills > 0}
+            icon={Stethoscope}
+            label="Browse doctors"
+            desc="Find specialists"
+            href="/hospitals"
           />
         </div>
-      </div>
-
-      {/* ══════════ ACTIVITY (2-col) ══════════ */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        {/* Recent activity */}
-        <div className="rounded-2xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-brand" />
-              <h2 className="text-base font-semibold tracking-tight">
-                Recent activity
-              </h2>
-            </div>
-          </div>
-
-          <ul className="divide-y divide-border">
-            {recentReports.slice(0, 2).map((r) => (
-              <li key={r.id} className="p-5">
-                <div className="flex items-start gap-3">
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                      r.status === "ready"
-                        ? "bg-brand-soft text-brand-soft-foreground"
-                        : "bg-highlight-soft text-highlight-soft-foreground"
-                    }`}
-                  >
-                    <FlaskConical className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">
-                      {r.testName}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {r.orderedBy} · {r.date}
-                    </p>
-                  </div>
-                  <ReportBadge status={r.status} />
-                </div>
-              </li>
-            ))}
-
-            {activePrescriptions.slice(0, 1).map((p) => (
-              <li key={p.id} className="p-5">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
-                    <Pill className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">
-                      {p.diagnosis}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {p.doctorName} · {p.issuedOn}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {p.medicines.length} medicine
-                      {p.medicines.length > 1 ? "s" : ""} prescribed
-                    </p>
-                  </div>
-                </div>
-              </li>
-            ))}
-
-            <li className="p-5 text-center">
-              <Link
-                href="/portal/patient/lab-reports"
-                className="text-xs font-medium text-brand hover:underline"
-              >
-                View all activity
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        {/* Pending bills */}
-        <div className="rounded-2xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-brand" />
-              <h2 className="text-base font-semibold tracking-tight">
-                Bills & payments
-              </h2>
-            </div>
-            <Link
-              href="/portal/patient/bills"
-              className="text-xs font-medium text-brand hover:underline"
-            >
-              All
-            </Link>
-          </div>
-
-          {pendingBills.length > 0 ? (
-            <div className="border-b border-border bg-destructive/5 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">
-                    Payment pending
-                  </p>
-                  <p className="mt-2 text-3xl font-bold tracking-tight">
-                    ₹{pendingBills[0].amount}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {pendingBills[0].description}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Due {pendingBills[0].dueDate}
-                  </p>
-                </div>
-                <Button size="sm" variant="destructive">
-                  Pay now
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="p-8 text-center">
-              <CheckCircle2 className="mx-auto h-8 w-8 text-brand" />
-              <p className="mt-3 text-sm font-medium">All bills paid</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                No pending payments
-              </p>
-            </div>
-          )}
-
-          <ul className="divide-y divide-border">
-            {BILLS.slice(0, 3).map((b) => (
-              <li
-                key={b.id}
-                className="flex items-center justify-between gap-4 px-5 py-4"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {b.description}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {b.invoiceNo} · {b.issuedOn}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <p className="text-sm font-semibold">₹{b.amount}</p>
-                  <BillBadge status={b.status} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* ══════════ EMERGENCY CONTACT ══════════ */}
-      <div className="mt-8 flex flex-col items-start gap-4 rounded-2xl border border-destructive/20 bg-destructive/5 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground">
-            <Heart className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">
-              Emergency contact
-            </p>
-            <p className="mt-1 text-sm">
-              <span className="font-semibold">
-                {PATIENT.emergencyContact.name}
-              </span>{" "}
-              <span className="text-muted-foreground">
-                ({PATIENT.emergencyContact.relation})
-              </span>
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {PATIENT.emergencyContact.phone}
-            </p>
-          </div>
-        </div>
-        <Button variant="outline" size="sm">
-          Update contact
-        </Button>
       </div>
     </div>
   );
@@ -504,57 +483,47 @@ export default function PatientDashboard() {
 
 /* ══════════ Sub-components ══════════ */
 
-function VitalCard({ icon: Icon, label, value, unit, status }) {
-  const statusStyles = {
-    normal: "bg-brand-soft text-brand-soft-foreground",
-    warning: "bg-highlight-soft text-highlight-soft-foreground",
-    alert: "bg-destructive/10 text-destructive",
-  };
-  const statusLabels = {
-    normal: "Normal",
-    warning: "Monitor",
-    alert: "Attention",
-  };
-  const iconStyle = statusStyles[status] || statusStyles.normal;
-  const statusLabel = statusLabels[status] || "Normal";
-
+function StatCard({ icon: Icon, label, value, sub, href, accent }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 transition-all hover:border-brand/40 hover:shadow-sm">
+    <Link
+      href={href}
+      className="group rounded-2xl border border-border bg-card p-5 transition-all hover:border-brand/40 hover:shadow-sm"
+    >
       <div className="flex items-center justify-between">
         <span
-          className={`flex h-10 w-10 items-center justify-center rounded-xl ${iconStyle}`}
+          className={cn(
+            "flex h-10 w-10 items-center justify-center rounded-xl",
+            accent
+              ? "bg-brand text-brand-foreground"
+              : "bg-brand-soft text-brand-soft-foreground"
+          )}
         >
           <Icon className="h-5 w-5" />
         </span>
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${iconStyle}`}
-        >
-          {statusLabel}
-        </span>
+        <ArrowUpRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand" />
       </div>
-      <p className="mt-4 text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 flex items-baseline gap-1">
-        <span className="text-2xl font-bold tracking-tight">{value}</span>
-        <span className="text-xs text-muted-foreground">{unit}</span>
+      <p className="mt-4 text-2xl font-bold tracking-tight">{value}</p>
+      <p className="mt-1 text-xs font-medium text-foreground">{label}</p>
+      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+        {sub}
       </p>
-    </div>
+    </Link>
   );
 }
 
-function ActionTile({ icon: Icon, label, desc, href, accent, alert }) {
-  const iconStyle = alert
-    ? "bg-destructive/10 text-destructive"
-    : accent
-    ? "bg-brand text-brand-foreground"
-    : "bg-brand-soft text-brand-soft-foreground";
-
+function ActionTile({ icon: Icon, label, desc, href, accent }) {
   return (
     <Link
       href={href}
       className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-all hover:border-brand/40 hover:shadow-sm"
     >
       <span
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconStyle}`}
+        className={cn(
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+          accent
+            ? "bg-brand text-brand-foreground"
+            : "bg-brand-soft text-brand-soft-foreground"
+        )}
       >
         <Icon className="h-5 w-5" />
       </span>
@@ -569,33 +538,93 @@ function ActionTile({ icon: Icon, label, desc, href, accent, alert }) {
   );
 }
 
-function ReportBadge({ status }) {
-  if (status === "ready") {
-    return (
-      <span className="flex shrink-0 items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand-soft-foreground">
-        <CheckCircle2 className="h-3 w-3" />
-        Ready
-      </span>
-    );
-  }
+function ProfileRow({ icon: Icon, label, value }) {
   return (
-    <span className="flex shrink-0 items-center gap-1 rounded-full bg-highlight-soft px-2 py-0.5 text-[10px] font-semibold text-highlight-soft-foreground">
-      <AlertCircle className="h-3 w-3" />
-      Pending
+    <div className="flex items-start gap-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <p className="mt-0.5 text-sm font-medium break-words">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }) {
+  const map = {
+    SCHEDULED: {
+      label: "Scheduled",
+      icon: Clock,
+      class: "bg-muted text-muted-foreground",
+    },
+    CONFIRMED: {
+      label: "Confirmed",
+      icon: CheckCircle2,
+      class: "bg-brand-soft text-brand-soft-foreground",
+    },
+    CHECKED_IN: {
+      label: "Checked in",
+      icon: Stethoscope,
+      class: "bg-brand text-brand-foreground",
+    },
+    COMPLETED: {
+      label: "Completed",
+      icon: CheckCircle2,
+      class: "bg-muted text-muted-foreground",
+    },
+    CANCELLED: {
+      label: "Cancelled",
+      icon: XCircle,
+      class: "bg-destructive/10 text-destructive",
+    },
+    NO_SHOW: {
+      label: "No show",
+      icon: AlertCircle,
+      class: "bg-destructive/10 text-destructive",
+    },
+  };
+
+  const config = map[status] || map.SCHEDULED;
+  const Icon = config.icon;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+        config.class
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {config.label}
     </span>
   );
 }
 
-function BillBadge({ status }) {
-  return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-        status === "paid"
-          ? "bg-brand-soft text-brand-soft-foreground"
-          : "bg-destructive/10 text-destructive"
-      }`}
-    >
-      {status === "paid" ? "Paid" : "Pending"}
-    </span>
-  );
+/* ══════════ Helpers ══════════ */
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function toIsoDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatTime(time) {
+  if (!time) return "--:--";
+  const [h, m] = time.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = ((hour + 11) % 12) + 1;
+  return `${String(display).padStart(2, "0")}:${m} ${suffix}`;
 }

@@ -65,4 +65,7 @@ public interface AppointmentService {
             Long doctorId,
             LocalDate appointmentDate
     );
+    
+    ApiResponse<PageResponse<AppointmentResponse>> getMyAppointments(
+            int page, int size, String sortBy, String sortDir);
 }

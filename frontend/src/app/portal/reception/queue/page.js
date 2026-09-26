@@ -1,42 +1,123 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Clock,
-  PlayCircle,
-  CheckCircle2,
-  Phone,
   AlertCircle,
+  CheckCircle2,
+  Clock,
+  Loader2,
   Users,
-  Bell,
-  MoreVertical,
-  X,
-  ChevronRight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TODAY_APPOINTMENTS } from "@/lib/reception-mock-data";
+import { useAuthStore } from "@/store/auth-store";
+
+import { getAppointments, updateAppointmentStatus } from "@/services/appointment.service";
+
+const PAGE_SIZE = 100;
+const REFRESH_MS = 30_000;
 
 export default function ReceptionQueuePage() {
-  const waitingQueue = TODAY_APPOINTMENTS.filter(
-    (a) => a.status === "CHECKED_IN"
-  ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const initialized = useAuthStore((s) => s.initialized);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const inConsultation = TODAY_APPOINTMENTS.filter(
-    (a) => a.status === "IN_PROGRESS"
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      setError("");
+      const result = await getAppointments({
+        page: 0,
+        size: PAGE_SIZE,
+        sortBy: "appointmentDate",
+        sortDir: "asc",
+      });
+      setAppointments(result.data?.items || result.data?.content || []);
+    } catch (err) {
+      setError(err.message || "Unable to load queue.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!initialized || !isAuthenticated) return;
+
+    load();
+    const interval = setInterval(load, REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [initialized, isAuthenticated, load]);
+
+  const today = toIsoDate(new Date());
+
+  const todaysAppointments = useMemo(
+    () => appointments.filter((a) => a.appointmentDate === today),
+    [appointments, today]
   );
 
-  const justCompleted = TODAY_APPOINTMENTS.filter(
-    (a) => a.status === "COMPLETED"
+  const waiting = useMemo(
+    () =>
+      todaysAppointments
+        .filter((a) => a.status === "CHECKED_IN")
+        .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || "")),
+    [todaysAppointments]
   );
 
-  const avgWait = 24; // minutes — mock
+  const justCompleted = useMemo(
+    () =>
+      todaysAppointments
+        .filter((a) => a.status === "COMPLETED")
+        .sort((a, b) => (b.startTime || "").localeCompare(a.startTime || "")),
+    [todaysAppointments]
+  );
+
+  async function handleStatusChange(appointment, nextStatus) {
+    const msg = getConfirmMessage(nextStatus);
+    if (msg && !window.confirm(msg)) return;
+
+    try {
+      setUpdatingId(appointment.id);
+      const result = await updateAppointmentStatus(appointment.id, nextStatus);
+      const updated = result.data;
+
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === appointment.id ? { ...a, ...updated } : a))
+      );
+    } catch (err) {
+      alert(err.message || "Unable to update appointment.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-brand" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <h1 className="mt-5 text-xl font-semibold">
+          Unable to load queue
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand">
@@ -47,37 +128,38 @@ export default function ReceptionQueuePage() {
             Waiting queue
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage who's waiting and call the next patient.
+            Manage who&apos;s waiting and mark visits as completed.
           </p>
         </div>
+        <Button variant="outline" size="sm" onClick={load}>
+          <Clock className="mr-1.5 h-4 w-4" />
+          Refresh
+        </Button>
       </div>
 
-      {/* Quick stats */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <QueueStat
           icon={Users}
           label="Waiting now"
-          value={waitingQueue.length}
+          value={waiting.length}
           sub="Checked in, awaiting doctor"
           accent
         />
         <QueueStat
-          icon={PlayCircle}
-          label="In consultation"
-          value={inConsultation.length}
-          sub="Currently with doctors"
+          icon={CheckCircle2}
+          label="Completed today"
+          value={justCompleted.length}
+          sub="Visits finished"
         />
         <QueueStat
           icon={Clock}
-          label="Avg. wait time"
-          value={`${avgWait}m`}
-          sub="Across today"
+          label="Total today"
+          value={todaysAppointments.length}
+          sub="All appointments"
         />
       </div>
 
-      {/* Queue list */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Waiting (main) */}
         <div className="lg:col-span-2">
           <div className="rounded-2xl border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -87,15 +169,21 @@ export default function ReceptionQueuePage() {
                   Currently waiting
                 </h2>
                 <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-soft-foreground">
-                  {waitingQueue.length}
+                  {waiting.length}
                 </span>
               </div>
             </div>
 
-            {waitingQueue.length > 0 ? (
+            {waiting.length > 0 ? (
               <ul className="divide-y divide-border">
-                {waitingQueue.map((apt, index) => (
-                  <QueueRow key={apt.id} apt={apt} position={index + 1} />
+                {waiting.map((apt, index) => (
+                  <QueueRow
+                    key={apt.id}
+                    apt={apt}
+                    position={index + 1}
+                    updating={updatingId === apt.id}
+                    onStatusChange={handleStatusChange}
+                  />
                 ))}
               </ul>
             ) : (
@@ -112,42 +200,7 @@ export default function ReceptionQueuePage() {
           </div>
         </div>
 
-        {/* Side panel */}
         <div className="space-y-6">
-          {/* In consultation */}
-          <div className="rounded-2xl border border-border bg-card">
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <div className="flex items-center gap-2">
-                <PlayCircle className="h-4 w-4 text-brand" />
-                <h2 className="text-base font-semibold tracking-tight">
-                  In consultation
-                </h2>
-              </div>
-            </div>
-
-            {inConsultation.length > 0 ? (
-              <ul className="divide-y divide-border">
-                {inConsultation.map((apt) => (
-                  <li key={apt.id} className="p-5">
-                    <p className="text-sm font-semibold">{apt.patientName}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {apt.doctorName}
-                    </p>
-                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-soft-foreground">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand" />
-                      In progress
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="p-5 text-center text-xs text-muted-foreground">
-                No consultations in progress
-              </p>
-            )}
-          </div>
-
-          {/* Just completed */}
           <div className="rounded-2xl border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div className="flex items-center gap-2">
@@ -160,7 +213,7 @@ export default function ReceptionQueuePage() {
 
             {justCompleted.length > 0 ? (
               <ul className="divide-y divide-border">
-                {justCompleted.slice(0, 3).map((apt) => (
+                {justCompleted.slice(0, 5).map((apt) => (
                   <li
                     key={apt.id}
                     className="flex items-center justify-between gap-3 p-4"
@@ -174,7 +227,7 @@ export default function ReceptionQueuePage() {
                       </p>
                     </div>
                     <span className="shrink-0 text-[10px] font-medium text-muted-foreground">
-                      {apt.slot}
+                      {formatTime(apt.startTime)}
                     </span>
                   </li>
                 ))}
@@ -186,12 +239,11 @@ export default function ReceptionQueuePage() {
             )}
           </div>
 
-          {/* Info */}
           <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
             <p className="text-xs leading-5 text-muted-foreground">
-              Queue order is based on check-in time. Call patients in order to
-              keep the doctor on schedule.
+              Queue refreshes every 30 seconds. Order is based on check-in
+              time.
             </p>
           </div>
         </div>
@@ -200,20 +252,15 @@ export default function ReceptionQueuePage() {
   );
 }
 
-/* ══════════ Queue Row ══════════ */
-
-function QueueRow({ apt, position }) {
-  const [showOptions, setShowOptions] = useState(false);
-
+function QueueRow({ apt, position, updating, onStatusChange }) {
   return (
     <li
       className={cn(
-        "relative p-4 transition-colors hover:bg-hover/40 sm:p-5",
+        "relative p-4 sm:p-5",
         position === 1 && "bg-brand-soft/30"
       )}
     >
       <div className="flex items-start gap-4">
-        {/* Position badge */}
         <div className="flex shrink-0 flex-col items-center gap-1">
           <div
             className={cn(
@@ -232,85 +279,51 @@ function QueueRow({ apt, position }) {
           )}
         </div>
 
-        {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold tracking-tight">
               {apt.patientName}
             </h3>
-            {position === 1 && (
-              <span className="flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-foreground">
-                <Bell className="h-3 w-3" />
-                Call next
-              </span>
-            )}
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
-              Checked in {apt.checkedInAt}
+              {formatTime(apt.startTime)} – {formatTime(apt.endTime)}
             </span>
-            <span className="flex items-center gap-1.5">
-              <Phone className="h-3.5 w-3.5" />
-              {apt.patientPhone}
-            </span>
+            <span>Doctor: {apt.doctorName}</span>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-            <span>
-              <span className="text-muted-foreground">Doctor: </span>
-              <span className="font-medium">{apt.doctorName}</span>
-            </span>
-            <span className="text-muted-foreground">
-              Slot {apt.slot} · {apt.department}
-            </span>
-          </div>
+          {apt.reason && (
+            <p className="mt-2 text-sm">
+              <span className="text-muted-foreground">Reason: </span>
+              <span className="font-medium">{apt.reason}</span>
+            </p>
+          )}
         </div>
 
-        {/* Actions */}
-        <div className="flex shrink-0 items-start gap-1">
-          {position === 1 ? (
-            <Button size="sm">
-              <Bell className="mr-1.5 h-3.5 w-3.5" />
-              Call next
-            </Button>
-          ) : (
-            <Button size="sm" variant="outline">
-              <Phone className="mr-1.5 h-3.5 w-3.5" />
-              Notify
-            </Button>
-          )}
-
-          <div className="relative">
-            <button
-              onClick={() => setShowOptions(!showOptions)}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-              aria-label="More options"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-
-            {showOptions && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowOptions(false)}
-                />
-                <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-border bg-popover p-1 shadow-lg">
-                  <button className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-hover">
-                    Mark as no-show
-                  </button>
-                  <button className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-hover">
-                    Remove from queue
-                  </button>
-                  <button className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs font-medium text-destructive transition-colors hover:bg-destructive/10">
-                    Cancel appointment
-                  </button>
-                </div>
-              </>
+        <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:items-end">
+          <Button
+            size="sm"
+            disabled={updating}
+            onClick={() => onStatusChange(apt, "COMPLETED")}
+          >
+            {updating ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
             )}
-          </div>
+            Mark complete
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={updating}
+            onClick={() => onStatusChange(apt, "NO_SHOW")}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            No show
+          </Button>
         </div>
       </div>
     </li>
@@ -335,4 +348,31 @@ function QueueStat({ icon: Icon, label, value, sub, accent }) {
       <p className="mt-0.5 text-[11px] text-muted-foreground">{sub}</p>
     </div>
   );
+}
+
+function toIsoDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatTime(time) {
+  if (!time) return "--:--";
+  const [h, m] = time.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = ((hour + 11) % 12) + 1;
+  return `${String(display).padStart(2, "0")}:${m} ${suffix}`;
+}
+
+function getConfirmMessage(nextStatus) {
+  switch (nextStatus) {
+    case "COMPLETED": return "Mark this visit as completed?";
+    case "NO_SHOW": return "Mark this patient as no-show?";
+    case "CANCELLED": return "Cancel this appointment?";
+    case "CHECKED_IN": return "Check in this patient?";
+    case "CONFIRMED": return "Confirm this appointment?";
+    default: return null;
+  }
 }

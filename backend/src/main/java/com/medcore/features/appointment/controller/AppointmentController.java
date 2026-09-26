@@ -289,4 +289,18 @@ public class AppointmentController {
                 )
         );
     }
+    
+    
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>>
+    getMyAppointments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "appointmentDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+
+        return ResponseEntity.ok(
+                appointmentService.getMyAppointments(page, size, sortBy, sortDir)
+        );
+    }
 }

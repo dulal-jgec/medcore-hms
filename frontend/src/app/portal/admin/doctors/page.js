@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Plus,
@@ -18,14 +18,21 @@ import {
   GraduationCap,
   FileText,
   ShieldCheck,
-  ArrowUpRight,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
-import { getDoctors, searchDoctors } from "@/services/doctor.service";
+import {
+  getDoctors,
+  searchDoctors,
+  updateDoctorStatus,
+} from "@/services/doctor.service";
+
+const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 400;
 
 const STATUS_TABS = [
   { id: "all", label: "All" },
@@ -43,63 +50,121 @@ export default function AdminDoctorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [viewDoctor, setViewDoctor] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
+
+  const debounceRef = useRef(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (!accessToken) return;
     loadDoctors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   async function loadDoctors() {
+    const requestId = ++requestIdRef.current;
+
     try {
       setLoading(true);
       setError("");
 
-      const result = await getDoctors(accessToken, {
+      const result = await getDoctors({
         page: 0,
-       size: 50,
+        size: PAGE_SIZE,
         sortBy: "id",
         sortDir: "asc",
       });
 
+      if (requestId !== requestIdRef.current) return;
       setDoctors(result.data?.items || []);
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err.message || "Failed to load doctors");
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }
 
-  async function handleSearch(value) {
-    setQuery(value);
-
-    const keyword = value.trim();
-
-    if (!keyword) {
-      loadDoctors();
-      return;
-    }
+  async function runSearch(keyword) {
+    const requestId = ++requestIdRef.current;
 
     try {
       setLoading(true);
       setError("");
 
-      const result = await searchDoctors(accessToken, keyword, {
+      const result = await searchDoctors(keyword, {
         page: 0,
-        size: 50,
+        size: PAGE_SIZE,
       });
 
+      if (requestId !== requestIdRef.current) return;
       setDoctors(result.data?.items || []);
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err.message || "Search failed");
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }
 
+  function handleSearch(value) {
+    setQuery(value);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(() => {
+      const keyword = value.trim();
+      if (!keyword) {
+        loadDoctors();
+      } else {
+        runSearch(keyword);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
   function clearFilters() {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setQuery("");
     setStatus("all");
     loadDoctors();
+  }
+
+  async function handleToggleStatus(doctor) {
+    const nextStatus =
+      doctor.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
+
+    const confirmMessage =
+      nextStatus === "SUSPENDED"
+        ? `Suspend ${doctor.doctorName}? Patients won't be able to book this doctor.`
+        : `Reactivate ${doctor.doctorName}?`;
+
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      setUpdatingId(doctor.id);
+      const result = await updateDoctorStatus(doctor.id, nextStatus);
+      const updated = result.data;
+
+      setDoctors((prev) =>
+        prev.map((d) =>
+          d.id === doctor.id ? { ...d, ...updated } : d
+        )
+      );
+
+      setViewDoctor((prev) =>
+        prev && prev.id === doctor.id ? { ...prev, ...updated } : prev
+      );
+    } catch (err) {
+      alert(err.message || "Failed to update doctor status");
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   const filtered = useMemo(() => {
@@ -121,6 +186,7 @@ export default function AdminDoctorsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      {/* ══════════ Header ══════════ */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-brand">
@@ -130,7 +196,7 @@ export default function AdminDoctorsPage() {
             Doctors
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your hospital's medical staff and credentials.
+            Manage your hospital&apos;s medical staff and credentials.
           </p>
         </div>
 
@@ -142,6 +208,7 @@ export default function AdminDoctorsPage() {
         </Button>
       </div>
 
+      {/* ══════════ Search bar ══════════ */}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -161,6 +228,7 @@ export default function AdminDoctorsPage() {
         )}
       </div>
 
+      {/* ══════════ Status tabs ══════════ */}
       <div className="mt-6 border-b border-border">
         <nav className="flex gap-6 overflow-x-auto" aria-label="Doctor status">
           {STATUS_TABS.map(({ id, label }) => {
@@ -196,6 +264,7 @@ export default function AdminDoctorsPage() {
         </nav>
       </div>
 
+      {/* ══════════ Error ══════════ */}
       {error && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
           <Ban className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
@@ -217,6 +286,7 @@ export default function AdminDoctorsPage() {
         </p>
       )}
 
+      {/* ══════════ Content ══════════ */}
       {loading ? (
         <DoctorGridSkeleton />
       ) : filtered.length > 0 ? (
@@ -233,12 +303,20 @@ export default function AdminDoctorsPage() {
         <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
       )}
 
+      {/* ══════════ Modal ══════════ */}
       {viewDoctor && (
-        <DoctorModal doctor={viewDoctor} onClose={() => setViewDoctor(null)} />
+        <DoctorModal
+          doctor={viewDoctor}
+          onClose={() => setViewDoctor(null)}
+          onToggleStatus={handleToggleStatus}
+          updating={updatingId === viewDoctor.id}
+        />
       )}
     </div>
   );
 }
+
+/* ══════════ Doctor Card ══════════ */
 
 function DoctorCard({ doctor, onView }) {
   const isActive = doctor.status === "ACTIVE";
@@ -301,7 +379,7 @@ function DoctorCard({ doctor, onView }) {
           </p>
           <p className="mt-1 flex items-center justify-center gap-0.5 text-xs font-semibold">
             <IndianRupee className="h-3 w-3" />
-            {doctor.consultationFee}
+            {formatCurrency(doctor.consultationFee)}
           </p>
         </div>
         <div className="p-3 text-center">
@@ -315,7 +393,12 @@ function DoctorCard({ doctor, onView }) {
       </div>
 
       <div className="mt-auto flex gap-2 border-t border-border p-3">
-        <Button size="sm" variant="outline" className="flex-1" onClick={onView}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1"
+          onClick={onView}
+        >
           View
         </Button>
         <Button size="sm" className="flex-1" asChild>
@@ -325,6 +408,8 @@ function DoctorCard({ doctor, onView }) {
     </div>
   );
 }
+
+/* ══════════ Status Badge ══════════ */
 
 function StatusBadge({ status }) {
   const map = {
@@ -351,7 +436,11 @@ function StatusBadge({ status }) {
   );
 }
 
-function DoctorModal({ doctor, onClose }) {
+/* ══════════ Doctor Modal ══════════ */
+
+function DoctorModal({ doctor, onClose, onToggleStatus, updating }) {
+  const isActive = doctor.status === "ACTIVE";
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
@@ -418,7 +507,7 @@ function DoctorModal({ doctor, onClose }) {
             <InfoBox
               icon={IndianRupee}
               label="Consultation fee"
-              value={`₹${doctor.consultationFee}`}
+              value={`₹${formatCurrency(doctor.consultationFee)}`}
             />
             <InfoBox
               icon={Building2}
@@ -449,17 +538,32 @@ function DoctorModal({ doctor, onClose }) {
             </Link>
           </Button>
 
-          {doctor.status === "ACTIVE" ? (
+          {isActive ? (
             <Button
               variant="outline"
+              onClick={() => onToggleStatus(doctor)}
+              disabled={updating}
               className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive sm:flex-none"
             >
-              <Ban className="mr-1.5 h-4 w-4" />
+              {updating ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Ban className="mr-1.5 h-4 w-4" />
+              )}
               Suspend
             </Button>
           ) : (
-            <Button variant="outline" className="flex-1 sm:flex-none">
-              <CheckCircle2 className="mr-1.5 h-4 w-4" />
+            <Button
+              variant="outline"
+              onClick={() => onToggleStatus(doctor)}
+              disabled={updating}
+              className="flex-1 sm:flex-none"
+            >
+              {updating ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-1.5 h-4 w-4" />
+              )}
               Reactivate
             </Button>
           )}
@@ -468,6 +572,8 @@ function DoctorModal({ doctor, onClose }) {
     </div>
   );
 }
+
+/* ══════════ Small components ══════════ */
 
 function SectionTitle({ children, className }) {
   return (
@@ -537,6 +643,8 @@ function DoctorGridSkeleton() {
   );
 }
 
+/* ══════════ Helpers ══════════ */
+
 function formatDate(value) {
   if (!value) return "—";
   const date = new Date(value);
@@ -546,4 +654,11 @@ function formatDate(value) {
     month: "short",
     year: "numeric",
   });
+}
+
+function formatCurrency(value) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 2,
+  }).format(Number(value));
 }

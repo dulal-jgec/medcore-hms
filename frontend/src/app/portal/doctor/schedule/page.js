@@ -1,66 +1,189 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
-  Clock,
-  Plus,
-  Calendar,
-  Users,
-  Pencil,
-  Trash2,
+  AlertCircle,
+  ArrowLeft,
+  CalendarClock,
   CheckCircle2,
-  X,
-  Save,
+  Clock,
+  Globe2,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
   TrendingUp,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { WEEKLY_SCHEDULE } from "@/lib/doctor-mock-data";
 
-const DEFAULT_SLOTS = ["Morning", "Afternoon", "Evening"];
+import {
+  createDoctorSchedule,
+  deleteDoctorSchedule,
+  getDoctorSchedules,
+  getMyDoctorProfile,
+  updateDoctorSchedule,
+} from "@/services/doctor.service";
+
+const DAYS = [
+  { value: "MONDAY", label: "Monday", short: "Mon" },
+  { value: "TUESDAY", label: "Tuesday", short: "Tue" },
+  { value: "WEDNESDAY", label: "Wednesday", short: "Wed" },
+  { value: "THURSDAY", label: "Thursday", short: "Thu" },
+  { value: "FRIDAY", label: "Friday", short: "Fri" },
+  { value: "SATURDAY", label: "Saturday", short: "Sat" },
+  { value: "SUNDAY", label: "Sunday", short: "Sun" },
+];
 
 export default function DoctorSchedulePage() {
-  const [schedule, setSchedule] = useState(WEEKLY_SCHEDULE);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(WEEKLY_SCHEDULE);
-  const [saved, setSaved] = useState(false);
+  const [doctor, setDoctor] = useState(null);
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const totalSlots = schedule.reduce((s, d) => s + d.slots, 0);
-  const totalBooked = schedule.reduce((s, d) => s + d.booked, 0);
-  const workingDays = schedule.filter((d) => d.slots > 0).length;
-  const utilization =
-    totalSlots > 0 ? Math.round((totalBooked / totalSlots) * 100) : 0;
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
 
-  function startEdit() {
-    setDraft(JSON.parse(JSON.stringify(schedule)));
-    setEditing(true);
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const profileRes = await getMyDoctorProfile();
+        const doc = profileRes.data;
+        if (!mounted) return;
+        setDoctor(doc);
+
+        const scheduleRes = await getDoctorSchedules(doc.id);
+        if (!mounted) return;
+        setSchedules(
+          Array.isArray(scheduleRes.data) ? scheduleRes.data : []
+        );
+      } catch (err) {
+        if (!mounted) return;
+        setError(err.message || "Unable to load your schedule.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const grouped = useMemo(() => {
+    const map = {};
+    for (const day of DAYS) map[day.value] = [];
+    for (const s of schedules) {
+      if (map[s.dayOfWeek]) map[s.dayOfWeek].push(s);
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) =>
+        (a.startTime || "").localeCompare(b.startTime || "")
+      );
+    }
+    return map;
+  }, [schedules]);
+
+  const stats = useMemo(() => {
+    const active = schedules.filter((s) => s.available);
+    const workingDays = new Set(active.map((s) => s.dayOfWeek)).size;
+
+    const totalMinutes = active.reduce(
+      (sum, s) => sum + minutesBetween(s.startTime, s.endTime),
+      0
+    );
+
+    return {
+      totalSlots: active.length,
+      workingDays,
+      weeklyHours: Math.round(totalMinutes / 60),
+    };
+  }, [schedules]);
+
+  function openCreate(day) {
+    setEditing({ dayOfWeek: day || "MONDAY" });
+    setEditorOpen(true);
   }
 
-  function cancelEdit() {
-    setDraft(JSON.parse(JSON.stringify(schedule)));
-    setEditing(false);
+  function openEdit(schedule) {
+    setEditing(schedule);
+    setEditorOpen(true);
   }
 
-  function updateDraft(day, field, value) {
-    setDraft((prev) =>
-      prev.map((d) => (d.day === day ? { ...d, [field]: value } : d))
+  async function handleDelete(schedule) {
+    if (
+      !window.confirm(
+        `Delete ${labelForDay(schedule.dayOfWeek)} ${formatTime(
+          schedule.startTime
+        )}–${formatTime(schedule.endTime)}?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await deleteDoctorSchedule(schedule.id);
+      setSchedules((prev) => prev.filter((s) => s.id !== schedule.id));
+    } catch (err) {
+      alert(err.message || "Unable to delete the slot.");
+    }
+  }
+
+  function handleSaved(saved, mode) {
+    setSchedules((prev) => {
+      if (mode === "create") return [...prev, saved];
+      return prev.map((s) => (s.id === saved.id ? { ...s, ...saved } : s));
+    });
+    setEditorOpen(false);
+    setEditing(null);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-brand" />
+      </div>
     );
   }
 
-  // TODO: PUT /api/v1/doctor-schedules/me
-  async function save() {
-    await new Promise((r) => setTimeout(r, 500));
-    setSchedule(draft);
-    setEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  if (error || !doctor) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <h1 className="mt-5 text-xl font-semibold">
+          Unable to load your schedule
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {error || "Doctor profile is missing."}
+        </p>
+      </div>
+    );
   }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      <Link
+        href="/portal/doctor"
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to dashboard
+      </Link>
+
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-brand">
             My Schedule
@@ -72,107 +195,103 @@ export default function DoctorSchedulePage() {
             Set your OPD hours. Patients book appointments within these slots.
           </p>
         </div>
-        {!editing && (
-          <Button onClick={startEdit}>
-            <Pencil className="mr-1.5 h-4 w-4" />
-            Edit schedule
-          </Button>
-        )}
+
+        <Button onClick={() => openCreate("MONDAY")}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          Add time slot
+        </Button>
       </div>
 
-      {/* Saved toast */}
-      {saved && (
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand-soft/50 px-4 py-3 text-sm">
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-brand" />
-          <p className="font-medium text-brand-soft-foreground">
-            Schedule updated successfully
+      {/* Public visibility notice */}
+      <div className="mt-6 flex items-start gap-3 rounded-2xl border border-brand/20 bg-brand-soft/40 p-5">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground">
+          <Globe2 className="h-4 w-4" />
+        </span>
+        <div>
+          <p className="text-sm font-semibold text-brand-soft-foreground">
+            Publicly visible
+          </p>
+          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+            These slots appear on your public doctor profile. Patients can
+            pick any open slot to book.
           </p>
         </div>
-      )}
+      </div>
 
       {/* Stats */}
-      <div className="mt-6 grid gap-3 sm:grid-cols-4">
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <MiniStat
-          icon={Clock}
+          icon={CalendarClock}
           label="Weekly slots"
-          value={totalSlots}
-          sub="total"
+          value={stats.totalSlots}
+          sub="active blocks"
         />
         <MiniStat
-          icon={Users}
-          label="Booked"
-          value={totalBooked}
-          sub="this week"
+          icon={Clock}
+          label="Weekly hours"
+          value={`${stats.weeklyHours}h`}
+          sub="OPD time"
           accent
         />
         <MiniStat
-          icon={Calendar}
-          label="Working days"
-          value={workingDays}
-          sub="per week"
-        />
-        <MiniStat
           icon={TrendingUp}
-          label="Utilization"
-          value={`${utilization}%`}
-          sub="slots filled"
+          label="Working days"
+          value={stats.workingDays}
+          sub="per week"
         />
       </div>
 
       {/* Schedule table */}
       <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="hidden border-b border-border bg-muted/40 px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:grid sm:grid-cols-12 sm:gap-4">
-          <span className="sm:col-span-3">Day</span>
-          <span className="sm:col-span-5">Hours</span>
-          <span className="sm:col-span-2">Slots</span>
-          <span className="sm:col-span-2 text-right">Status</span>
+        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-muted/40 px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:grid">
+          <span className="col-span-3">Day</span>
+          <span className="col-span-7">Time blocks</span>
+          <span className="col-span-2 text-right">Action</span>
         </div>
 
         <div className="divide-y divide-border">
-          {(editing ? draft : schedule).map((day) => (
+          {DAYS.map((day) => (
             <DayRow
-              key={day.day}
+              key={day.value}
               day={day}
-              editing={editing}
-              onChange={(field, value) => updateDraft(day.day, field, value)}
+              slots={grouped[day.value] || []}
+              onAdd={() => openCreate(day.value)}
+              onEdit={openEdit}
+              onDelete={handleDelete}
             />
           ))}
         </div>
       </div>
 
-      {/* Edit actions */}
-      {editing && (
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={cancelEdit}>
-            <X className="mr-1.5 h-4 w-4" />
-            Cancel
-          </Button>
-          <Button onClick={save}>
-            <Save className="mr-1.5 h-4 w-4" />
-            Save changes
-          </Button>
-        </div>
-      )}
-
-      {/* Info note */}
+      {/* Info */}
       <div className="mt-8 rounded-xl border border-border bg-muted/30 p-4">
         <p className="text-xs leading-5 text-muted-foreground">
-          <span className="font-medium text-foreground">Note:</span> Changes to
-          your schedule will affect new bookings only. Existing appointments
-          remain unchanged. Slots can also be managed by your hospital
-          administrator.
+          <span className="font-medium text-foreground">Note:</span> Changes
+          to your schedule affect new bookings only. Existing appointments
+          remain unchanged.
         </p>
       </div>
+
+      {editorOpen && editing && (
+        <ScheduleEditor
+          doctorId={doctor.id}
+          initial={editing}
+          onClose={() => {
+            setEditorOpen(false);
+            setEditing(null);
+          }}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   );
 }
 
-/* ══════════ Sub-components ══════════ */
+/* ══════════ Day Row ══════════ */
 
-function DayRow({ day, editing, onChange }) {
-  const isOff = day.slots === 0;
+function DayRow({ day, slots, onAdd, onEdit, onDelete }) {
   const isToday =
-    day.day === new Date().toLocaleString("en-IN", { weekday: "long" });
+    new Date().toLocaleString("en-IN", { weekday: "long" }) === day.label;
 
   return (
     <div
@@ -181,7 +300,6 @@ function DayRow({ day, editing, onChange }) {
         isToday && "bg-brand-soft/30"
       )}
     >
-      {/* Day name */}
       <div className="sm:col-span-3">
         <p
           className={cn(
@@ -189,7 +307,7 @@ function DayRow({ day, editing, onChange }) {
             isToday && "text-brand-soft-foreground"
           )}
         >
-          {day.day}
+          {day.label}
           {isToday && (
             <span className="ml-2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-brand-foreground">
               Today
@@ -198,76 +316,276 @@ function DayRow({ day, editing, onChange }) {
         </p>
       </div>
 
-      {/* Hours */}
-      <div className="sm:col-span-5">
-        {editing ? (
-          <input
-            value={day.hours}
-            onChange={(e) => onChange("hours", e.target.value)}
-            disabled={isOff}
-            placeholder="e.g. 10:00 AM – 2:00 PM"
-            className={cn(
-              "h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30",
-              isOff && "cursor-not-allowed opacity-50"
-            )}
-          />
+      <div className="sm:col-span-7">
+        {slots.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No availability</p>
         ) : (
-          <p className="text-sm text-muted-foreground">{day.hours}</p>
-        )}
-      </div>
-
-      {/* Slots */}
-      <div className="sm:col-span-2">
-        {editing ? (
-          <input
-            type="number"
-            value={day.slots}
-            onChange={(e) =>
-              onChange("slots", Math.max(0, parseInt(e.target.value) || 0))
-            }
-            min={0}
-            max={20}
-            className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-          />
-        ) : (
-          <div className="flex items-center gap-2">
-            {!isOff ? (
-              <>
-                <p className="text-sm font-semibold">{day.slots}</p>
-                <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-brand transition-all"
-                    style={{
-                      width: `${day.slots > 0 ? (day.booked / day.slots) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {day.booked}/{day.slots}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">—</p>
-            )}
+          <div className="flex flex-wrap gap-2">
+            {slots.map((slot) => (
+              <ScheduleChip
+                key={slot.id}
+                slot={slot}
+                onEdit={() => onEdit(slot)}
+                onDelete={() => onDelete(slot)}
+              />
+            ))}
           </div>
         )}
       </div>
 
-      {/* Status */}
       <div className="sm:col-span-2 sm:text-right">
-        {isOff ? (
-          <span className="inline-block rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Off
-          </span>
-        ) : (
-          <span className="inline-block rounded-full bg-brand-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-brand-soft-foreground">
-            Active
-          </span>
-        )}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onAdd}
+          className="w-full sm:w-auto"
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          Add
+        </Button>
       </div>
     </div>
   );
 }
+
+function ScheduleChip({ slot, onEdit, onDelete }) {
+  return (
+    <div
+      className={cn(
+        "group inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs",
+        slot.available
+          ? "border-brand/30 bg-brand-soft text-brand-soft-foreground"
+          : "border-border bg-muted text-muted-foreground"
+      )}
+    >
+      <Clock className="h-3 w-3" />
+      <span
+        className={cn(
+          "font-semibold",
+          !slot.available && "line-through opacity-70"
+        )}
+      >
+        {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+      </span>
+
+      <span className="flex items-center gap-0.5 border-l border-current/20 pl-2">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-black/5"
+          aria-label="Edit slot"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-black/5"
+          aria-label="Delete slot"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/* ══════════ Modal ══════════ */
+
+function ScheduleEditor({ doctorId, initial, onClose, onSaved }) {
+  const isEdit = Boolean(initial?.id);
+
+  const [form, setForm] = useState({
+    dayOfWeek: initial.dayOfWeek || "MONDAY",
+    startTime: normalizeInputTime(initial.startTime) || "09:00",
+    endTime: normalizeInputTime(initial.endTime) || "13:00",
+    available: initial.available === undefined ? true : initial.available,
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function update(field, value) {
+    setForm((p) => ({ ...p, [field]: value }));
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+
+    if (form.startTime >= form.endTime) {
+      setError("End time must be after start time.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      if (isEdit) {
+        const res = await updateDoctorSchedule(initial.id, {
+          dayOfWeek: form.dayOfWeek,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          available: form.available,
+        });
+        onSaved(res.data, "update");
+      } else {
+        const res = await createDoctorSchedule({
+          doctorId,
+          dayOfWeek: form.dayOfWeek,
+          startTime: form.startTime,
+          endTime: form.endTime,
+        });
+        onSaved(res.data, "create");
+      }
+    } catch (err) {
+      setError(err.message || "Unable to save the slot.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-border px-6 py-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
+              <CalendarClock className="h-4 w-4" />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">
+                {isEdit ? "Edit time slot" : "Add time slot"}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? "Update this availability block."
+                  : "Define a new availability block."}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6">
+          {error && (
+            <div className="mb-5 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">
+                Day of week
+              </label>
+              <select
+                value={form.dayOfWeek}
+                onChange={(e) => update("dayOfWeek", e.target.value)}
+                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              >
+                {DAYS.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">
+                  Start time
+                </label>
+                <div className="relative">
+                  <Clock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="time"
+                    value={form.startTime}
+                    onChange={(e) => update("startTime", e.target.value)}
+                    required
+                    className="h-11 pl-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">
+                  End time
+                </label>
+                <div className="relative">
+                  <Clock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="time"
+                    value={form.endTime}
+                    onChange={(e) => update("endTime", e.target.value)}
+                    required
+                    className="h-11 pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {isEdit && (
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-background p-3">
+                <input
+                  type="checkbox"
+                  checked={form.available}
+                  onChange={(e) => update("available", e.target.checked)}
+                  className="h-4 w-4 accent-brand"
+                />
+                <div>
+                  <p className="text-sm font-medium">
+                    Available for booking
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Uncheck to temporarily hide this slot.
+                  </p>
+                </div>
+              </label>
+            )}
+          </div>
+
+          <div className="mt-6 flex justify-end gap-3 border-t border-border pt-5">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  {isEdit ? "Save changes" : "Create slot"}
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ Small components ══════════ */
 
 function MiniStat({ icon: Icon, label, value, sub, accent }) {
   return (
@@ -293,4 +611,33 @@ function MiniStat({ icon: Icon, label, value, sub, accent }) {
       </div>
     </div>
   );
+}
+
+/* ══════════ Helpers ══════════ */
+
+function labelForDay(value) {
+  return DAYS.find((d) => d.value === value)?.label || value;
+}
+
+function formatTime(time) {
+  if (!time) return "--:--";
+  const [h, m] = time.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = ((hour + 11) % 12) + 1;
+  return `${String(display).padStart(2, "0")}:${m} ${suffix}`;
+}
+
+function normalizeInputTime(time) {
+  if (!time) return "";
+  const parts = time.split(":");
+  if (parts.length < 2) return "";
+  return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
+}
+
+function minutesBetween(start, end) {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  return Math.max(0, eh * 60 + em - (sh * 60 + sm));
 }

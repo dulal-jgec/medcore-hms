@@ -42,35 +42,36 @@ function LoginContent() {
     defaultValues: { email: "", password: "" },
   });
 
- async function onSubmit(data) {
+ const nextParam = params.get("next");
+
+async function onSubmit(data) {
   setServerError("");
 
   try {
-  const user = await login(data);
+    const user = await login(data);
 
-  console.log("Logged in user:", user);
-  console.log("Role:", user.role);
+    // 1) If we came from a protected route, go back there.
+    if (nextParam && nextParam.startsWith("/")) {
+      router.replace(nextParam);
+      router.refresh();
+      return;
+    }
 
- if (user.role === "SUPER_ADMIN") {
-  router.push("/super-admin");
-} else if (user.role === "HOSPITAL_ADMIN") {
-  router.push("/portal/admin");
-} else if (user.role === "DOCTOR") {
-  router.push("/portal/doctor");
-} else if (user.role === "NURSE") {
-  router.push("/portal/nurse");
-} else if (user.role === "ACCOUNTANT") {
-  router.push("/portal/accounts");
-} else if (user.role === "RECEPTIONIST") {
-  router.push("/portal/reception");
-} else {
-  router.push("/portal");
-}
-} catch (err) {
-  setServerError(
-    err.message || "Login failed. Please try again."
-  );
-}
+    // 2) Otherwise, default per role.
+    const role = user.role;
+
+    if (role === "SUPER_ADMIN") router.push("/super-admin");
+    else if (role === "HOSPITAL_ADMIN") router.push("/portal/admin");
+    else if (role === "DOCTOR") router.push("/portal/doctor");
+    else if (role === "NURSE") router.push("/portal/nurse");
+    else if (role === "ACCOUNTANT") router.push("/portal/accounts");
+    else if (role === "RECEPTIONIST") router.push("/portal/reception");
+    else router.push("/portal/patient");
+
+    router.refresh();
+  } catch (err) {
+    setServerError(err.message || "Login failed. Please try again.");
+  }
 }
 
   return (

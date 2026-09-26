@@ -17,16 +17,29 @@ async function performRefresh() {
 
   refreshPromise = (async () => {
     try {
+      console.log("[auth] refreshing token...");
+
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: "POST",
         credentials: "include",
       });
 
-      if (!response.ok) return null;
+      console.log("[auth] refresh status:", response.status);
+
+      if (!response.ok) {
+        console.warn("[auth] refresh failed");
+        return null;
+      }
 
       const data = await response.json();
       const newToken = data?.data?.accessToken;
-      if (!newToken) return null;
+
+      if (!newToken) {
+        console.warn("[auth] refresh 200 but no accessToken:", data);
+        return null;
+      }
+
+      console.log("[auth] refresh OK, new token set");
 
       useAuthStore.setState({
         accessToken: newToken,
@@ -35,7 +48,8 @@ async function performRefresh() {
       });
 
       return newToken;
-    } catch {
+    } catch (err) {
+      console.error("[auth] refresh threw:", err);
       return null;
     } finally {
       refreshPromise = null;
@@ -71,7 +85,7 @@ export async function apiFetch(path, options = {}) {
     credentials: "include",
   });
 
-  if (response.status === 401 && !isAuthEndpoint) {
+  if ((response.status === 401 || response.status === 403) && !isAuthEndpoint) {
     const newToken = await performRefresh();
 
     if (newToken) {

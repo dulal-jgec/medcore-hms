@@ -1,93 +1,213 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Clock,
-  User,
-  PlayCircle,
-  CheckCircle2,
   AlertCircle,
-  XCircle,
-  ChevronRight,
-  CalendarX2,
   Calendar,
-  FileText,
-  History,
+  CalendarX2,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  PlayCircle,
+  RefreshCw,
+  Stethoscope,
+  User,
+  XCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+import { getMyDoctorProfile } from "@/services/doctor.service";
 import {
-  TODAYS_APPOINTMENTS,
-  UPCOMING_APPOINTMENTS,
-  PAST_APPOINTMENTS,
-  CANCELLED_APPOINTMENTS,
-} from "@/lib/doctor-mock-data";
+  getDoctorAppointments,
+  updateAppointmentStatus,
+} from "@/services/appointment.service";
+
+import { useAuthStore } from "@/store/auth-store";
+
+const PAGE_SIZE = 100;
+
+const TABS = [
+  { id: "today", label: "Today" },
+  { id: "upcoming", label: "Upcoming" },
+  { id: "past", label: "Past" },
+  { id: "cancelled", label: "Cancelled" },
+];
 
 export default function DoctorAppointmentsPage() {
+  const [doctor, setDoctor] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState(null);
   const [tab, setTab] = useState("today");
 
-  const tabs = [
-    { id: "today", label: "Today", count: TODAYS_APPOINTMENTS.length },
-    { id: "upcoming", label: "Upcoming", count: UPCOMING_APPOINTMENTS.length },
-    { id: "past", label: "Past", count: PAST_APPOINTMENTS.length },
-    { id: "cancelled", label: "Cancelled", count: CANCELLED_APPOINTMENTS.length },
-  ];
+  const initialized = useAuthStore((s) => s.initialized);
+const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const appointments =
-    tab === "today"
-      ? TODAYS_APPOINTMENTS
-      : tab === "upcoming"
-      ? UPCOMING_APPOINTMENTS
-      : tab === "past"
-      ? PAST_APPOINTMENTS
-      : CANCELLED_APPOINTMENTS;
+ useEffect(() => {
+  if (!initialized || !isAuthenticated) return;
+
+  let mounted = true;
+
+  async function load() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const profileRes = await getMyDoctorProfile();
+      const doc = profileRes.data;
+      if (!mounted) return;
+      setDoctor(doc);
+
+      const result = await getDoctorAppointments(doc.id, {
+        page: 0,
+        size: PAGE_SIZE,
+      });
+      if (!mounted) return;
+
+      setAppointments(result.data?.items || result.data?.content || []);
+    } catch (err) {
+      if (!mounted) return;
+      setError(err.message || "Unable to load appointments.");
+    } finally {
+      if (mounted) setLoading(false);
+    }
+  }
+
+  load();
+
+  return () => {
+    mounted = false;
+  };
+}, [initialized, isAuthenticated]);
+
+  const today = toIsoDate(new Date());
+
+  const buckets = useMemo(() => {
+    const todayList = [];
+    const upcoming = [];
+    const past = [];
+    const cancelled = [];
+
+    for (const apt of appointments) {
+      if (apt.status === "CANCELLED") {
+        cancelled.push(apt);
+      } else if (apt.appointmentDate === today) {
+        todayList.push(apt);
+      } else if (apt.appointmentDate > today) {
+        if (apt.status !== "COMPLETED" && apt.status !== "NO_SHOW") {
+          upcoming.push(apt);
+        } else {
+          past.push(apt);
+        }
+      } else {
+        past.push(apt);
+      }
+    }
+
+    const byTimeAsc = (a, b) =>
+      (a.appointmentDate + " " + (a.startTime || "")).localeCompare(
+        b.appointmentDate + " " + (b.startTime || "")
+      );
+
+    const byTimeDesc = (a, b) => byTimeAsc(b, a);
+
+    todayList.sort(byTimeAsc);
+    upcoming.sort(byTimeAsc);
+    past.sort(byTimeDesc);
+    cancelled.sort(byTimeDesc);
+
+    return { today: todayList, upcoming, past, cancelled };
+  }, [appointments, today]);
+
+  const currentList = buckets[tab] || [];
+
+  async function handleStatusChange(appointment, nextStatus) {
+    const confirmMessage = getConfirmMessage(nextStatus);
+    if (confirmMessage && !window.confirm(confirmMessage)) return;
+
+    try {
+      setUpdatingId(appointment.id);
+      const result = await updateAppointmentStatus(
+        appointment.id,
+        nextStatus
+      );
+      const updated = result.data;
+
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === appointment.id ? { ...a, ...updated } : a))
+      );
+    } catch (err) {
+      alert(err.message || "Unable to update appointment.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-brand" />
+      </div>
+    );
+  }
+
+  if (error || !doctor) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <h1 className="mt-5 text-xl font-semibold">
+          Unable to load appointments
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {error || "Doctor profile is missing."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
-            Appointments
-          </p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-            My appointments
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            All consultations — today, upcoming, and past.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/portal/doctor/appointments/new">
-            
-            Schedule appointment
-          </Link>
-        </Button>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+          Appointments
+        </p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+          My appointments
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          All consultations — today, upcoming, and past.
+        </p>
       </div>
 
-      {/* Summary strip */}
+      {/* Summary */}
       <div className="mt-6 grid gap-3 sm:grid-cols-4">
         <MiniStat
           label="Today"
-          value={TODAYS_APPOINTMENTS.length}
+          value={buckets.today.length}
           sub="appointments"
           accent
         />
         <MiniStat
           label="Upcoming"
-          value={UPCOMING_APPOINTMENTS.length}
-          sub="this week"
+          value={buckets.upcoming.length}
+          sub="scheduled ahead"
         />
         <MiniStat
           label="Completed"
-          value={PAST_APPOINTMENTS.length}
+          value={buckets.past.length}
           sub="all time"
         />
         <MiniStat
           label="Cancelled"
-          value={CANCELLED_APPOINTMENTS.length}
+          value={buckets.cancelled.length}
           sub="all time"
           muted
         />
@@ -95,9 +215,14 @@ export default function DoctorAppointmentsPage() {
 
       {/* Tabs */}
       <div className="mt-8 border-b border-border">
-        <nav className="flex gap-6 overflow-x-auto" aria-label="Appointment filters">
-          {tabs.map(({ id, label, count }) => {
+        <nav
+          className="flex gap-6 overflow-x-auto"
+          aria-label="Appointment filters"
+        >
+          {TABS.map(({ id, label }) => {
             const isActive = tab === id;
+            const count = (buckets[id] || []).length;
+
             return (
               <button
                 key={id}
@@ -130,9 +255,15 @@ export default function DoctorAppointmentsPage() {
 
       {/* Content */}
       <div className="mt-8 space-y-4">
-        {appointments.length > 0 ? (
-          appointments.map((apt) => (
-            <AppointmentCard key={apt.id} apt={apt} tab={tab} />
+        {currentList.length > 0 ? (
+          currentList.map((apt) => (
+            <AppointmentCard
+              key={apt.id}
+              appointment={apt}
+              tab={tab}
+              updating={updatingId === apt.id}
+              onStatusChange={handleStatusChange}
+            />
           ))
         ) : (
           <EmptyState tab={tab} />
@@ -142,23 +273,27 @@ export default function DoctorAppointmentsPage() {
   );
 }
 
-/* ══════════ Sub-components ══════════ */
+/* ══════════ Appointment Card ══════════ */
 
-function AppointmentCard({ apt, tab }) {
-  const date = new Date(apt.date);
+function AppointmentCard({ appointment, tab, updating, onStatusChange }) {
   const isToday = tab === "today";
-  const isUpcoming = tab === "upcoming";
   const isPast = tab === "past";
   const isCancelled = tab === "cancelled";
+  const isUpcoming = tab === "upcoming";
+
+  const date = new Date(appointment.appointmentDate + "T00:00:00");
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/30 hover:shadow-sm">
+    <div
+      id={`apt-${appointment.id}`}
+      className="overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/30 hover:shadow-sm"
+    >
       <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
         {/* Date / time box */}
         <div
           className={cn(
             "flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-xl border",
-            isToday && apt.status === "in_progress"
+            isToday && appointment.status === "CHECKED_IN"
               ? "border-brand bg-brand text-brand-foreground"
               : isToday
               ? "border-brand/20 bg-brand-soft"
@@ -172,22 +307,22 @@ function AppointmentCard({ apt, tab }) {
               <p
                 className={cn(
                   "text-[10px] font-bold uppercase tracking-wider",
-                  apt.status === "in_progress"
+                  appointment.status === "CHECKED_IN"
                     ? "text-brand-foreground/80"
                     : "text-brand-soft-foreground/80"
                 )}
               >
-                {apt.time.split(" ")[1]}
+                {getMeridiem(appointment.startTime)}
               </p>
               <p
                 className={cn(
                   "text-lg font-bold leading-tight",
-                  apt.status === "in_progress"
+                  appointment.status === "CHECKED_IN"
                     ? "text-brand-foreground"
                     : "text-brand-soft-foreground"
                 )}
               >
-                {apt.time.split(" ")[0]}
+                {formatTimeShort(appointment.startTime)}
               </p>
             </>
           ) : (
@@ -224,107 +359,135 @@ function AppointmentCard({ apt, tab }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold tracking-tight">
-              {apt.patientName}
+              {appointment.patientName}
             </h3>
-            <StatusPill status={apt.status} />
-            <TypeBadge type={apt.type} />
+            <StatusPill status={appointment.status} />
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5" />
-              {apt.age} yrs · {apt.gender}
+              <Clock className="h-3.5 w-3.5" />
+              {formatTime(appointment.startTime)} –{" "}
+              {formatTime(appointment.endTime)}
             </span>
+
             {!isToday && (
               <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                {apt.time}
+                <Calendar className="h-3.5 w-3.5" />
+                {date.toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
               </span>
             )}
-            {apt.duration && (
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                {apt.duration}
-              </span>
-            )}
+
+            <span className="flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5" />
+              #{appointment.patientId}
+            </span>
           </div>
 
-          <p className="mt-2 text-sm">
-            <span className="text-muted-foreground">Reason: </span>
-            <span className="font-medium">{apt.reason}</span>
-          </p>
-
-          {isPast && apt.notes && (
-            <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Consultation notes
-              </p>
-              <p className="mt-1 text-xs text-foreground">{apt.notes}</p>
-            </div>
-          )}
-
-          {isCancelled && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Cancelled on {apt.cancelledOn} by {apt.cancelledBy}
+          {appointment.reason && (
+            <p className="mt-2 text-sm">
+              <span className="text-muted-foreground">Reason: </span>
+              <span className="font-medium">{appointment.reason}</span>
             </p>
           )}
         </div>
 
         {/* Actions */}
         <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:items-end">
-          {isToday && apt.status === "confirmed" && (
+          {isToday && appointment.status === "SCHEDULED" && (
             <>
-              <Button size="sm">
-                <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
-                Start
+              <Button
+                size="sm"
+                disabled={updating}
+                onClick={() =>
+                  onStatusChange(appointment, "CONFIRMED")
+                }
+              >
+                {updating ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Confirm
               </Button>
-              <Button size="sm" variant="outline">
-                Reschedule
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={updating}
+                onClick={() => onStatusChange(appointment, "CANCELLED")}
+              >
+                Cancel
               </Button>
             </>
           )}
 
-          {isToday && apt.status === "in_progress" && (
-            <Button size="sm">
-              <FileText className="mr-1.5 h-3.5 w-3.5" />
-              Continue
-            </Button>
+          {appointment.status === "CONFIRMED" && (
+            <>
+              <Button
+                size="sm"
+                disabled={updating}
+                onClick={() => onStatusChange(appointment, "CHECKED_IN")}
+              >
+                {updating ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Check in
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={updating}
+                onClick={() => onStatusChange(appointment, "NO_SHOW")}
+              >
+                No show
+              </Button>
+            </>
           )}
 
-          {isToday && apt.status === "completed" && (
-            <Button size="sm" variant="outline">
-              <History className="mr-1.5 h-3.5 w-3.5" />
-              Notes
+          {appointment.status === "CHECKED_IN" && (
+            <Button
+              size="sm"
+              disabled={updating}
+              onClick={() => onStatusChange(appointment, "COMPLETED")}
+            >
+              {updating ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Mark complete
             </Button>
           )}
 
           {isUpcoming && (
-            <>
-              <Button size="sm" variant="outline" asChild>
-                <Link
-                  href={`/portal/doctor/patients/${apt.patientId}`}
-                >
-                  View patient
-                </Link>
-              </Button>
-              <Button size="sm" variant="ghost">
-                Reschedule
-              </Button>
-            </>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={updating}
+              onClick={() => onStatusChange(appointment, "CANCELLED")}
+            >
+              Cancel
+            </Button>
           )}
 
           {isPast && (
             <Button size="sm" variant="outline" asChild>
-              <Link href={`/portal/doctor/patients/${apt.patientId}`}>
+              <Link
+                href={`/portal/doctor/patients/${appointment.patientId}`}
+              >
                 Patient file
               </Link>
             </Button>
           )}
 
           {isCancelled && (
-            <Button size="sm" variant="outline">
-              Follow up
-            </Button>
+            <span className="text-xs text-muted-foreground">—</span>
           )}
         </div>
       </div>
@@ -332,35 +495,43 @@ function AppointmentCard({ apt, tab }) {
   );
 }
 
+/* ══════════ Sub-components ══════════ */
+
 function StatusPill({ status }) {
   const map = {
-    confirmed: {
+    SCHEDULED: {
+      label: "Scheduled",
+      icon: Clock,
+      class: "bg-muted text-muted-foreground",
+    },
+    CONFIRMED: {
       label: "Confirmed",
       icon: CheckCircle2,
       class: "bg-brand-soft text-brand-soft-foreground",
     },
-    pending: {
-      label: "Pending",
-      icon: AlertCircle,
-      class: "bg-highlight-soft text-highlight-soft-foreground",
-    },
-    in_progress: {
-      label: "In progress",
-      icon: PlayCircle,
+    CHECKED_IN: {
+      label: "Checked in",
+      icon: Stethoscope,
       class: "bg-brand text-brand-foreground",
     },
-    completed: {
+    COMPLETED: {
       label: "Completed",
       icon: CheckCircle2,
       class: "bg-muted text-muted-foreground",
     },
-    cancelled: {
+    CANCELLED: {
       label: "Cancelled",
       icon: XCircle,
       class: "bg-destructive/10 text-destructive",
     },
+    NO_SHOW: {
+      label: "No show",
+      icon: AlertCircle,
+      class: "bg-destructive/10 text-destructive",
+    },
   };
-  const config = map[status] || map.pending;
+
+  const config = map[status] || map.SCHEDULED;
   const Icon = config.icon;
 
   return (
@@ -372,23 +543,6 @@ function StatusPill({ status }) {
     >
       <Icon className="h-3 w-3" />
       {config.label}
-    </span>
-  );
-}
-
-function TypeBadge({ type }) {
-  const map = {
-    New: "bg-highlight-soft text-highlight-soft-foreground",
-    "Follow-up": "bg-muted text-muted-foreground",
-  };
-  return (
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-        map[type] || map["Follow-up"]
-      )}
-    >
-      {type}
     </span>
   );
 }
@@ -415,7 +569,10 @@ function MiniStat({ label, value, sub, accent, muted }) {
 
 function EmptyState({ tab }) {
   const copy = {
-    today: { title: "No appointments today", desc: "Enjoy your free day." },
+    today: {
+      title: "No appointments today",
+      desc: "Enjoy your free day.",
+    },
     upcoming: {
       title: "No upcoming appointments",
       desc: "New bookings will appear here.",
@@ -440,4 +597,54 @@ function EmptyState({ tab }) {
       <p className="mt-1.5 text-sm text-muted-foreground">{c.desc}</p>
     </div>
   );
+}
+
+/* ══════════ Helpers ══════════ */
+
+function toIsoDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatTime(time) {
+  if (!time) return "--:--";
+  const [h, m] = time.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = ((hour + 11) % 12) + 1;
+  return `${String(display).padStart(2, "0")}:${m} ${suffix}`;
+}
+
+function formatTimeShort(time) {
+  if (!time) return "--:--";
+  const [h, m] = time.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = ((hour + 11) % 12) + 1;
+  return `${display}:${m}`;
+}
+
+function getMeridiem(time) {
+  if (!time) return "";
+  const [h] = time.split(":");
+  return Number(h) >= 12 ? "PM" : "AM";
+}
+
+function getConfirmMessage(nextStatus) {
+  switch (nextStatus) {
+    case "CANCELLED":
+      return "Cancel this appointment? This cannot be undone.";
+    case "NO_SHOW":
+      return "Mark this patient as no-show?";
+    case "COMPLETED":
+      return "Mark this consultation as completed?";
+    case "CHECKED_IN":
+      return "Check in this patient for consultation?";
+    case "CONFIRMED":
+      return "Confirm this appointment?";
+    default:
+      return null;
+  }
 }

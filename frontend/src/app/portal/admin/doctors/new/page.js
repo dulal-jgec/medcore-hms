@@ -35,6 +35,8 @@ const INITIAL_FORM = {
   qualification: "",
 };
 
+const REDIRECT_DELAY_MS = 1500;
+
 export default function CreateDoctorPage() {
   const router = useRouter();
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -48,25 +50,33 @@ export default function CreateDoctorPage() {
 
   useEffect(() => {
     if (!accessToken) return;
-    loadDepartments();
-  }, [accessToken]);
 
-  async function loadDepartments() {
-    try {
-      setLoadingDepartments(true);
-      const result = await getDepartments(accessToken, {
-        page: 0,
-       size: 50,
-        sortBy: "name",
-        sortDir: "asc",
-      });
-      setDepartments(result.data?.items || []);
-    } catch (err) {
-      setError(err.message || "Failed to load departments");
-    } finally {
-      setLoadingDepartments(false);
+    let mounted = true;
+
+    async function load() {
+      try {
+        setLoadingDepartments(true);
+        const result = await getDepartments({
+          page: 0,
+          size: 50,
+          sortBy: "name",
+          sortDir: "asc",
+        });
+        if (!mounted) return;
+        setDepartments(result.data?.items || []);
+      } catch (err) {
+        if (!mounted) return;
+        setError(err.message || "Failed to load departments");
+      } finally {
+        if (mounted) setLoadingDepartments(false);
+      }
     }
-  }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [accessToken]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -78,6 +88,8 @@ export default function CreateDoctorPage() {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    if (submitting) return;
+
     if (!accessToken) {
       setError("Authentication required");
       return;
@@ -88,11 +100,16 @@ export default function CreateDoctorPage() {
       return;
     }
 
+    if (!/^[6-9][0-9]{9}$/.test(form.phone.trim())) {
+      setError("Enter a valid 10-digit mobile number");
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError("");
 
-      await createDoctor(accessToken, {
+      await createDoctor({
         fullName: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
@@ -107,11 +124,9 @@ export default function CreateDoctorPage() {
         "Doctor created successfully. Login credentials have been emailed."
       );
 
-      setForm(INITIAL_FORM);
-
       setTimeout(() => {
-        router.push("/portal/admin/doctors");
-      }, 1500);
+        router.replace("/portal/admin/doctors");
+      }, REDIRECT_DELAY_MS);
     } catch (err) {
       setError(err.message || "Failed to create doctor");
     } finally {
@@ -175,12 +190,14 @@ export default function CreateDoctorPage() {
         >
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
+              id="fullName"
               label="Full name"
               icon={User}
               required
               className="sm:col-span-2"
             >
               <Input
+                id="fullName"
                 name="fullName"
                 value={form.fullName}
                 onChange={handleChange}
@@ -189,11 +206,13 @@ export default function CreateDoctorPage() {
                 required
                 minLength={3}
                 maxLength={100}
+                autoComplete="name"
               />
             </Field>
 
-            <Field label="Email" icon={Mail} required>
+            <Field id="email" label="Email" icon={Mail} required>
               <Input
+                id="email"
                 type="email"
                 name="email"
                 value={form.email}
@@ -201,11 +220,13 @@ export default function CreateDoctorPage() {
                 placeholder="doctor@example.com"
                 className="h-11 pl-10"
                 required
+                autoComplete="email"
               />
             </Field>
 
-            <Field label="Phone" icon={Phone} required>
+            <Field id="phone" label="Phone" icon={Phone} required>
               <Input
+                id="phone"
                 type="tel"
                 name="phone"
                 value={form.phone}
@@ -216,6 +237,7 @@ export default function CreateDoctorPage() {
                 inputMode="numeric"
                 pattern="[6-9][0-9]{9}"
                 maxLength={10}
+                autoComplete="tel"
               />
             </Field>
           </div>
@@ -227,8 +249,14 @@ export default function CreateDoctorPage() {
           desc="Department assignment and credentials."
         >
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Department" icon={Building2} required>
+            <Field
+              id="departmentId"
+              label="Department"
+              icon={Building2}
+              required
+            >
               <select
+                id="departmentId"
                 name="departmentId"
                 value={form.departmentId}
                 onChange={handleChange}
@@ -249,8 +277,14 @@ export default function CreateDoctorPage() {
               </select>
             </Field>
 
-            <Field label="Specialization" icon={Stethoscope} required>
+            <Field
+              id="specialization"
+              label="Specialization"
+              icon={Stethoscope}
+              required
+            >
               <Input
+                id="specialization"
                 name="specialization"
                 value={form.specialization}
                 onChange={handleChange}
@@ -261,8 +295,14 @@ export default function CreateDoctorPage() {
               />
             </Field>
 
-            <Field label="Experience (years)" icon={Award} required>
+            <Field
+              id="experienceYears"
+              label="Experience (years)"
+              icon={Award}
+              required
+            >
               <Input
+                id="experienceYears"
                 type="number"
                 name="experienceYears"
                 value={form.experienceYears}
@@ -275,8 +315,14 @@ export default function CreateDoctorPage() {
               />
             </Field>
 
-            <Field label="Consultation fee" icon={IndianRupee} required>
+            <Field
+              id="consultationFee"
+              label="Consultation fee"
+              icon={IndianRupee}
+              required
+            >
               <Input
+                id="consultationFee"
                 type="number"
                 name="consultationFee"
                 value={form.consultationFee}
@@ -290,12 +336,14 @@ export default function CreateDoctorPage() {
             </Field>
 
             <Field
+              id="qualification"
               label="Qualification"
               icon={GraduationCap}
               required
               className="sm:col-span-2"
             >
               <Input
+                id="qualification"
                 name="qualification"
                 value={form.qualification}
                 onChange={handleChange}
@@ -312,8 +360,8 @@ export default function CreateDoctorPage() {
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <p className="text-xs leading-5 text-muted-foreground">
             A temporary password will be generated automatically. Login
-            credentials will be sent to the doctor's email address. The doctor
-            will belong to your current hospital.
+            credentials will be sent to the doctor&apos;s email address. The
+            doctor will belong to your current hospital.
           </p>
         </div>
 
@@ -334,6 +382,8 @@ export default function CreateDoctorPage() {
   );
 }
 
+/* ══════════ Sub-components ══════════ */
+
 function SectionCard({ icon: Icon, title, desc, children }) {
   return (
     <div className="rounded-2xl border border-border bg-card">
@@ -353,10 +403,13 @@ function SectionCard({ icon: Icon, title, desc, children }) {
   );
 }
 
-function Field({ label, icon: Icon, required, className, children }) {
+function Field({ id, label, icon: Icon, required, className, children }) {
   return (
     <div className={className}>
-      <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">
+      <label
+        htmlFor={id}
+        className="mb-1.5 flex items-center gap-2 text-sm font-medium"
+      >
         {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
         {label}
         {required && <span className="text-destructive">*</span>}

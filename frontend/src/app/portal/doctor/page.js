@@ -1,59 +1,171 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  CalendarCheck,
-  Users,
-  FlaskConical,
-  FileText,
-  Clock,
-  Activity,
-  ChevronRight,
-  Stethoscope,
-  ArrowUpRight,
-  CheckCircle2,
   AlertCircle,
-  PlayCircle,
-  Sparkles,
-  Plus,
-  Heart,
-  TrendingUp,
+  ArrowUpRight,
   Award,
+  Building2,
+  CalendarCheck,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Plus,
+  Sparkles,
+  Stethoscope,
+  TrendingUp,
+  Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  DOCTOR_PROFILE,
-  TODAYS_APPOINTMENTS,
-  ASSIGNED_PATIENTS,
-  PENDING_LAB_REPORTS,
-  RECENT_PRESCRIPTIONS,
-  WEEKLY_SCHEDULE,
-  getDoctorStats,
-} from "@/lib/doctor-mock-data";
 
-export default function DoctorDashboard() {
-  const stats = getDoctorStats();
-  const currentAppointment = TODAYS_APPOINTMENTS.find(
-    (a) => a.status === "in_progress"
-  );
-  const upcomingToday = TODAYS_APPOINTMENTS.filter(
-    (a) => a.status === "confirmed"
-  );
-  const criticalPatients = ASSIGNED_PATIENTS.filter(
-    (p) => p.status === "critical"
-  );
+import { getMyDoctorProfile, getDoctorSchedules } from "@/services/doctor.service";
+import { getDoctorAppointments } from "@/services/appointment.service";
 
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+const DAY_ORDER = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+  "SUNDAY",
+];
 
-  const today = new Date().toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+const DAY_SHORT = {
+  MONDAY: "Mon",
+  TUESDAY: "Tue",
+  WEDNESDAY: "Wed",
+  THURSDAY: "Thu",
+  FRIDAY: "Fri",
+  SATURDAY: "Sat",
+  SUNDAY: "Sun",
+};
+
+const DAY_LABEL = {
+  MONDAY: "Monday",
+  TUESDAY: "Tuesday",
+  WEDNESDAY: "Wednesday",
+  THURSDAY: "Thursday",
+  FRIDAY: "Friday",
+  SATURDAY: "Saturday",
+  SUNDAY: "Sunday",
+};
+
+export default function DoctorDashboardPage() {
+  const [profile, setProfile] = useState(null);
+  const [schedules, setSchedules] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const profileRes = await getMyDoctorProfile();
+        const doctor = profileRes.data;
+        if (!mounted) return;
+        setProfile(doctor);
+
+        const [scheduleRes, apptRes] = await Promise.all([
+          getDoctorSchedules(doctor.id).catch(() => ({ data: [] })),
+          getDoctorAppointments(doctor.id, { page: 0, size: 100 }).catch(
+            () => ({ data: { items: [] } })
+          ),
+        ]);
+
+        if (!mounted) return;
+
+        setSchedules(
+          Array.isArray(scheduleRes.data) ? scheduleRes.data : []
+        );
+        setAppointments(
+          apptRes.data?.items || apptRes.data?.content || []
+        );
+      } catch (err) {
+        if (!mounted) return;
+        setError(err.message || "Unable to load your dashboard.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const today = toIsoDate(new Date());
+
+  const stats = useMemo(() => {
+    const todayList = appointments
+      .filter((a) => a.appointmentDate === today)
+      .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+
+    const upcoming = appointments.filter(
+      (a) =>
+        a.appointmentDate > today &&
+        !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(a.status)
+    );
+
+    const inConsult = todayList.find((a) => a.status === "CHECKED_IN");
+
+    const uniquePatients = new Set(appointments.map((a) => a.patientId));
+
+    const todayCompleted = todayList.filter(
+      (a) => a.status === "COMPLETED"
+    ).length;
+
+    return {
+      todayList,
+      todayCount: todayList.length,
+      todayCompleted,
+      upcoming: upcoming.length,
+      patients: uniquePatients.size,
+      scheduleSlots: schedules.filter((s) => s.available).length,
+      inConsult,
+    };
+  }, [appointments, schedules, today]);
+
+  const greeting = getGreeting();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-brand" />
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <h1 className="mt-5 text-xl font-semibold">
+          Unable to load your dashboard
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {error || "Doctor profile is missing."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
@@ -77,22 +189,48 @@ export default function DoctorDashboard() {
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 text-xs font-medium text-primary-foreground/70">
               <Sparkles className="h-3.5 w-3.5 text-brand" />
-              <span>{today}</span>
+              <span>
+                {new Date().toLocaleDateString("en-IN", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}
+              </span>
             </div>
+
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl lg:text-4xl">
-              {greeting}, {DOCTOR_PROFILE.fullName.replace("Dr. ", "")} 🩺
+              {greeting}, {stripDrPrefix(profile.doctorName)} 🩺
             </h1>
+
             <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">
               You have{" "}
               <span className="font-semibold text-primary-foreground">
-                {stats.todayUpcoming} more appointments
+                {stats.todayCount} appointment
+                {stats.todayCount !== 1 ? "s" : ""}
               </span>{" "}
-              today and{" "}
-              <span className="font-semibold text-primary-foreground">
-                {stats.pendingReports} lab reports
-              </span>{" "}
-              waiting for your review.
+              today, {stats.todayCompleted} already completed.
+              {stats.upcoming > 0 && (
+                <>
+                  {" "}
+                  {stats.upcoming} upcoming this week.
+                </>
+              )}
             </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-primary-foreground/70">
+              {profile.specialization && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Stethoscope className="h-3.5 w-3.5 text-brand" />
+                  {profile.specialization}
+                </span>
+              )}
+              {profile.hospitalName && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5" />
+                  {profile.hospitalName}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -102,8 +240,7 @@ export default function DoctorDashboard() {
               className="bg-brand text-brand-foreground hover:bg-brand/90"
             >
               <Link href="/portal/doctor/appointments">
-                 
-                Today's schedule
+                Today&apos;s schedule
               </Link>
             </Button>
             <Button
@@ -112,55 +249,58 @@ export default function DoctorDashboard() {
               variant="outline"
               className="border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
             >
-              <Link href="/portal/doctor/patients">
-                My patients
+              <Link
+                href={`/hospitals/${profile.hospitalId}/doctors/${profile.id}`}
+                target="_blank"
+              >
+                <ExternalLink className="mr-1.5 h-4 w-4" />
+                Public profile
               </Link>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ══════════ STATS ROW ══════════ */}
+      {/* ══════════ STATS ══════════ */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={CalendarCheck}
           label="Today's appointments"
-          value={stats.todayTotal}
+          value={stats.todayCount}
           sub={`${stats.todayCompleted} completed`}
           href="/portal/doctor/appointments"
           accent
         />
         <StatCard
-          icon={Users}
-          label="Active patients"
-          value={stats.activePatients}
-          sub={`${criticalPatients.length} critical`}
-          href="/portal/doctor/patients"
-          alert={criticalPatients.length > 0}
+          icon={TrendingUp}
+          label="Upcoming"
+          value={stats.upcoming}
+          sub="this week"
+          href="/portal/doctor/appointments"
         />
         <StatCard
-          icon={FlaskConical}
-          label="Reports to review"
-          value={stats.pendingReports}
-          sub="Awaiting your input"
-          href="/portal/doctor/lab-reports"
+          icon={Users}
+          label="Patients treated"
+          value={stats.patients}
+          sub="unique patients"
+          href="/portal/doctor/appointments"
         />
         <StatCard
           icon={Award}
-          label="Rating"
-          value={DOCTOR_PROFILE.rating}
-          sub={`${DOCTOR_PROFILE.totalPatients} patients treated`}
-          href="/portal/doctor/profile"
+          label="Weekly slots"
+          value={stats.scheduleSlots}
+          sub="active availability"
+          href="/portal/doctor/schedule"
         />
       </div>
 
-      {/* ══════════ CURRENT CONSULTATION (if any) ══════════ */}
-      {currentAppointment && (
+      {/* ══════════ CURRENT CONSULTATION ══════════ */}
+      {stats.inConsult && (
         <div className="mt-6 overflow-hidden rounded-2xl border-2 border-brand bg-gradient-to-br from-brand-soft/60 to-brand-soft/20">
           <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand text-brand-foreground">
-                <PlayCircle className="h-7 w-7" />
+                <Stethoscope className="h-7 w-7" />
               </span>
               <div>
                 <div className="flex items-center gap-2">
@@ -170,21 +310,23 @@ export default function DoctorDashboard() {
                   </p>
                 </div>
                 <p className="mt-1.5 text-xl font-bold tracking-tight">
-                  {currentAppointment.patientName}
+                  {stats.inConsult.patientName}
                 </p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  {currentAppointment.age} yrs · {currentAppointment.gender} ·{" "}
-                  {currentAppointment.reason}
+                  {formatTime(stats.inConsult.startTime)} –{" "}
+                  {formatTime(stats.inConsult.endTime)}
+                  {stats.inConsult.reason && ` · ${stats.inConsult.reason}`}
                 </p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="lg">
-                <FileText className="mr-1.5 h-4 w-4" />
-                Write prescription
-              </Button>
-              <Button size="lg" variant="outline">
-                View history
+              <Button asChild size="lg">
+                <Link
+                  href={`/portal/doctor/appointments#apt-${stats.inConsult.id}`}
+                >
+                  <FileText className="mr-1.5 h-4 w-4" />
+                  Open consultation
+                </Link>
               </Button>
             </div>
           </div>
@@ -193,17 +335,18 @@ export default function DoctorDashboard() {
 
       {/* ══════════ MAIN GRID ══════════ */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Today's schedule (2 cols) */}
+        {/* Today's schedule */}
         <div className="lg:col-span-2">
           <div className="rounded-2xl border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold tracking-tight">
-                  Today's schedule
+                  Today&apos;s schedule
                 </h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {stats.todayTotal} appointments ·{" "}
-                  {stats.todayCompleted} completed
+                  {stats.todayCount} appointment
+                  {stats.todayCount !== 1 ? "s" : ""} · {stats.todayCompleted}{" "}
+                  completed
                 </p>
               </div>
               <Link
@@ -215,46 +358,51 @@ export default function DoctorDashboard() {
               </Link>
             </div>
 
-            <ul className="divide-y divide-border">
-              {upcomingToday.slice(0, 5).map((apt) => (
-                <li
-                  key={apt.id}
-                  className="flex items-center gap-4 p-4 transition-colors hover:bg-hover/40 sm:p-5"
-                >
-                  {/* Time */}
-                  <div className="flex w-16 shrink-0 flex-col items-center rounded-lg border border-border bg-muted/40 px-2 py-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      {apt.time.split(" ")[1]}
-                    </p>
-                    <p className="text-base font-bold leading-tight">
-                      {apt.time.split(" ")[0]}
-                    </p>
-                  </div>
+            {stats.todayList.length === 0 ? (
+              <div className="px-6 py-14 text-center">
+                <CalendarDays className="mx-auto h-10 w-10 text-muted-foreground" />
+                <p className="mt-4 text-sm font-semibold">
+                  No appointments today
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Enjoy the quiet day or update your schedule.
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {stats.todayList.slice(0, 5).map((apt) => (
+                  <li
+                    key={apt.id}
+                    className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30 sm:p-5"
+                  >
+                    <div className="flex w-16 shrink-0 flex-col items-center rounded-lg border border-border bg-muted/40 px-2 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        {getMeridiem(apt.startTime)}
+                      </p>
+                      <p className="text-base font-bold leading-tight">
+                        {formatTime(apt.startTime)}
+                      </p>
+                    </div>
 
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">
                         {apt.patientName}
                       </p>
-                      <TypeBadge type={apt.type} />
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {formatTime(apt.startTime)} – {formatTime(apt.endTime)}
+                        {apt.reason && ` · ${apt.reason}`}
+                      </p>
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {apt.age} yrs · {apt.gender} · {apt.reason}
-                    </p>
-                  </div>
 
-                  {/* Action */}
-                  <Button size="sm" variant="outline" className="shrink-0">
-                    Start
-                  </Button>
-                </li>
-              ))}
-            </ul>
+                    <StatusPill status={apt.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
-        {/* Weekly schedule peek (1 col) */}
+        {/* Weekly schedule preview */}
         <div className="rounded-2xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="text-base font-semibold tracking-tight">
@@ -269,13 +417,19 @@ export default function DoctorDashboard() {
           </div>
 
           <ul className="divide-y divide-border">
-            {WEEKLY_SCHEDULE.map((day) => {
-              const isOff = day.slots === 0;
+            {DAY_ORDER.map((day) => {
+              const daySchedules = schedules.filter(
+                (s) => s.dayOfWeek === day && s.available
+              );
+
               const isToday =
-                day.day === new Date().toLocaleString("en-IN", { weekday: "long" });
+                new Date().toLocaleString("en-IN", {
+                  weekday: "long",
+                }) === DAY_LABEL[day];
+
               return (
                 <li
-                  key={day.day}
+                  key={day}
                   className={cn(
                     "flex items-center justify-between gap-3 px-5 py-3",
                     isToday && "bg-brand-soft/40"
@@ -288,7 +442,7 @@ export default function DoctorDashboard() {
                         isToday && "text-brand-soft-foreground"
                       )}
                     >
-                      {day.day}
+                      {DAY_SHORT[day]}
                       {isToday && (
                         <span className="ml-2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-brand-foreground">
                           Today
@@ -296,165 +450,39 @@ export default function DoctorDashboard() {
                       )}
                     </p>
                     <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                      {day.hours}
+                      {daySchedules.length === 0
+                        ? "Off"
+                        : daySchedules
+                            .map(
+                              (s) =>
+                                `${formatTime(s.startTime)}–${formatTime(
+                                  s.endTime
+                                )}`
+                            )
+                            .join(", ")}
                     </p>
                   </div>
-                  {!isOff ? (
-                    <div className="flex shrink-0 flex-col items-end">
-                      <p className="text-xs font-semibold">
-                        {day.booked}/{day.slots}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        slots
-                      </p>
-                    </div>
-                  ) : (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      Off
-                    </span>
-                  )}
+
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                      daySchedules.length === 0
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-brand-soft text-brand-soft-foreground"
+                    )}
+                  >
+                    {daySchedules.length === 0
+                      ? "Off"
+                      : `${daySchedules.length} block${
+                          daySchedules.length > 1 ? "s" : ""
+                        }`}
+                  </span>
                 </li>
               );
             })}
           </ul>
         </div>
       </div>
-
-      {/* ══════════ TWO COLUMNS: Reports + Recent Rx ══════════ */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Pending lab reports */}
-        <div className="rounded-2xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <div className="flex items-center gap-2">
-              <FlaskConical className="h-4 w-4 text-brand" />
-              <h2 className="text-base font-semibold tracking-tight">
-                Lab reports to review
-              </h2>
-            </div>
-            <Link
-              href="/portal/doctor/lab-reports"
-              className="text-xs font-medium text-brand hover:underline"
-            >
-              All
-            </Link>
-          </div>
-
-          <ul className="divide-y divide-border">
-            {PENDING_LAB_REPORTS.slice(0, 3).map((r) => (
-              <li
-                key={r.id}
-                className="flex items-start gap-3 p-5 transition-colors hover:bg-hover/40"
-              >
-                <span
-                  className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                    r.priority === "urgent"
-                      ? "bg-destructive/10 text-destructive"
-                      : r.status === "ready"
-                      ? "bg-brand-soft text-brand-soft-foreground"
-                      : "bg-highlight-soft text-highlight-soft-foreground"
-                  )}
-                >
-                  <FlaskConical className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-semibold">
-                      {r.testName}
-                    </p>
-                    {r.priority === "urgent" && (
-                      <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-destructive">
-                        Urgent
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {r.patientName} · Ordered {r.orderedOn}
-                  </p>
-                </div>
-                {r.status === "ready" ? (
-                  <Button size="sm" variant="outline" className="shrink-0">
-                    Review
-                  </Button>
-                ) : (
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    Processing
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Recent prescriptions */}
-        <div className="rounded-2xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-brand" />
-              <h2 className="text-base font-semibold tracking-tight">
-                Recent prescriptions
-              </h2>
-            </div>
-            <Link
-              href="/portal/doctor/prescriptions"
-              className="text-xs font-medium text-brand hover:underline"
-            >
-              All
-            </Link>
-          </div>
-
-          <ul className="divide-y divide-border">
-            {RECENT_PRESCRIPTIONS.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center gap-4 p-5 transition-colors hover:bg-hover/40"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
-                  <FileText className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">
-                    {p.patientName}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {p.diagnosis} · {p.medicineCount} medicines
-                  </p>
-                </div>
-                <p className="shrink-0 text-[11px] text-muted-foreground">
-                  {p.issuedOn}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* ══════════ CRITICAL PATIENTS (if any) ══════════ */}
-      {criticalPatients.length > 0 && (
-        <div className="mt-6 rounded-2xl border border-destructive/20 bg-destructive/5 p-5">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground">
-              <AlertCircle className="h-5 w-5" />
-            </span>
-            <div className="flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-destructive">
-                Needs attention
-              </p>
-              <p className="mt-1 text-sm">
-                <span className="font-semibold">
-                  {criticalPatients.length} critical patient
-                  {criticalPatients.length > 1 ? "s" : ""}
-                </span>{" "}
-                in your care —{" "}
-                {criticalPatients.map((p) => p.name).join(", ")}
-              </p>
-            </div>
-            <Button size="sm" variant="outline" asChild>
-              <Link href="/portal/doctor/patients">View</Link>
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* ══════════ QUICK ACTIONS ══════════ */}
       <div className="mt-8">
@@ -467,29 +495,29 @@ export default function DoctorDashboard() {
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <ActionTile
-            icon={Plus}
-            label="Write prescription"
-            desc="For current patient"
-            href="/portal/doctor/prescriptions/new"
+            icon={CalendarDays}
+            label="All appointments"
+            desc="Today, upcoming & past"
+            href="/portal/doctor/appointments"
             accent
           />
           <ActionTile
-            icon={FlaskConical}
-            label="Order lab test"
-            desc="New diagnostic request"
-            href="/portal/doctor/lab-reports"
+            icon={CalendarClock}
+            label="Manage schedule"
+            desc="Set weekly availability"
+            href="/portal/doctor/schedule"
           />
           <ActionTile
             icon={Users}
-            label="Patient history"
-            desc="Look up any patient"
+            label="My patients"
+            desc="Look up patient records"
             href="/portal/doctor/patients"
           />
           <ActionTile
-            icon={Clock}
-            label="Manage schedule"
-            desc="Set availability"
-            href="/portal/doctor/schedule"
+            icon={FileText}
+            label="Prescriptions"
+            desc="Recently issued"
+            href="/portal/doctor/prescriptions"
           />
         </div>
       </div>
@@ -499,13 +527,7 @@ export default function DoctorDashboard() {
 
 /* ══════════ Sub-components ══════════ */
 
-function StatCard({ icon: Icon, label, value, sub, href, accent, alert }) {
-  const iconStyle = alert
-    ? "bg-destructive/10 text-destructive"
-    : accent
-    ? "bg-brand text-brand-foreground"
-    : "bg-brand-soft text-brand-soft-foreground";
-
+function StatCard({ icon: Icon, label, value, sub, href, accent }) {
   return (
     <Link
       href={href}
@@ -515,7 +537,9 @@ function StatCard({ icon: Icon, label, value, sub, href, accent, alert }) {
         <span
           className={cn(
             "flex h-10 w-10 items-center justify-center rounded-xl",
-            iconStyle
+            accent
+              ? "bg-brand text-brand-foreground"
+              : "bg-brand-soft text-brand-soft-foreground"
           )}
         >
           <Icon className="h-5 w-5" />
@@ -558,19 +582,89 @@ function ActionTile({ icon: Icon, label, desc, href, accent }) {
   );
 }
 
-function TypeBadge({ type }) {
+function StatusPill({ status }) {
   const map = {
-    New: "bg-highlight-soft text-highlight-soft-foreground",
-    "Follow-up": "bg-muted text-muted-foreground",
+    SCHEDULED: {
+      label: "Scheduled",
+      icon: Clock,
+      class: "bg-muted text-muted-foreground",
+    },
+    CONFIRMED: {
+      label: "Confirmed",
+      icon: CheckCircle2,
+      class: "bg-brand-soft text-brand-soft-foreground",
+    },
+    CHECKED_IN: {
+      label: "Checked in",
+      icon: Stethoscope,
+      class: "bg-brand text-brand-foreground",
+    },
+    COMPLETED: {
+      label: "Completed",
+      icon: CheckCircle2,
+      class: "bg-muted text-muted-foreground",
+    },
+    CANCELLED: {
+      label: "Cancelled",
+      icon: AlertCircle,
+      class: "bg-destructive/10 text-destructive",
+    },
+    NO_SHOW: {
+      label: "No show",
+      icon: AlertCircle,
+      class: "bg-destructive/10 text-destructive",
+    },
   };
+
+  const config = map[status] || map.SCHEDULED;
+  const Icon = config.icon;
+
   return (
     <span
       className={cn(
-        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-        map[type] || map["Follow-up"]
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+        config.class
       )}
     >
-      {type}
+      <Icon className="h-3 w-3" />
+      {config.label}
     </span>
   );
+}
+
+/* ══════════ Helpers ══════════ */
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function toIsoDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatTime(time) {
+  if (!time) return "--:--";
+  const [h, m] = time.split(":");
+  const hour = Number(h);
+  const minute = m ?? "00";
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = ((hour + 11) % 12) + 1;
+  return `${String(display).padStart(2, "0")}:${minute} ${suffix}`;
+}
+
+function getMeridiem(time) {
+  if (!time) return "";
+  const [h] = time.split(":");
+  return Number(h) >= 12 ? "PM" : "AM";
+}
+
+function stripDrPrefix(name) {
+  if (!name) return "Doctor";
+  return name.replace(/^Dr\.?\s*/i, "");
 }

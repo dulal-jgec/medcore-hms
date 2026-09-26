@@ -4,10 +4,13 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api/v1";
 
 async function handleResponse(response) {
-  const result = await response.json();
+  const text = await response.text();
+  const result = text ? JSON.parse(text) : {};
 
-  if (!response.ok) {
-    throw new Error(result.message || "Something went wrong");
+  if (!response.ok || result.success === false) {
+    const err = new Error(result.message || `Request failed (${response.status})`);
+    err.status = response.status;
+    throw err;
   }
 
   return result;

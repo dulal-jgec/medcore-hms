@@ -47,6 +47,20 @@ public class SecurityConfig {
                         .anyRequest()
                         .authenticated()
                 )
+                
+                .exceptionHandling(exception -> exception
+                	    .authenticationEntryPoint(
+                	        (request, response, authException) -> {
+                	            response.setStatus(
+                	                jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED
+                	            );
+                	            response.setContentType("application/json");
+                	            response.getWriter().write(
+                	                "{\"success\":false,\"message\":\"Unauthorized\"}"
+                	            );
+                	        }
+                	    )
+                	)
 
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
@@ -66,10 +80,15 @@ public class SecurityConfig {
                 .httpBasic(httpBasic ->
                         httpBasic.disable()
                 )
+                
 
                 .formLogin(form ->
                         form.disable()
-                );
+                )
+                
+                
+                ;
+        
 
         return http.build();
     }

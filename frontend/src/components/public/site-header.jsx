@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { LayoutDashboard, LogOut, Menu, User } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -24,9 +25,34 @@ const NAV_LINKS = [
   { href: "/for-hospitals", label: "For Hospitals" },
 ];
 
+const DASHBOARD_BY_ROLE = {
+  SUPER_ADMIN: "/super-admin",
+  HOSPITAL_ADMIN: "/portal/admin",
+  DOCTOR: "/portal/doctor",
+  NURSE: "/portal/nurse",
+  ACCOUNTANT: "/portal/accounts",
+  RECEPTIONIST: "/portal/reception",
+  PATIENT: "/portal/patient",
+};
+
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const initialized = useAuthStore((s) => s.initialized);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+
+  const dashboardHref = DASHBOARD_BY_ROLE[user?.role] || "/portal/patient";
+
+  async function handleLogout() {
+    await logout();
+    setOpen(false);
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -63,28 +89,61 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
 
-          {/* Desktop: plain Links styled as buttons */}
-          <Link
-            href="/contact"
-            className={cn(
-              buttonVariants(),
-              "hidden sm:inline-flex bg-brand text-brand-foreground hover:bg-brand/90",
-            )}
-          >
-            Contact Us
-          </Link>
+          {/* ------------------ AUTH AREA ------------------ */}
+          {!initialized ? (
+            // Skeleton while auth initializes — keeps layout stable
+            <div className="hidden h-9 w-24 animate-pulse rounded-md bg-muted sm:block" />
+          ) : isAuthenticated ? (
+            <>
+              <Link
+                href={dashboardHref}
+                className={cn(
+                  buttonVariants(),
+                  "hidden sm:inline-flex bg-brand text-brand-foreground hover:bg-brand/90",
+                )}
+              >
+                <LayoutDashboard className="mr-1.5 h-4 w-4" />
+                Dashboard
+              </Link>
 
-          <Link
-            href="/login"
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "hidden sm:inline-flex hover:bg-hover hover:text-hover-foreground",
-            )}
-          >
-            Sign In
-          </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "hidden sm:inline-flex hover:bg-hover hover:text-hover-foreground",
+                )}
+              >
+                <LogOut className="mr-1.5 h-4 w-4" />
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/contact"
+                className={cn(
+                  buttonVariants(),
+                  "hidden sm:inline-flex bg-brand text-brand-foreground hover:bg-brand/90",
+                )}
+              >
+                Contact Us
+              </Link>
 
-          {/* Mobile menu — SheetTrigger styled directly */}
+              <Link
+                href="/login"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "hidden sm:inline-flex hover:bg-hover hover:text-hover-foreground",
+                )}
+              >
+                Sign In
+              </Link>
+            </>
+          )}
+          {/* ------------------ /AUTH AREA ------------------ */}
+
+          {/* Mobile menu */}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
               aria-label="Open menu"
@@ -107,29 +166,60 @@ export function SiteHeader() {
                 ))}
 
                 <div className="mt-4 flex flex-col gap-2">
-                  <SheetClose asChild>
-                    <Link
-                      href="/login"
-                      className={cn(
-                        buttonVariants({ variant: "outline" }),
-                        "w-full hover:bg-hover hover:text-hover-foreground",
-                      )}
-                    >
-                      Sign In
-                    </Link>
-                  </SheetClose>
+                  {isAuthenticated ? (
+                    <>
+                      <SheetClose asChild>
+                        <Link
+                          href={dashboardHref}
+                          className={cn(
+                            buttonVariants(),
+                            "w-full bg-brand text-brand-foreground hover:bg-brand/90",
+                          )}
+                        >
+                          <LayoutDashboard className="mr-1.5 h-4 w-4" />
+                          Dashboard
+                        </Link>
+                      </SheetClose>
 
-                  <SheetClose asChild>
-                    <Link
-                      href="/contact"
-                      className={cn(
-                        buttonVariants(),
-                        "w-full bg-brand text-brand-foreground hover:bg-brand/90",
-                      )}
-                    >
-                      Contact Us
-                    </Link>
-                  </SheetClose>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className={cn(
+                          buttonVariants({ variant: "outline" }),
+                          "w-full hover:bg-hover hover:text-hover-foreground",
+                        )}
+                      >
+                        <LogOut className="mr-1.5 h-4 w-4" />
+                        Sign out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <SheetClose asChild>
+                        <Link
+                          href="/login"
+                          className={cn(
+                            buttonVariants({ variant: "outline" }),
+                            "w-full hover:bg-hover hover:text-hover-foreground",
+                          )}
+                        >
+                          Sign In
+                        </Link>
+                      </SheetClose>
+
+                      <SheetClose asChild>
+                        <Link
+                          href="/contact"
+                          className={cn(
+                            buttonVariants(),
+                            "w-full bg-brand text-brand-foreground hover:bg-brand/90",
+                          )}
+                        >
+                          Contact Us
+                        </Link>
+                      </SheetClose>
+                    </>
+                  )}
                 </div>
               </div>
             </SheetContent>

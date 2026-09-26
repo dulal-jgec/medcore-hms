@@ -6,6 +6,7 @@ import com.medcore.features.appointment.dto.response.AppointmentResponse;
 import com.medcore.features.patient.dto.request.CreatePatientRequest;
 import com.medcore.features.patient.dto.response.PatientResponse;
 import com.medcore.features.receptionist.dto.request.CreateReceptionistRequest;
+import com.medcore.features.receptionist.dto.request.CreateWalkInPatientRequest;
 import com.medcore.features.receptionist.dto.request.UpdateReceptionistRequest;
 import com.medcore.features.receptionist.dto.response.ReceptionistResponse;
 
@@ -79,5 +80,7 @@ public interface ReceptionistService {
     ApiResponse<ReceptionistProfileResponse> uploadMyProfileImage(
             MultipartFile file
     );
+    
+    ApiResponse<PatientResponse> registerWalkInPatient(CreateWalkInPatientRequest request);
 
 }

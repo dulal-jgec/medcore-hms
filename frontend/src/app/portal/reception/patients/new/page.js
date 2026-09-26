@@ -2,93 +2,99 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  User,
+  AlertCircle,
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  Droplets,
+  Loader2,
   Mail,
   Phone,
-  MapPin,
-  Droplets,
-  Calendar,
-  ShieldCheck,
-  CheckCircle2,
-  ArrowLeft,
-  AlertCircle,
-  Users,
+  User,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { HOSPITALS } from "@/lib/hospitals";
+import { cn } from "@/lib/utils";
+import { registerPatientByReceptionist } from "@/services/receptionist.service";
 
-const schema = z.object({
-  fullName: z.string().min(2, "Name is required").max(80),
-  email: z.string().email("Enter a valid email"),
-  phone: z
-    .string()
-    .min(10, "Enter a valid phone")
-    .max(15)
-    .regex(/^[0-9+\-\s()]+$/, "Only digits and + - ( ) allowed"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
-  gender: z.string().min(1, "Select gender"),
-  bloodGroup: z.string().min(1, "Select blood group"),
-  address: z.string().min(5, "Address is required"),
-  city: z.string().min(2, "City is required"),
-  state: z.string().min(2, "State is required"),
-  pincode: z.string().min(4, "Enter a valid pincode"),
-  emergencyName: z.string().min(2, "Emergency contact name required"),
-  emergencyRelation: z.string().min(2, "Relation required"),
-  emergencyPhone: z
-    .string()
-    .min(10, "Enter a valid emergency phone")
-    .regex(/^[0-9+\-\s()]+$/, "Only digits and + - ( ) allowed"),
-  hospitalId: z.string().min(1, "Select hospital"),
-});
-
-const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+const BLOOD_GROUPS = [
+  { value: "A_POSITIVE", label: "A+" },
+  { value: "A_NEGATIVE", label: "A-" },
+  { value: "B_POSITIVE", label: "B+" },
+  { value: "B_NEGATIVE", label: "B-" },
+  { value: "AB_POSITIVE", label: "AB+" },
+  { value: "AB_NEGATIVE", label: "AB-" },
+  { value: "O_POSITIVE", label: "O+" },
+  { value: "O_NEGATIVE", label: "O-" },
+];
 const GENDERS = ["Male", "Female", "Other"];
 
 export default function RegisterPatientPage() {
   const router = useRouter();
-  const [submitted, setSubmitted] = useState(false);
+  const params = useSearchParams();
+  const returnTo = params.get("returnTo");
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      fullName: "",
-      email: "",
-      phone: "",
-      dateOfBirth: "",
-      gender: "",
-      bloodGroup: "",
-      address: "",
-      city: "",
-      state: "",
-      pincode: "",
-      emergencyName: "",
-      emergencyRelation: "",
-      emergencyPhone: "",
-      hospitalId: "",
-    },
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    dateOfBirth: "",
+    gender: "",
+    bloodGroup: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    emergencyContactRelation: "",
   });
 
-  // TODO: POST /api/v1/patients
-  async function onSubmit(data) {
-    await new Promise((r) => setTimeout(r, 900));
-    console.log("Register patient:", data);
-    setSubmitted(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [createdPatient, setCreatedPatient] = useState(null);
+
+  function update(field, value) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (error) setError("");
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+
+    if (!form.fullName.trim()) return setError("Full name is required.");
+    if (!form.phone.trim()) return setError("Phone is required.");
+
+    try {
+      setSubmitting(true);
+
+      const result = await registerPatientByReceptionist({
+        fullName: form.fullName.trim(),
+        email: form.email.trim().toLowerCase() || null,
+        phone: form.phone.trim(),
+        dateOfBirth: form.dateOfBirth || null,
+        gender: form.gender || null,
+        bloodGroup: form.bloodGroup || null,
+        emergencyContactName: form.emergencyContactName.trim() || null,
+        emergencyContactPhone: form.emergencyContactPhone.trim() || null,
+        emergencyContactRelation: form.emergencyContactRelation.trim() || null,
+      });
+
+      setCreatedPatient(result.data);
+    } catch (err) {
+      setError(err.message || "Unable to register patient.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const today = new Date().toISOString().split("T")[0];
 
-  if (submitted) {
+  if (createdPatient) {
+    const bookHref = returnTo
+      ? `${returnTo}?patientId=${createdPatient.id}`
+      : `/portal/reception/appointments/new?patientId=${createdPatient.id}`;
+
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="rounded-2xl border border-border bg-card p-8 text-center sm:p-12">
@@ -99,20 +105,15 @@ export default function RegisterPatientPage() {
             Patient registered
           </h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-            The patient profile has been created successfully. You can now
-            book an appointment.
+            <b>{createdPatient.fullName}</b> is now in MedCore. You can book an
+            appointment for them right away.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setSubmitted(false)}
-            >
+            <Button variant="outline" onClick={() => setCreatedPatient(null)}>
               Register another
             </Button>
             <Button asChild>
-              <Link href="/portal/reception/appointments/new">
-                Book appointment
-              </Link>
+              <Link href={bookHref}>Book appointment</Link>
             </Button>
           </div>
         </div>
@@ -138,216 +139,147 @@ export default function RegisterPatientPage() {
           Register new patient
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Create a patient profile to start booking appointments.
+          Create a patient record for a walk-in.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-        {/* Personal info */}
+      {error && (
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="mt-8 space-y-6">
         <SectionCard title="Personal information">
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field
-              label="Full name"
-              required
-              error={errors.fullName?.message}
-              className="sm:col-span-2"
-            >
+            <Field label="Full name" required className="sm:col-span-2">
               <div className="relative">
                 <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  {...register("fullName")}
+                  value={form.fullName}
+                  onChange={(e) => update("fullName", e.target.value)}
                   placeholder="Patient's full name"
                   className="h-11 pl-10"
+                  required
                 />
               </div>
             </Field>
 
-            <Field label="Email" required error={errors.email?.message}>
+            <Field label="Email">
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  {...register("email")}
                   type="email"
+                  value={form.email}
+                  onChange={(e) => update("email", e.target.value)}
                   placeholder="patient@example.com"
                   className="h-11 pl-10"
                 />
               </div>
             </Field>
 
-            <Field label="Phone" required error={errors.phone?.message}>
+            <Field label="Phone" required>
               <div className="relative">
                 <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  {...register("phone")}
+                  value={form.phone}
+                  onChange={(e) => update("phone", e.target.value)}
                   placeholder="+91 90000 00000"
                   className="h-11 pl-10"
+                  required
                 />
               </div>
             </Field>
 
-            <Field label="Date of birth" required error={errors.dateOfBirth?.message}>
+            <Field label="Date of birth">
               <div className="relative">
                 <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  {...register("dateOfBirth")}
                   type="date"
                   max={today}
+                  value={form.dateOfBirth}
+                  onChange={(e) => update("dateOfBirth", e.target.value)}
                   className="h-11 pl-10"
                 />
               </div>
             </Field>
 
-            <Field label="Gender" required error={errors.gender?.message}>
+            <Field label="Gender">
               <select
-                {...register("gender")}
+                value={form.gender}
+                onChange={(e) => update("gender", e.target.value)}
                 className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
               >
-                <option value="">Choose gender</option>
+                <option value="">Select gender</option>
                 {GENDERS.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
+                  <option key={g} value={g}>{g}</option>
                 ))}
               </select>
             </Field>
 
-            <Field
-              label="Blood group"
-              required
-              error={errors.bloodGroup?.message}
-            >
+            <Field label="Blood group">
               <div className="relative">
                 <Droplets className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <select
-                  {...register("bloodGroup")}
+                  value={form.bloodGroup}
+                  onChange={(e) => update("bloodGroup", e.target.value)}
                   className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                 >
-                  <option value="">Choose blood group</option>
+                  <option value="">Select</option>
                   {BLOOD_GROUPS.map((bg) => (
-                    <option key={bg} value={bg}>
-                      {bg}
+                    <option key={bg.value} value={bg.value}>
+                      {bg.label}
                     </option>
                   ))}
                 </select>
               </div>
             </Field>
-
-            <Field label="Hospital" required error={errors.hospitalId?.message} className="sm:col-span-2">
-              <select
-                {...register("hospitalId")}
-                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-              >
-                <option value="">Choose hospital</option>
-                {HOSPITALS.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name} — {h.city}
-                  </option>
-                ))}
-              </select>
-            </Field>
           </div>
         </SectionCard>
 
-        {/* Address */}
-        <SectionCard title="Address">
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field
-              label="Full address"
-              required
-              error={errors.address?.message}
-              className="sm:col-span-2"
-            >
-              <div className="relative">
-                <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  {...register("address")}
-                  placeholder="House / Street / Area"
-                  className="h-11 pl-10"
-                />
-              </div>
-            </Field>
-
-            <Field label="City" required error={errors.city?.message}>
-              <Input {...register("city")} placeholder="City" className="h-11" />
-            </Field>
-
-            <Field label="State" required error={errors.state?.message}>
-              <Input
-                {...register("state")}
-                placeholder="State"
-                className="h-11"
-              />
-            </Field>
-
-            <Field label="Pincode" required error={errors.pincode?.message}>
-              <Input
-                {...register("pincode")}
-                placeholder="Pincode"
-                className="h-11"
-              />
-            </Field>
-          </div>
-        </SectionCard>
-
-        {/* Emergency contact */}
-        <SectionCard
-          title="Emergency contact"
-          desc="Person we should contact in case of an emergency."
-        >
+        <SectionCard title="Emergency contact">
           <div className="grid gap-5 sm:grid-cols-3">
-            <Field
-              label="Contact name"
-              required
-              error={errors.emergencyName?.message}
-            >
+            <Field label="Contact name">
               <Input
-                {...register("emergencyName")}
+                value={form.emergencyContactName}
+                onChange={(e) => update("emergencyContactName", e.target.value)}
                 placeholder="Full name"
                 className="h-11"
               />
             </Field>
-
-            <Field
-              label="Relationship"
-              required
-              error={errors.emergencyRelation?.message}
-            >
+            <Field label="Relationship">
               <Input
-                {...register("emergencyRelation")}
+                value={form.emergencyContactRelation}
+                onChange={(e) => update("emergencyContactRelation", e.target.value)}
                 placeholder="e.g. Spouse"
                 className="h-11"
               />
             </Field>
-
-            <Field
-              label="Phone"
-              required
-              error={errors.emergencyPhone?.message}
-            >
+            <Field label="Phone">
               <Input
-                {...register("emergencyPhone")}
+                value={form.emergencyContactPhone}
+                onChange={(e) => update("emergencyContactPhone", e.target.value)}
                 placeholder="+91 90000 00000"
                 className="h-11"
               />
             </Field>
           </div>
-
-          <div className="mt-5 flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <p className="text-xs leading-5 text-muted-foreground">
-              Emergency contact details help our staff reach family quickly
-              if needed. Please verify the phone number with the patient.
-            </p>
-          </div>
         </SectionCard>
 
-        {/* Actions */}
         <div className="flex flex-wrap justify-end gap-3">
           <Button type="button" variant="outline" asChild>
             <Link href="/portal/reception/patients">Cancel</Link>
           </Button>
-          <Button type="submit" size="lg" disabled={isSubmitting}>
-            {isSubmitting ? "Registering..." : "Register patient"}
+          <Button type="submit" size="lg" disabled={submitting}>
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Registering...
+              </>
+            ) : (
+              "Register patient"
+            )}
           </Button>
         </div>
       </form>
@@ -355,31 +287,25 @@ export default function RegisterPatientPage() {
   );
 }
 
-/* ══════════ Sub-components ══════════ */
-
-function SectionCard({ title, desc, children }) {
+function SectionCard({ title, children }) {
   return (
     <div className="rounded-2xl border border-border bg-card">
       <div className="border-b border-border px-5 py-4 sm:px-6">
         <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-        {desc && (
-          <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
-        )}
       </div>
       <div className="p-5 sm:p-6">{children}</div>
     </div>
   );
 }
 
-function Field({ label, required, error, className, children }) {
+function Field({ label, required, className, children }) {
   return (
-    <div className={className}>
+    <div className={cn(className)}>
       <label className="mb-1.5 block text-sm font-medium">
         {label}
         {required && <span className="ml-0.5 text-destructive">*</span>}
       </label>
       {children}
-      {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
     </div>
   );
 }

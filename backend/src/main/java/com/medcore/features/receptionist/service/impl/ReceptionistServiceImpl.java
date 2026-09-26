@@ -20,9 +20,14 @@ import com.medcore.features.notification.service.EmailService;
 
 import com.medcore.features.patient.dto.request.CreatePatientRequest;
 import com.medcore.features.patient.dto.response.PatientResponse;
+import com.medcore.features.patient.entity.Patient;
+import com.medcore.features.patient.enums.PatientStatus;
+import com.medcore.features.patient.mapper.PatientMapper;
+import com.medcore.features.patient.repository.PatientRepository;
 import com.medcore.features.patient.service.PatientService;
 
 import com.medcore.features.receptionist.dto.request.CreateReceptionistRequest;
+import com.medcore.features.receptionist.dto.request.CreateWalkInPatientRequest;
 import com.medcore.features.receptionist.dto.request.UpdateMyReceptionistProfileRequest;
 import com.medcore.features.receptionist.dto.request.UpdateReceptionistRequest;
 import com.medcore.features.receptionist.dto.response.ReceptionistProfileResponse;
@@ -77,7 +82,8 @@ public class ReceptionistServiceImpl implements ReceptionistService {
     private final FileStorageService fileStorageService;
     private final FileValidationService fileValidationService;
 
-
+    private final PatientRepository patientRepository;
+    private final PatientMapper patientMapper;
      
 
     @Override
@@ -450,6 +456,64 @@ public class ReceptionistServiceImpl implements ReceptionistService {
         );
     }
 
+    
+    @Override
+    @Transactional
+    public ApiResponse<PatientResponse> registerWalkInPatient(
+            CreateWalkInPatientRequest request) {
+
+        Receptionist receptionist = validateActiveReceptionist();
+        Hospital hospital = receptionist.getHospital();
+
+        String email = (request.getEmail() != null && !request.getEmail().isBlank())
+                ? request.getEmail().trim().toLowerCase()
+                : request.getPhone().trim() + "@walkin.medcore.local";
+
+        if (userRepository.existsByEmail(email)) {
+            throw new BusinessException("A user with this email already exists");
+        }
+        if (userRepository.existsByPhone(request.getPhone().trim())) {
+            throw new BusinessException("A user with this phone already exists");
+        }
+
+        Role patientRole = roleRepository.findByName(RoleName.PATIENT)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient role not found"));
+
+        String tempPassword = PasswordGenerator.generate();
+
+        User user = User.builder()
+                .fullName(request.getFullName().trim())
+                .email(email)
+                .phone(request.getPhone().trim())
+                .password(passwordEncoder.encode(tempPassword))
+                .hospital(hospital)
+                .role(patientRole)
+                .status(UserStatus.ACTIVE)
+                .emailVerified(false)
+                .phoneVerified(false)
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+        Patient patient = Patient.builder()
+                .user(savedUser)
+                .dateOfBirth(request.getDateOfBirth())
+                .bloodGroup(request.getBloodGroup())
+                .emergencyContactName(request.getEmergencyContactName())
+                .emergencyContactPhone(request.getEmergencyContactPhone())
+                .emergencyContactRelation(request.getEmergencyContactRelation())
+                .status(PatientStatus.ACTIVE)
+                .build();
+
+        Patient savedPatient = patientRepository.save(patient);
+
+        return ApiResponse.<PatientResponse>builder()
+                .success(true)
+                .message("Walk-in patient registered successfully")
+                .data(patientMapper.toResponse(savedPatient))
+                .build();
+    }
+    
     @Override
     @Transactional
     public ApiResponse<AppointmentResponse> checkInPatient(

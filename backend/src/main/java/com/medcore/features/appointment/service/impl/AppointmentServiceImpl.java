@@ -4,6 +4,7 @@ import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
+import com.medcore.common.security.SecurityUtil;
 import com.medcore.common.security.TenantContextService;
 
 import com.medcore.features.appointment.dto.request.CreateAppointmentRequest;
@@ -1107,6 +1108,64 @@ public class AppointmentServiceImpl
                 appointments,
                 "Today's appointments fetched successfully"
         );
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<AppointmentResponse>> getMyAppointments(
+            int page, int size, String sortBy, String sortDir) {
+
+        validatePagination(page, size);
+
+        Set<String> allowedSortFields =
+                Set.of("startTime", "endTime", "appointmentDate", "createdAt");
+
+        if (!allowedSortFields.contains(sortBy)) {
+            throw new BusinessException("Invalid sort field: " + sortBy);
+        }
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir)
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        RoleName role = getCurrentRole();
+        Page<Appointment> appointmentPage;
+
+        switch (role) {
+            case PATIENT -> {
+                Patient patient = getCurrentPatient();
+                appointmentPage = appointmentRepository
+                        .findByPatientIdAndDeletedAtIsNull(patient.getId(), pageable);
+            }
+            case DOCTOR -> {
+                Doctor doctor = getCurrentDoctor();
+                appointmentPage = appointmentRepository
+                        .findByDoctorIdAndDeletedAtIsNull(doctor.getId(), pageable);
+            }
+            default -> {
+                Long hospitalId = tenantContextService.getCurrentHospitalId();
+                if (hospitalId == null) {
+                    appointmentPage = appointmentRepository.findByDeletedAtIsNull(pageable);
+                } else {
+                    appointmentPage = appointmentRepository
+                            .findByHospitalIdAndDeletedAtIsNull(hospitalId, pageable);
+                }
+            }
+        }
+
+        return buildPageResponse(appointmentPage, "My appointments fetched successfully");
+    }
+
+    private Doctor getCurrentDoctor() {
+        String email = SecurityUtil.getCurrentUsername();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Current user not found"));
+
+        return doctorRepository.findByUserIdAndDeletedAtIsNull(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found"));
     }
 
 
