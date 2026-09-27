@@ -27,29 +27,10 @@ import {
 } from "@/services/super-admin.service";
 
 const STAT_CONFIG = [
-  {
-    key: "totalHospitals",
-    label: "Total hospitals",
-    icon: Building2,
-    accent: true,
-  },
-  {
-    key: "activeHospitals",
-    label: "Active",
-    icon: CheckCircle2,
-  },
-  {
-    key: "inactiveHospitals",
-    label: "Inactive",
-    icon: XCircle,
-    muted: true,
-  },
-  {
-    key: "deletedHospitals",
-    label: "Deleted",
-    icon: Trash2,
-    alert: true,
-  },
+  { key: "totalHospitals", label: "Total hospitals", icon: Building2, accent: true },
+  { key: "activeHospitals", label: "Active", icon: CheckCircle2 },
+  { key: "inactiveHospitals", label: "Inactive", icon: XCircle, muted: true },
+  { key: "deletedHospitals", label: "Deleted", icon: Trash2, alert: true },
 ];
 
 export default function SuperAdminPage() {
@@ -64,38 +45,56 @@ export default function SuperAdminPage() {
   useEffect(() => {
     if (!accessToken) return;
 
+    let cancelled = false;
+
     async function load() {
-      try {
-        setLoading(true);
-        setError("");
+      setLoading(true);
+      setError("");
 
-        const [statsResult, hospitalsResult, adminsResult] =
-          await Promise.all([
-            getDashboard(accessToken),
-            getAllHospitals(accessToken, 0, 5, "createdAt", "desc"),
-            getAllHospitalAdmins(accessToken, 0, 5),
-          ]);
+      const results = await Promise.allSettled([
+        getDashboard(),
+        getAllHospitals(0, 5, "createdAt", "desc"),
+        getAllHospitalAdmins(0, 5),
+      ]);
 
-        setStats(statsResult.data);
-        setRecentHospitals(hospitalsResult.data.content || []);
-        setRecentAdmins(adminsResult.data.content || []);
-      } catch (err) {
-        setError(err.message || "Failed to load dashboard.");
-      } finally {
-        setLoading(false);
+      if (cancelled) return;
+
+      const [statsRes, hospitalsRes, adminsRes] = results;
+
+      if (statsRes.status === "fulfilled") {
+        setStats(statsRes.value?.data ?? null);
+      } else {
+        console.error("dashboard failed:", statsRes.reason);
+        setError((prev) => prev || `Dashboard: ${statsRes.reason?.message || "failed"}`);
       }
+
+      if (hospitalsRes.status === "fulfilled") {
+        setRecentHospitals(hospitalsRes.value?.data?.content ?? []);
+      } else {
+        console.error("hospitals failed:", hospitalsRes.reason);
+        setError((prev) => prev || `Hospitals: ${hospitalsRes.reason?.message || "failed"}`);
+      }
+
+      if (adminsRes.status === "fulfilled") {
+        setRecentAdmins(adminsRes.value?.data?.content ?? []);
+      } else {
+        console.error("admins failed:", adminsRes.reason);
+        setError((prev) => prev || `Admins: ${adminsRes.reason?.message || "failed"}`);
+      }
+
+      setLoading(false);
     }
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [accessToken]);
 
   const hour = new Date().getHours();
   const greeting =
-    hour < 12
-      ? "Good morning"
-      : hour < 17
-      ? "Good afternoon"
-      : "Good evening";
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -103,14 +102,15 @@ export default function SuperAdminPage() {
     month: "long",
   });
 
+  const totalHospitals = Number(stats?.totalHospitals ?? 0);
+  const activeHospitals = Number(stats?.activeHospitals ?? 0);
+
   const activePercent =
-    stats && stats.totalHospitals > 0
-      ? Math.round((stats.activeHospitals / stats.totalHospitals) * 100)
+    totalHospitals > 0
+      ? Math.round((activeHospitals / totalHospitals) * 100)
       : 0;
 
-  if (loading) {
-    return <DashboardSkeleton />;
-  }
+  if (loading) return <DashboardSkeleton />;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
@@ -143,11 +143,11 @@ export default function SuperAdminPage() {
             <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">
               MedCore platform has{" "}
               <span className="font-semibold text-primary-foreground">
-                {stats?.totalHospitals ?? 0} hospitals
+                {totalHospitals} hospitals
               </span>{" "}
               registered, with{" "}
               <span className="font-semibold text-primary-foreground">
-                {stats?.activeHospitals ?? 0} currently active
+                {activeHospitals} currently active
               </span>
               .
             </p>
@@ -199,23 +199,15 @@ export default function SuperAdminPage() {
         <div className="rounded-2xl border border-border bg-card lg:col-span-2">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
-              <h2 className="text-base font-semibold tracking-tight">
-                Platform health
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Hospital status breakdown
-              </p>
+              <h2 className="text-base font-semibold tracking-tight">Platform health</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">Hospital status breakdown</p>
             </div>
           </div>
 
           <div className="p-5">
             <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold tracking-tight">
-                {activePercent}%
-              </p>
-              <p className="text-sm text-muted-foreground">
-                of hospitals active
-              </p>
+              <p className="text-3xl font-bold tracking-tight">{activePercent}%</p>
+              <p className="text-sm text-muted-foreground">of hospitals active</p>
             </div>
 
             <div className="mt-5 h-3 overflow-hidden rounded-full bg-muted">
@@ -226,22 +218,17 @@ export default function SuperAdminPage() {
             </div>
 
             <div className="mt-6 space-y-3">
-              <HealthRow
-                label="Active"
-                value={stats?.activeHospitals ?? 0}
-                total={stats?.totalHospitals ?? 0}
-                color="bg-brand"
-              />
+              <HealthRow label="Active" value={activeHospitals} total={totalHospitals} color="bg-brand" />
               <HealthRow
                 label="Inactive"
-                value={stats?.inactiveHospitals ?? 0}
-                total={stats?.totalHospitals ?? 0}
+                value={Number(stats?.inactiveHospitals ?? 0)}
+                total={totalHospitals}
                 color="bg-muted-foreground/40"
               />
               <HealthRow
                 label="Deleted"
-                value={stats?.deletedHospitals ?? 0}
-                total={stats?.totalHospitals ?? 0}
+                value={Number(stats?.deletedHospitals ?? 0)}
+                total={totalHospitals}
                 color="bg-destructive"
               />
             </div>
@@ -250,40 +237,15 @@ export default function SuperAdminPage() {
 
         <div className="rounded-2xl border border-border bg-card">
           <div className="border-b border-border px-5 py-4">
-            <h2 className="text-base font-semibold tracking-tight">
-              Quick actions
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Common tasks
-            </p>
+            <h2 className="text-base font-semibold tracking-tight">Quick actions</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Common tasks</p>
           </div>
 
           <div className="p-3">
-            <ActionItem
-              icon={Plus}
-              label="Create hospital"
-              desc="Add a new hospital to the platform"
-              href="/super-admin/hospitals/create"
-              accent
-            />
-            <ActionItem
-              icon={UserPlus}
-              label="Create admin"
-              desc="Assign an admin to a hospital"
-              href="/super-admin/admins/create"
-            />
-            <ActionItem
-              icon={Building2}
-              label="All hospitals"
-              desc="View and manage hospitals"
-              href="/super-admin/hospitals"
-            />
-            <ActionItem
-              icon={Users}
-              label="All admins"
-              desc="View hospital administrators"
-              href="/super-admin/admins"
-            />
+            <ActionItem icon={Plus} label="Create hospital" desc="Add a new hospital to the platform" href="/super-admin/hospitals/create" accent />
+            <ActionItem icon={UserPlus} label="Create admin" desc="Assign an admin to a hospital" href="/super-admin/admins/create" />
+            <ActionItem icon={Building2} label="All hospitals" desc="View and manage hospitals" href="/super-admin/hospitals" />
+            <ActionItem icon={Users} label="All admins" desc="View hospital administrators" href="/super-admin/admins" />
           </div>
         </div>
       </div>
@@ -293,14 +255,9 @@ export default function SuperAdminPage() {
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-brand" />
-              <h2 className="text-base font-semibold tracking-tight">
-                Recently added hospitals
-              </h2>
+              <h2 className="text-base font-semibold tracking-tight">Recently added hospitals</h2>
             </div>
-            <Link
-              href="/super-admin/hospitals"
-              className="flex items-center gap-1 text-xs font-medium text-brand hover:underline"
-            >
+            <Link href="/super-admin/hospitals" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">
               View all
               <ChevronRight className="h-3 w-3" />
             </Link>
@@ -309,17 +266,12 @@ export default function SuperAdminPage() {
           {recentHospitals.length > 0 ? (
             <ul className="divide-y divide-border">
               {recentHospitals.map((hospital) => (
-                <li
-                  key={hospital.id}
-                  className="flex items-center gap-3 p-4 sm:p-5"
-                >
+                <li key={hospital.id} className="flex items-center gap-3 p-4 sm:p-5">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-sm font-bold text-brand-soft-foreground">
                     {hospital.name?.charAt(0) || "H"}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">
-                      {hospital.name}
-                    </p>
+                    <p className="truncate text-sm font-semibold">{hospital.name}</p>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
@@ -336,11 +288,7 @@ export default function SuperAdminPage() {
               ))}
             </ul>
           ) : (
-            <EmptyHint
-              icon={Building2}
-              title="No hospitals yet"
-              desc="Create the first hospital to get started."
-            />
+            <EmptyHint icon={Building2} title="No hospitals yet" desc="Create the first hospital to get started." />
           )}
         </div>
 
@@ -348,14 +296,9 @@ export default function SuperAdminPage() {
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-brand" />
-              <h2 className="text-base font-semibold tracking-tight">
-                Recently added admins
-              </h2>
+              <h2 className="text-base font-semibold tracking-tight">Recently added admins</h2>
             </div>
-            <Link
-              href="/super-admin/admins"
-              className="flex items-center gap-1 text-xs font-medium text-brand hover:underline"
-            >
+            <Link href="/super-admin/admins" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">
               View all
               <ChevronRight className="h-3 w-3" />
             </Link>
@@ -364,20 +307,13 @@ export default function SuperAdminPage() {
           {recentAdmins.length > 0 ? (
             <ul className="divide-y divide-border">
               {recentAdmins.map((admin) => (
-                <li
-                  key={admin.id}
-                  className="flex items-center gap-3 p-4 sm:p-5"
-                >
+                <li key={admin.userId} className="flex items-center gap-3 p-4 sm:p-5">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand-soft-foreground">
                     {admin.fullName?.charAt(0) || "A"}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">
-                      {admin.fullName}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {admin.email}
-                    </p>
+                    <p className="truncate text-sm font-semibold">{admin.fullName}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{admin.email}</p>
                   </div>
                   <p className="shrink-0 text-xs font-medium text-muted-foreground">
                     {admin.hospitalName || "—"}
@@ -386,11 +322,7 @@ export default function SuperAdminPage() {
               ))}
             </ul>
           ) : (
-            <EmptyHint
-              icon={Users}
-              title="No admins yet"
-              desc="Assign the first admin to a hospital."
-            />
+            <EmptyHint icon={Users} title="No admins yet" desc="Assign the first admin to a hospital." />
           )}
         </div>
       </div>
@@ -410,12 +342,7 @@ function StatCard({ icon: Icon, label, value, accent, muted, alert }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5 transition-all hover:border-brand/40 hover:shadow-sm">
       <div className="flex items-center justify-between">
-        <span
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-xl",
-            iconStyle
-          )}
-        >
+        <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", iconStyle)}>
           <Icon className="h-5 w-5" />
         </span>
       </div>
@@ -440,16 +367,11 @@ function HealthRow({ label, value, total, color }) {
 
 function ActionItem({ icon: Icon, label, desc, href, accent }) {
   return (
-    <Link
-      href={href}
-      className="group flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-hover"
-    >
+    <Link href={href} className="group flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-hover">
       <span
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-          accent
-            ? "bg-brand text-brand-foreground"
-            : "bg-brand-soft text-brand-soft-foreground"
+          accent ? "bg-brand text-brand-foreground" : "bg-brand-soft text-brand-soft-foreground"
         )}
       >
         <Icon className="h-4 w-4" />

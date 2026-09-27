@@ -24,6 +24,7 @@ import { useAuthStore } from "@/store/auth-store";
 
 import {
   getMyReceptionistProfile,
+  getPatientById,
   searchPatients,
 } from "@/services/receptionist.service";
 import { getPublicDoctors } from "@/services/public-doctor.service";
@@ -60,13 +61,12 @@ function NewAppointmentContent() {
   const [doctors, setDoctors] = useState([]);
   const [doctorsLoading, setDoctorsLoading] = useState(false);
 
-  // Patient search / selection
   const [patientQuery, setPatientQuery] = useState("");
   const [patientResults, setPatientResults] = useState([]);
   const [patientSearching, setPatientSearching] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [preselectLoading, setPreselectLoading] = useState(false);
 
-  // Appointment
   const [doctorId, setDoctorId] = useState("");
   const [appointmentDate, setAppointmentDate] = useState("");
   const [slots, setSlots] = useState([]);
@@ -110,32 +110,38 @@ function NewAppointmentContent() {
     }
 
     load();
+
     return () => {
       mounted = false;
     };
   }, [initialized, isAuthenticated]);
 
-  // Pre-select patient from URL (returning from register)
+  // Pre-select patient from URL — fetch by ID directly
   useEffect(() => {
     if (!preselectedPatientId || selectedPatient) return;
+    if (!initialized || !isAuthenticated) return;
+
+    let mounted = true;
 
     async function loadPreselected() {
       try {
-        const res = await searchPatients(String(preselectedPatientId), {
-          page: 0,
-          size: 10,
-        });
-        const found = (res.data?.items || []).find(
-          (p) => String(p.id) === String(preselectedPatientId)
-        );
-        if (found) setSelectedPatient(found);
+        setPreselectLoading(true);
+        const res = await getPatientById(preselectedPatientId);
+        if (!mounted) return;
+        if (res.data) setSelectedPatient(res.data);
       } catch {
-        /* ignore */
+        /* ignore — user can search manually */
+      } finally {
+        if (mounted) setPreselectLoading(false);
       }
     }
 
     loadPreselected();
-  }, [preselectedPatientId, selectedPatient]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [preselectedPatientId, selectedPatient, initialized, isAuthenticated]);
 
   // Debounced patient search
   useEffect(() => {
@@ -189,6 +195,7 @@ function NewAppointmentContent() {
     }
 
     load();
+
     return () => {
       mounted = false;
     };
@@ -250,6 +257,8 @@ function NewAppointmentContent() {
   }
 
   if (success) {
+    const patientDisplayName = getPatientName(selectedPatient);
+
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand-soft-foreground">
@@ -259,8 +268,8 @@ function NewAppointmentContent() {
           Appointment booked
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          <b>{selectedPatient?.fullName || "Patient"}</b>&apos;s appointment
-          with <b>{selectedDoctor?.doctorName}</b> on{" "}
+          <b>{patientDisplayName}</b>&apos;s appointment with{" "}
+          <b>{selectedDoctor?.doctorName}</b> on{" "}
           <b>{formatDate(appointmentDate)}</b> at{" "}
           <b>{formatTime(startTime)}</b> is scheduled.
         </p>
@@ -353,33 +362,19 @@ function NewAppointmentContent() {
           </div>
 
           <div className="p-5 sm:p-6">
-            {selectedPatient ? (
-              <div className="flex items-center gap-4 rounded-xl border border-brand/30 bg-brand-soft/40 p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand text-base font-bold text-brand-foreground">
-                  {selectedPatient.fullName?.charAt(0)?.toUpperCase() || "P"}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">
-                    {selectedPatient.fullName}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {selectedPatient.phone || "—"}
-                    {selectedPatient.bloodGroup && ` · ${selectedPatient.bloodGroup}`}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedPatient(null);
-                    setPatientQuery("");
-                  }}
-                >
-                  <X className="mr-1 h-3.5 w-3.5" />
-                  Change
-                </Button>
+            {preselectLoading ? (
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading patient...
               </div>
+            ) : selectedPatient ? (
+              <SelectedPatientCard
+                patient={selectedPatient}
+                onChange={() => {
+                  setSelectedPatient(null);
+                  setPatientQuery("");
+                }}
+              />
             ) : (
               <>
                 <div className="relative">
@@ -411,31 +406,34 @@ function NewAppointmentContent() {
                       </div>
                     ) : (
                       <ul className="divide-y divide-border">
-                        {patientResults.map((p) => (
-                          <li key={p.id}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedPatient(p);
-                                setPatientQuery("");
-                                setPatientResults([]);
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
-                            >
-                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-xs font-bold text-brand-soft-foreground">
-                                {p.fullName?.charAt(0)?.toUpperCase() || "P"}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium">
-                                  {p.fullName}
-                                </p>
-                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                                  {p.phone} · #{p.id}
-                                </p>
-                              </div>
-                            </button>
-                          </li>
-                        ))}
+                        {patientResults.map((p) => {
+                          const name = getPatientName(p);
+                          return (
+                            <li key={p.id}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPatient(p);
+                                  setPatientQuery("");
+                                  setPatientResults([]);
+                                }}
+                                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                              >
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-xs font-bold text-brand-soft-foreground">
+                                  {name.charAt(0).toUpperCase()}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-medium">
+                                    {name}
+                                  </p>
+                                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                                    {p.phone || "—"} · #{p.id}
+                                  </p>
+                                </div>
+                              </button>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
@@ -556,7 +554,8 @@ function NewAppointmentContent() {
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium">
-                  Reason <span className="text-muted-foreground">(optional)</span>
+                  Reason{" "}
+                  <span className="text-muted-foreground">(optional)</span>
                 </label>
                 <textarea
                   value={reason}
@@ -590,6 +589,47 @@ function NewAppointmentContent() {
         </div>
       </form>
     </div>
+  );
+}
+
+function SelectedPatientCard({ patient, onChange }) {
+  const name = getPatientName(patient);
+  const phone = patient.phone || patient.user?.phone;
+  const bloodGroup = patient.bloodGroup
+    ? patient.bloodGroup.replace("_POSITIVE", "+").replace("_NEGATIVE", "-")
+    : null;
+
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-brand/30 bg-brand-soft/40 p-4">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand text-base font-bold text-brand-foreground">
+        {name.charAt(0).toUpperCase()}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">{name}</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {phone || "—"}
+          {bloodGroup && ` · ${bloodGroup}`}
+        </p>
+      </div>
+      <Button type="button" variant="ghost" size="sm" onClick={onChange}>
+        <X className="mr-1 h-3.5 w-3.5" />
+        Change
+      </Button>
+    </div>
+  );
+}
+
+/* ══════════ Helpers ══════════ */
+
+function getPatientName(patient) {
+  if (!patient) return "Patient";
+  return (
+    patient.patientName ||
+    patient.fullName ||
+    patient.name ||
+    patient.user?.fullName ||
+    patient.user?.name ||
+    "Patient"
   );
 }
 

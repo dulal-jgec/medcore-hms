@@ -10,6 +10,7 @@ import com.medcore.features.hospital.dto.response.CreateHospitalResponse;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.hospital.service.HospitalService;
+import com.medcore.features.notification.service.EmailOutboxService;
 import com.medcore.features.notification.service.EmailService;
 import com.medcore.features.superadmin.dto.response.SuperAdminDashboardResponse;
 import com.medcore.features.superadmin.dto.response.SuperAdminResponse;
@@ -23,6 +24,7 @@ import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.superadmin.dto.request.CreateHospitalAdminRequest;
@@ -48,6 +50,7 @@ public class SuperAdminServiceImpl implements SuperAdminService {
     private final RoleRepository roleRepository;
      private final PasswordEncoder passwordEncoder;
      private final EmailService emailService;
+     private final EmailOutboxService emailOutboxService;
     
     @Override
     public ApiResponse<SuperAdminResponse> getCurrentSuperAdmin() {
@@ -258,92 +261,118 @@ public class SuperAdminServiceImpl implements SuperAdminService {
                 );
     }
     
-    @Override
-    public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
-            CreateHospitalAdminRequest request) {
+@Transactional
+@Override
+public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
+        CreateHospitalAdminRequest request) {
 
-        validateSuperAdmin();
+    validateSuperAdmin();
 
-        String email = request.getEmail().trim().toLowerCase();
-        String phone = request.getPhone().trim();
+    String email = request.getEmail().trim().toLowerCase();
+    String phone = request.getPhone().trim();
 
-        if (userRepository.existsByEmail(email)) {
-            throw new DuplicateResourceException(
-                    "Email already exists"
-            );
-        }
-
-        if (userRepository.existsByPhone(phone)) {
-            throw new DuplicateResourceException(
-                    "Phone number already exists"
-            );
-        }
-
-        Hospital hospital = hospitalRepository
-                .findByIdAndDeletedAtIsNull(request.getHospitalId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Hospital not found"
-                        )
-                );
-
-        if (hospital.getStatus() != HospitalStatus.ACTIVE) {
-            throw new BusinessException(
-                    "Hospital is not active"
-            );
-        }
-
-        Role hospitalAdminRole =
-                roleRepository.findByName(RoleName.HOSPITAL_ADMIN)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Hospital Admin role not found"
-                                )
-                        );
-
-        String temporaryPassword =
-                generateTemporaryPassword();
-
-        User hospitalAdmin = User.builder()
-                .fullName(request.getFullName().trim())
-                .email(email)
-                .phone(phone)
-                .password(
-                        passwordEncoder.encode(temporaryPassword)
-                )
-                .hospital(hospital)
-                .role(hospitalAdminRole)
-                .status(UserStatus.ACTIVE)
-                .emailVerified(false)
-                .phoneVerified(false)
-                .build();
-
-        User savedAdmin = userRepository.save(hospitalAdmin);
-        
-        emailService.sendHospitalAdminCredentials(
-                savedAdmin.getEmail(),
-                savedAdmin.getFullName(),
-                temporaryPassword,
-                hospital.getName()
+    if (userRepository.existsByEmail(email)) {
+        throw new DuplicateResourceException(
+                "Email already exists"
         );
-
-        CreateHospitalAdminResponse response =
-                CreateHospitalAdminResponse.builder()
-                        .userId(savedAdmin.getId())
-                        .fullName(savedAdmin.getFullName())
-                        .email(savedAdmin.getEmail())
-                        .phone(savedAdmin.getPhone())
-                        .hospitalId(hospital.getId())
-                        .hospitalName(hospital.getName())
-                        .status(savedAdmin.getStatus())
-                        .build();
-
-        return ApiResponse.<CreateHospitalAdminResponse>builder()
-                .success(true)
-                .message("Hospital Admin created successfully")
-                .data(response)
-                .build();
     }
+
+    if (userRepository.existsByPhone(phone)) {
+        throw new DuplicateResourceException(
+                "Phone number already exists"
+        );
+    }
+
+    Hospital hospital = hospitalRepository
+            .findByIdAndDeletedAtIsNull(request.getHospitalId())
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Hospital not found"
+                    )
+            );
+
+    if (hospital.getStatus() != HospitalStatus.ACTIVE) {
+        throw new BusinessException(
+                "Hospital is not active"
+        );
+    }
+
+    Role hospitalAdminRole =
+            roleRepository.findByName(RoleName.HOSPITAL_ADMIN)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Hospital Admin role not found"
+                            )
+                    );
+
+    String temporaryPassword =
+            generateTemporaryPassword();
+
+    User hospitalAdmin = User.builder()
+            .fullName(request.getFullName().trim())
+            .email(email)
+            .phone(phone)
+            .password(
+                    passwordEncoder.encode(temporaryPassword)
+            )
+            .hospital(hospital)
+            .role(hospitalAdminRole)
+            .status(UserStatus.ACTIVE)
+            .emailVerified(false)
+            .phoneVerified(false)
+            .build();
+
+    User savedAdmin = userRepository.save(hospitalAdmin);
+
+    // Create email outbox record inside the same DB transaction
+    String emailBody = """
+            Welcome to MedCore
+
+            Hello %s,
+
+            You have been appointed as a Hospital Administrator
+            for %s.
+
+            Your login credentials are:
+
+            Email: %s
+            Temporary Password: %s
+
+            Please log in to MedCore and change your password
+            after your first login.
+
+            Regards,
+            MedCore Team
+            """.formatted(
+            savedAdmin.getFullName(),
+            hospital.getName(),
+            savedAdmin.getEmail(),
+            temporaryPassword
+    );
+
+    emailOutboxService.createEmail(
+            savedAdmin.getEmail(),
+            "Your MedCore Hospital Admin Account",
+            emailBody
+    );
+
+    CreateHospitalAdminResponse response =
+            CreateHospitalAdminResponse.builder()
+                    .userId(savedAdmin.getId())
+                    .fullName(savedAdmin.getFullName())
+                    .email(savedAdmin.getEmail())
+                    .phone(savedAdmin.getPhone())
+                    .hospitalId(hospital.getId())
+                    .hospitalName(hospital.getName())
+                    .status(savedAdmin.getStatus())
+                    .build();
+
+    return ApiResponse.<CreateHospitalAdminResponse>builder()
+            .success(true)
+            .message("Hospital Admin created successfully")
+            .data(response)
+            .build();
+}
     
     @Override
     public ApiResponse<Page<CreateHospitalAdminResponse>> getAllHospitalAdmins(

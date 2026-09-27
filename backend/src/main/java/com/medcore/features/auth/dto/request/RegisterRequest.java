@@ -61,7 +61,7 @@ public class RegisterRequest {
     private MaritalStatus maritalStatus;
 
 
-    // Patient information
+     
 
     @NotNull(message = "Date of birth is required")
     @Past(message = "Date of birth must be in the past")

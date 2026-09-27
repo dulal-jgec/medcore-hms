@@ -39,6 +39,8 @@ public class ReceptionistController {
         return receptionistService.createReceptionist(request);
     }
     
+    
+    
     @PostMapping("/patients/walk-in")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('RECEPTIONIST')")
@@ -46,6 +48,14 @@ public class ReceptionistController {
             @Valid @RequestBody CreateWalkInPatientRequest request) {
 
         return receptionistService.registerWalkInPatient(request);
+    }
+
+    @GetMapping("/patients/recent")
+    @PreAuthorize("hasRole('RECEPTIONIST')")
+    public ApiResponse<List<PatientResponse>> getRecentPatients(
+            @RequestParam(defaultValue = "5") int limit) {
+
+        return receptionistService.getRecentPatients(limit);
     }
     
     @PreAuthorize("hasRole('RECEPTIONIST')")

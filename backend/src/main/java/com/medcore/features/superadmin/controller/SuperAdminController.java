@@ -17,7 +17,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.medcore.features.superadmin.dto.request.CreateHospitalAdminRequest;
 import com.medcore.features.superadmin.dto.response.CreateHospitalAdminResponse;
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/super-admin")

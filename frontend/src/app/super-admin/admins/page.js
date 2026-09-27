@@ -9,7 +9,6 @@ import {
   X,
   Mail,
   Phone,
-  Building2,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -36,28 +35,34 @@ export default function SuperAdminAdminsPage() {
   useEffect(() => {
     if (!accessToken) return;
 
+    let cancelled = false;
+
     async function load() {
       try {
         setLoading(true);
         setError("");
 
-        const result = await getAllHospitalAdmins(
-          accessToken,
-          page,
-          PAGE_SIZE
-        );
+        const result = await getAllHospitalAdmins(page, PAGE_SIZE);
 
-        setAdmins(result.data.content || []);
-        setTotalPages(result.data.totalPages || 0);
-        setTotalElements(result.data.totalElements || 0);
+        if (cancelled) return;
+
+        setAdmins(result.data?.content || []);
+        setTotalPages(result.data?.totalPages || 0);
+        setTotalElements(result.data?.totalElements || 0);
       } catch (err) {
-        setError(err.message || "Failed to load admins.");
+        if (!cancelled) {
+          setError(err.message || "Failed to load admins.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [accessToken, page]);
 
   const filtered = useMemo(() => {
@@ -131,7 +136,7 @@ export default function SuperAdminAdminsPage() {
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((admin) => (
-                <AdminCard key={admin.id} admin={admin} />
+                <AdminCard key={admin.userId} admin={admin} />
               ))}
             </div>
 
@@ -140,12 +145,17 @@ export default function SuperAdminAdminsPage() {
                 page={page}
                 totalPages={totalPages}
                 onPrevious={() => setPage((p) => Math.max(0, p - 1))}
-                onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                onNext={() =>
+                  setPage((p) => Math.min(totalPages - 1, p + 1))
+                }
               />
             )}
           </>
         ) : (
-          <EmptyState hasFilters={hasFilters} onClear={() => setQuery("")} />
+          <EmptyState
+            hasFilters={hasFilters}
+            onClear={() => setQuery("")}
+          />
         )}
       </div>
     </div>
@@ -265,10 +275,7 @@ function GridSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div
-          key={i}
-          className="h-44 animate-pulse rounded-2xl bg-muted"
-        />
+        <div key={i} className="h-44 animate-pulse rounded-2xl bg-muted" />
       ))}
     </div>
   );

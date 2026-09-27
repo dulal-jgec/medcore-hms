@@ -83,4 +83,6 @@ public interface ReceptionistService {
     
     ApiResponse<PatientResponse> registerWalkInPatient(CreateWalkInPatientRequest request);
 
+    ApiResponse<List<PatientResponse>> getRecentPatients(int limit);    
+    
 }

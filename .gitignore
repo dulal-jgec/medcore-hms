@@ -104,5 +104,3 @@ pnpm-debug.log*
 
 *.db
 
-
-src/main/java/com/medcore/features/auth/config/SuperAdminSeeder.java

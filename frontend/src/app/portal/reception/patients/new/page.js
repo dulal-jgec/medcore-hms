@@ -120,7 +120,7 @@ function RegisterPatientContent() {
             Patient registered
           </h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-            <b>{createdPatient.fullName}</b> is now in MedCore. You can book an
+            <b>{createdPatient.patientName || createdPatient.fullName}</b> is now in MedCore is now in MedCore. You can book an
             appointment for them right away.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">

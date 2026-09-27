@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Building2 } from "lucide-react";
 
-import { useAuthStore } from "@/store/auth-store";
 import { createHospital } from "@/services/super-admin.service";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,6 @@ const INITIAL_FORM = {
 
 export default function CreateHospitalPage() {
   const router = useRouter();
-  const accessToken = useAuthStore((s) => s.accessToken);
 
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
@@ -36,16 +34,11 @@ export default function CreateHospitalPage() {
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (!accessToken) {
-      setError("Authentication required.");
-      return;
-    }
-
     try {
       setLoading(true);
       setError("");
 
-      await createHospital(accessToken, {
+      await createHospital({
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),

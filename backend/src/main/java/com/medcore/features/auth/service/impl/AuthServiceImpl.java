@@ -33,6 +33,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
 import com.medcore.features.auth.dto.response.UserProfileResponse;
 import com.medcore.features.auth.entity.RefreshToken;
   
@@ -181,9 +183,9 @@ public ApiResponse<UserProfileResponse> getCurrentUser() {
     String email = authentication.getName();
 
     User user = userRepository
-            .findWithRoleAndHospitalByEmail(email)
+            .findWithRoleAndHospitalByEmailAndDeletedAtIsNull(email)
             .orElseThrow(() ->
-                    new ResourceNotFoundException("User not found"));
+                    new UsernameNotFoundException("User not found"));
 
     UserProfileResponse response =
             UserProfileResponse.builder()

@@ -17,9 +17,7 @@ import { Label } from "@/components/ui/label";
 export default function CreateHospitalAdminPage() {
   const router = useRouter();
 
-  const accessToken = useAuthStore(
-    (state) => state.accessToken
-  );
+  const accessToken = useAuthStore((state) => state.accessToken);
 
   const [hospitals, setHospitals] = useState([]);
   const [loadingHospitals, setLoadingHospitals] = useState(true);
@@ -37,27 +35,32 @@ export default function CreateHospitalAdminPage() {
   useEffect(() => {
     if (!accessToken) return;
 
+    let cancelled = false;
+
     async function loadHospitals() {
       try {
         setLoadingHospitals(true);
+        setError("");
 
-        const result = await getAllHospitals(
-          accessToken,
-          0,
-          100
-        );
+        const result = await getAllHospitals(0, 100, "createdAt", "desc");
 
-        setHospitals(result.data.content || []);
+        if (cancelled) return;
+
+        setHospitals(result.data?.content || []);
       } catch (err) {
-        setError(
-          err.message || "Failed to load hospitals."
-        );
+        if (!cancelled) {
+          setError(err.message || "Failed to load hospitals.");
+        }
       } finally {
-        setLoadingHospitals(false);
+        if (!cancelled) setLoadingHospitals(false);
       }
     }
 
     loadHospitals();
+
+    return () => {
+      cancelled = true;
+    };
   }, [accessToken]);
 
   function handleChange(event) {
@@ -72,13 +75,19 @@ export default function CreateHospitalAdminPage() {
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (!accessToken) {
-      setError("Authentication required.");
+    if (!formData.hospitalId) {
+      setError("Please select a hospital.");
       return;
     }
 
-    if (!formData.hospitalId) {
-      setError("Please select a hospital.");
+    const selected = hospitals.find(
+      (h) => String(h.id) === String(formData.hospitalId)
+    );
+
+    if (selected && selected.status !== "ACTIVE") {
+      setError(
+        `"${selected.name}" is not active. Activate the hospital before assigning an admin.`
+      );
       return;
     }
 
@@ -86,7 +95,7 @@ export default function CreateHospitalAdminPage() {
       setLoading(true);
       setError("");
 
-      await createHospitalAdmin(accessToken, {
+      await createHospitalAdmin({
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
@@ -95,25 +104,23 @@ export default function CreateHospitalAdminPage() {
 
       router.push("/super-admin/admins");
     } catch (err) {
-      setError(
-        err.message || "Failed to create hospital admin."
-      );
+      setError(err.message || "Failed to create hospital admin.");
     } finally {
       setLoading(false);
     }
   }
 
+  const noHospitals =
+    !loadingHospitals && hospitals.length === 0;
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() =>
-            router.push("/super-admin/admins")
-          }
+          onClick={() => router.push("/super-admin/admins")}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -129,7 +136,6 @@ export default function CreateHospitalAdminPage() {
         </div>
       </div>
 
-      {/* Form */}
       <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft">
@@ -137,9 +143,7 @@ export default function CreateHospitalAdminPage() {
           </div>
 
           <div>
-            <h2 className="font-semibold">
-              Administrator Information
-            </h2>
+            <h2 className="font-semibold">Administrator Information</h2>
 
             <p className="text-sm text-muted-foreground">
               Login credentials will be sent to the provided email.
@@ -153,15 +157,16 @@ export default function CreateHospitalAdminPage() {
           </div>
         )}
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5"
-        >
-          {/* Full Name */}
+        {noHospitals && !error && (
+          <div className="mb-6 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+            No hospitals found. Create a hospital first, then come back to
+            assign an admin.
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="fullName">
-              Full Name
-            </Label>
+            <Label htmlFor="fullName">Full Name</Label>
 
             <Input
               id="fullName"
@@ -173,12 +178,9 @@ export default function CreateHospitalAdminPage() {
             />
           </div>
 
-          {/* Email + Phone */}
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="email">
-                Email
-              </Label>
+              <Label htmlFor="email">Email</Label>
 
               <Input
                 id="email"
@@ -192,70 +194,65 @@ export default function CreateHospitalAdminPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">
-                Phone
-              </Label>
+              <Label htmlFor="phone">Phone</Label>
 
               <Input
-  id="phone"
-  name="phone"
-  value={formData.phone}
-  onChange={handleChange}
-  placeholder="10-digit mobile number"
-  inputMode="numeric"
-  pattern="[6-9][0-9]{9}"
-  maxLength={10}
-  required
-  className="h-11"
-/>
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="10-digit mobile number"
+                inputMode="numeric"
+                pattern="[6-9][0-9]{9}"
+                maxLength={10}
+                required
+                className="h-11"
+              />
             </div>
           </div>
 
-          {/* Hospital */}
           <div className="space-y-2">
-            <Label htmlFor="hospitalId">
-              Hospital
-            </Label>
+            <Label htmlFor="hospitalId">Hospital</Label>
 
             <select
               id="hospitalId"
               name="hospitalId"
               value={formData.hospitalId}
               onChange={handleChange}
-              disabled={loadingHospitals}
+              disabled={loadingHospitals || hospitals.length === 0}
               required
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">
                 {loadingHospitals
                   ? "Loading hospitals..."
+                  : hospitals.length === 0
+                  ? "No hospitals available"
                   : "Select a hospital"}
               </option>
 
-              {hospitals
-                .filter(
-                  (hospital) =>
-                    hospital.status === "ACTIVE"
-                )
-                .map((hospital) => (
-                  <option
-                    key={hospital.id}
-                    value={hospital.id}
-                  >
-                    {hospital.name}
-                  </option>
-                ))}
+              {hospitals.map((hospital) => (
+                <option key={hospital.id} value={hospital.id}>
+                  {hospital.name}
+                  {hospital.status && hospital.status !== "ACTIVE"
+                    ? ` — ${hospital.status}`
+                    : ""}
+                  {hospital.city ? ` (${hospital.city})` : ""}
+                </option>
+              ))}
             </select>
+
+            <p className="text-[11px] text-muted-foreground">
+              Only hospitals with status <strong>ACTIVE</strong> can have an
+              administrator assigned.
+            </p>
           </div>
 
-          {/* Actions */}
           <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"
-              onClick={() =>
-                router.push("/super-admin/admins")
-              }
+              onClick={() => router.push("/super-admin/admins")}
               disabled={loading}
             >
               Cancel
@@ -263,13 +260,9 @@ export default function CreateHospitalAdminPage() {
 
             <Button
               type="submit"
-              disabled={
-                loading || loadingHospitals
-              }
+              disabled={loading || loadingHospitals || hospitals.length === 0}
             >
-              {loading
-                ? "Creating..."
-                : "Create Hospital Admin"}
+              {loading ? "Creating..." : "Create Hospital Admin"}
             </Button>
           </div>
         </form>

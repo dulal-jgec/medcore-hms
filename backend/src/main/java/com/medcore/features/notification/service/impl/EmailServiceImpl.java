@@ -15,7 +15,26 @@ public class EmailServiceImpl implements EmailService {
 
     @Value("${spring.mail.username}")
     private String fromEmail;
+    	
+   
+    @Override
+    public void send(
+            String recipient,
+            String subject,
+            String body) {
 
+        SimpleMailMessage message =
+                new SimpleMailMessage();
+
+        message.setFrom(fromEmail);
+        message.setTo(recipient);
+        message.setSubject(subject);
+        message.setText(body);
+
+        mailSender.send(message);
+    }
+    
+    
     @Override
     public void sendHospitalAdminCredentials(
             String email,

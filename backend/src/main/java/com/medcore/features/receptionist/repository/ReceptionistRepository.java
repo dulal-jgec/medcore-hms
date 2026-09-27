@@ -10,17 +10,11 @@ import java.util.Optional;
 public interface ReceptionistRepository
         extends JpaRepository<Receptionist, Long> {
 
-    Optional<Receptionist> findByIdAndDeletedAtIsNull(
-            Long id
-    );
+    Optional<Receptionist> findByIdAndDeletedAtIsNull(Long id);
 
-    Optional<Receptionist> findByUserIdAndDeletedAtIsNull(
-            Long userId
-    );
+    Optional<Receptionist> findByUserIdAndDeletedAtIsNull(Long userId);
 
-    boolean existsByUserIdAndDeletedAtIsNull(
-            Long userId
-    );
+    boolean existsByUserIdAndDeletedAtIsNull(Long userId);
 
     Page<Receptionist> findByHospitalIdAndDeletedAtIsNull(
             Long hospitalId,

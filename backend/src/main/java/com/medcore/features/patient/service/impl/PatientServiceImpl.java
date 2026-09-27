@@ -129,6 +129,7 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<PatientResponse> getPatientById(
             Long patientId) {
 
@@ -219,20 +220,29 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
-    public ApiResponse<PageResponse<PatientResponse>> searchPatients(
-            String keyword,
-            int page,
-            int size) {
+@Transactional(readOnly = true)
+public ApiResponse<PageResponse<PatientResponse>> searchPatients(
+        String keyword,
+        int page,
+        int size) {
 
-        /*
-         * This will later search patients through
-         * Appointment -> Hospital -> Patient.
-         */
+    Long hospitalId = tenantContextService.getCurrentHospitalId();
 
-        throw new BusinessException(
-                "Hospital-scoped patient search will be implemented through appointments"
-        );
+    if (hospitalId == null) {
+        throw new BusinessException("Hospital context is required");
     }
+
+    if (keyword == null || keyword.isBlank()) {
+        throw new BusinessException("Search keyword is required");
+    }
+
+    Pageable pageable = PageRequest.of(page, size);
+
+    Page<Patient> patientPage = patientRepository
+            .searchPatientsForHospital(hospitalId, keyword.trim(), pageable);
+
+    return buildPageResponse(patientPage, "Patients fetched successfully");
+}
 
     @Override
     public ApiResponse<String> deletePatient(

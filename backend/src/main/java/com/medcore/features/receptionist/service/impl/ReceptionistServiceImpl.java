@@ -456,6 +456,34 @@ public class ReceptionistServiceImpl implements ReceptionistService {
         );
     }
 
+    @Override
+@Transactional(readOnly = true)
+public ApiResponse<List<PatientResponse>> getRecentPatients(int limit) {
+
+    Receptionist receptionist = validateActiveReceptionist();
+    Long hospitalId = receptionist.getHospital().getId();
+
+    int safeLimit = Math.max(1, Math.min(limit, 20));
+
+    Pageable pageable = PageRequest.of(
+            0,
+            safeLimit,
+            Sort.by(Sort.Direction.DESC, "createdAt")
+    );
+
+    List<PatientResponse> items = patientRepository
+            .findRecentForHospital(hospitalId, pageable)
+            .getContent()
+            .stream()
+            .map(patientMapper::toResponse)
+            .toList();
+
+    return ApiResponse.<List<PatientResponse>>builder()
+            .success(true)
+            .message("Recent patients fetched successfully")
+            .data(items)
+            .build();
+}
     
     @Override
     @Transactional
