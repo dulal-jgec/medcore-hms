@@ -17,8 +17,7 @@ public class UpdateDoctorScheduleRequest {
     @NotNull(message = "Start time is required")
     private LocalTime startTime;
 
-    @NotNull(message = "End time is required")
-    private LocalTime endTime;
+     
 
     @NotNull(message = "Availability is required")
     private Boolean available;

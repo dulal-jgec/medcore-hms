@@ -18,22 +18,23 @@ import com.medcore.features.doctor.dto.request.UpdateMyDoctorProfileRequest;
 import com.medcore.features.doctor.dto.response.DoctorProfileResponse;
 import com.medcore.features.doctor.dto.response.DoctorResponse;
 import com.medcore.features.doctor.entity.Doctor;
+import com.medcore.features.doctor.enums.DoctorStatus;
 import com.medcore.features.doctor.mapper.DoctorMapper;
 import com.medcore.features.doctor.repository.DoctorRepository;
 import com.medcore.features.doctor.service.DoctorService;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
-import com.medcore.features.notification.service.EmailService;
+import com.medcore.features.notification.service.EmailOutboxService;
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
 import com.medcore.features.user.enums.UserStatus;
 import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
-
 import lombok.RequiredArgsConstructor;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -46,9 +47,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
@@ -66,7 +64,7 @@ public class DoctorServiceImpl implements DoctorService {
     private final TenantContextService tenantContextService;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
+    private final EmailOutboxService emailOutboxService;
     private final FileStorageService fileStorageService;
     private final FileValidationService fileValidationService;
 
@@ -79,8 +77,6 @@ public class DoctorServiceImpl implements DoctorService {
                     "createdAt",
                     "updatedAt"
             );
-
-     
 
     @Override
     public ApiResponse<DoctorResponse> createDoctor(
@@ -103,8 +99,14 @@ public class DoctorServiceImpl implements DoctorService {
             );
         }
 
-        String email = request.getEmail().trim().toLowerCase();
-        String phone = request.getPhone().trim();
+        String email =
+                request.getEmail()
+                        .trim()
+                        .toLowerCase();
+
+        String phone =
+                request.getPhone()
+                        .trim();
 
         if (userRepository.existsByEmail(email)) {
             throw new DuplicateResourceException(
@@ -136,23 +138,30 @@ public class DoctorServiceImpl implements DoctorService {
                                         "Department not found"
                                 ));
 
-        String temporaryPassword = generateTemporaryPassword();
+        String temporaryPassword =
+                generateTemporaryPassword();
 
-        User doctorUser = User.builder()
-                .fullName(request.getFullName().trim())
-                .email(email)
-                .phone(phone)
-                .password(
-                        passwordEncoder.encode(temporaryPassword)
-                )
-                .hospital(hospital)
-                .role(doctorRole)
-                .status(UserStatus.ACTIVE)
-                .emailVerified(false)
-                .phoneVerified(false)
-                .build();
+        User doctorUser =
+                User.builder()
+                        .fullName(
+                                request.getFullName().trim()
+                        )
+                        .email(email)
+                        .phone(phone)
+                        .password(
+                                passwordEncoder.encode(
+                                        temporaryPassword
+                                )
+                        )
+                        .hospital(hospital)
+                        .role(doctorRole)
+                        .status(UserStatus.ACTIVE)
+                        .emailVerified(false)
+                        .phoneVerified(false)
+                        .build();
 
-        User savedUser = userRepository.save(doctorUser);
+        User savedUser =
+                userRepository.save(doctorUser);
 
         Doctor doctor =
                 doctorMapper.toEntity(
@@ -162,13 +171,36 @@ public class DoctorServiceImpl implements DoctorService {
                         department
                 );
 
-        Doctor savedDoctor = doctorRepository.save(doctor);
+        Doctor savedDoctor =
+                doctorRepository.save(doctor);
 
-        emailService.sendDoctorCredentials(
-                savedUser.getEmail(),
+        String emailBody = """
+                Welcome to MedCore
+
+                Hello %s,
+
+                You have been appointed as a Doctor at %s.
+
+                Your login credentials are:
+
+                Email: %s
+                Temporary Password: %s
+
+                Please log in and change your password after first login.
+
+                Regards,
+                MedCore Team
+                """.formatted(
                 savedUser.getFullName(),
-                temporaryPassword,
-                hospital.getName()
+                hospital.getName(),
+                savedUser.getEmail(),
+                temporaryPassword
+        );
+
+        emailOutboxService.createEmail(
+                savedUser.getEmail(),
+                "Your MedCore Doctor Account",
+                emailBody
         );
 
         log.info(
@@ -182,7 +214,11 @@ public class DoctorServiceImpl implements DoctorService {
         return ApiResponse.<DoctorResponse>builder()
                 .success(true)
                 .message("Doctor created successfully")
-                .data(doctorMapper.toResponse(savedDoctor))
+                .data(
+                        doctorMapper.toResponse(
+                                savedDoctor
+                        )
+                )
                 .build();
     }
 
@@ -192,8 +228,6 @@ public class DoctorServiceImpl implements DoctorService {
                         .toString()
                         .substring(0, 8);
     }
-
-     
 
     @Override
     @Transactional(readOnly = true)
@@ -224,31 +258,44 @@ public class DoctorServiceImpl implements DoctorService {
             );
         }
 
-        sortDir = sortDir.trim().toLowerCase();
+        sortDir =
+                sortDir.trim().toLowerCase();
 
-        if (!sortDir.equals("asc") && !sortDir.equals("desc")) {
+        if (!sortDir.equals("asc")
+                && !sortDir.equals("desc")) {
+
             throw new BusinessException(
                     "Sort direction must be 'asc' or 'desc'"
             );
         }
 
-        Sort sort = sortDir.equals("desc")
-                ? Sort.by(sortBy).descending()
-                : Sort.by(sortBy).ascending();
+        Sort sort =
+                sortDir.equals("desc")
+                        ? Sort.by(sortBy).descending()
+                        : Sort.by(sortBy).ascending();
 
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        sort
+                );
 
         Page<Doctor> doctorPage;
 
         if (hospitalId == null) {
-            doctorPage = doctorRepository
-                    .findByDeletedAtIsNull(pageable);
+            doctorPage =
+                    doctorRepository
+                            .findByDeletedAtIsNull(
+                                    pageable
+                            );
         } else {
-            doctorPage = doctorRepository
-                    .findByHospitalIdAndDeletedAtIsNull(
-                            hospitalId,
-                            pageable
-                    );
+            doctorPage =
+                    doctorRepository
+                            .findByHospitalIdAndDeletedAtIsNull(
+                                    hospitalId,
+                                    pageable
+                            );
         }
 
         List<DoctorResponse> items =
@@ -262,26 +309,38 @@ public class DoctorServiceImpl implements DoctorService {
                         .items(items)
                         .page(doctorPage.getNumber())
                         .size(doctorPage.getSize())
-                        .totalElements(doctorPage.getTotalElements())
-                        .totalPages(doctorPage.getTotalPages())
-                        .first(doctorPage.isFirst())
-                        .last(doctorPage.isLast())
-                        .hasNext(doctorPage.hasNext())
-                        .hasPrevious(doctorPage.hasPrevious())
+                        .totalElements(
+                                doctorPage.getTotalElements()
+                        )
+                        .totalPages(
+                                doctorPage.getTotalPages()
+                        )
+                        .first(
+                                doctorPage.isFirst()
+                        )
+                        .last(
+                                doctorPage.isLast()
+                        )
+                        .hasNext(
+                                doctorPage.hasNext()
+                        )
+                        .hasPrevious(
+                                doctorPage.hasPrevious()
+                        )
                         .build();
 
-        return ApiResponse.<PageResponse<DoctorResponse>>builder()
+        return ApiResponse
+                .<PageResponse<DoctorResponse>>builder()
                 .success(true)
                 .message("Doctors fetched successfully")
                 .data(response)
                 .build();
     }
 
-     
-
     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<DoctorResponse> getDoctorById(Long doctorId) {
+    public ApiResponse<DoctorResponse> getDoctorById(
+            Long doctorId) {
 
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
@@ -289,32 +348,39 @@ public class DoctorServiceImpl implements DoctorService {
         Doctor doctor;
 
         if (hospitalId == null) {
-            doctor = doctorRepository
-                    .findByIdAndDeletedAtIsNull(doctorId)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findByIdAndDeletedAtIsNull(
+                                    doctorId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         } else {
-            doctor = doctorRepository
-                    .findByIdAndHospitalIdAndDeletedAtIsNull(
-                            doctorId,
-                            hospitalId
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findByIdAndHospitalIdAndDeletedAtIsNull(
+                                    doctorId,
+                                    hospitalId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         }
 
         return ApiResponse.<DoctorResponse>builder()
                 .success(true)
                 .message("Doctor fetched successfully")
-                .data(doctorMapper.toResponse(doctor))
+                .data(
+                        doctorMapper.toResponse(
+                                doctor
+                        )
+                )
                 .build();
     }
 
-    
     @Override
     public ApiResponse<DoctorResponse> updateDoctor(
             Long doctorId,
@@ -326,27 +392,35 @@ public class DoctorServiceImpl implements DoctorService {
         Doctor doctor;
 
         if (hospitalId == null) {
-            doctor = doctorRepository
-                    .findByIdAndDeletedAtIsNull(doctorId)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findByIdAndDeletedAtIsNull(
+                                    doctorId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         } else {
-            doctor = doctorRepository
-                    .findByIdAndHospitalIdAndDeletedAtIsNull(
-                            doctorId,
-                            hospitalId
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findByIdAndHospitalIdAndDeletedAtIsNull(
+                                    doctorId,
+                                    hospitalId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         }
 
-        doctorMapper.updateEntity(doctor, request);
+        doctorMapper.updateEntity(
+                doctor,
+                request
+        );
 
-        Doctor updatedDoctor = doctorRepository.save(doctor);
+        Doctor updatedDoctor =
+                doctorRepository.save(doctor);
 
         log.info(
                 "Doctor updated: doctorId={}, hospitalId={}",
@@ -357,11 +431,13 @@ public class DoctorServiceImpl implements DoctorService {
         return ApiResponse.<DoctorResponse>builder()
                 .success(true)
                 .message("Doctor updated successfully")
-                .data(doctorMapper.toResponse(updatedDoctor))
+                .data(
+                        doctorMapper.toResponse(
+                                updatedDoctor
+                        )
+                )
                 .build();
     }
-
-    
 
     @Override
     public ApiResponse<DoctorResponse> updateDoctorStatus(
@@ -374,27 +450,34 @@ public class DoctorServiceImpl implements DoctorService {
         Doctor doctor;
 
         if (hospitalId == null) {
-            doctor = doctorRepository
-                    .findByIdAndDeletedAtIsNull(doctorId)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findByIdAndDeletedAtIsNull(
+                                    doctorId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         } else {
-            doctor = doctorRepository
-                    .findByIdAndHospitalIdAndDeletedAtIsNull(
-                            doctorId,
-                            hospitalId
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findByIdAndHospitalIdAndDeletedAtIsNull(
+                                    doctorId,
+                                    hospitalId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         }
 
-        doctor.setStatus(request.getStatus());
+        doctor.setStatus(
+                request.getStatus()
+        );
 
-        Doctor updatedDoctor = doctorRepository.save(doctor);
+        Doctor updatedDoctor =
+                doctorRepository.save(doctor);
 
         log.info(
                 "Doctor status updated: doctorId={}, hospitalId={}, status={}",
@@ -406,11 +489,13 @@ public class DoctorServiceImpl implements DoctorService {
         return ApiResponse.<DoctorResponse>builder()
                 .success(true)
                 .message("Doctor status updated successfully")
-                .data(doctorMapper.toResponse(updatedDoctor))
+                .data(
+                        doctorMapper.toResponse(
+                                updatedDoctor
+                        )
+                )
                 .build();
     }
-
-     
 
     @Override
     @Transactional(readOnly = true)
@@ -422,7 +507,9 @@ public class DoctorServiceImpl implements DoctorService {
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
 
-        if (keyword == null || keyword.trim().isEmpty()) {
+        if (keyword == null
+                || keyword.trim().isEmpty()) {
+
             throw new BusinessException(
                     "Search keyword cannot be empty"
             );
@@ -440,24 +527,32 @@ public class DoctorServiceImpl implements DoctorService {
             );
         }
 
-        String normalizedKeyword = keyword.trim();
-        Pageable pageable = PageRequest.of(page, size);
+        String normalizedKeyword =
+                keyword.trim();
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size
+                );
 
         Page<Doctor> doctorPage;
 
         if (hospitalId == null) {
-            doctorPage = doctorRepository
-                    .findBySpecializationContainingIgnoreCaseAndDeletedAtIsNull(
-                            normalizedKeyword,
-                            pageable
-                    );
+            doctorPage =
+                    doctorRepository
+                            .findBySpecializationContainingIgnoreCaseAndDeletedAtIsNull(
+                                    normalizedKeyword,
+                                    pageable
+                            );
         } else {
-            doctorPage = doctorRepository
-                    .findByHospitalIdAndSpecializationContainingIgnoreCaseAndDeletedAtIsNull(
-                            hospitalId,
-                            normalizedKeyword,
-                            pageable
-                    );
+            doctorPage =
+                    doctorRepository
+                            .findByHospitalIdAndSpecializationContainingIgnoreCaseAndDeletedAtIsNull(
+                                    hospitalId,
+                                    normalizedKeyword,
+                                    pageable
+                            );
         }
 
         List<DoctorResponse> items =
@@ -471,24 +566,37 @@ public class DoctorServiceImpl implements DoctorService {
                         .items(items)
                         .page(doctorPage.getNumber())
                         .size(doctorPage.getSize())
-                        .totalElements(doctorPage.getTotalElements())
-                        .totalPages(doctorPage.getTotalPages())
-                        .first(doctorPage.isFirst())
-                        .last(doctorPage.isLast())
-                        .hasNext(doctorPage.hasNext())
-                        .hasPrevious(doctorPage.hasPrevious())
+                        .totalElements(
+                                doctorPage.getTotalElements()
+                        )
+                        .totalPages(
+                                doctorPage.getTotalPages()
+                        )
+                        .first(
+                                doctorPage.isFirst()
+                        )
+                        .last(
+                                doctorPage.isLast()
+                        )
+                        .hasNext(
+                                doctorPage.hasNext()
+                        )
+                        .hasPrevious(
+                                doctorPage.hasPrevious()
+                        )
                         .build();
 
-        return ApiResponse.<PageResponse<DoctorResponse>>builder()
+        return ApiResponse
+                .<PageResponse<DoctorResponse>>builder()
                 .success(true)
                 .message("Doctors fetched successfully")
                 .data(response)
                 .build();
     }
 
-    
     @Override
-    public ApiResponse<String> deleteDoctor(Long doctorId) {
+    public ApiResponse<String> deleteDoctor(
+            Long doctorId) {
 
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
@@ -496,25 +604,32 @@ public class DoctorServiceImpl implements DoctorService {
         Doctor doctor;
 
         if (hospitalId == null) {
-            doctor = doctorRepository
-                    .findByIdAndDeletedAtIsNull(doctorId)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findByIdAndDeletedAtIsNull(
+                                    doctorId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         } else {
-            doctor = doctorRepository
-                    .findByIdAndHospitalIdAndDeletedAtIsNull(
-                            doctorId,
-                            hospitalId
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findByIdAndHospitalIdAndDeletedAtIsNull(
+                                    doctorId,
+                                    hospitalId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         }
 
-        doctor.setDeletedAt(LocalDateTime.now());
+        doctor.setDeletedAt(
+                LocalDateTime.now()
+        );
+
         doctorRepository.save(doctor);
 
         log.info(
@@ -530,9 +645,9 @@ public class DoctorServiceImpl implements DoctorService {
                 .build();
     }
 
-    
     @Override
-    public ApiResponse<String> restoreDoctor(Long doctorId) {
+    public ApiResponse<String> restoreDoctor(
+            Long doctorId) {
 
         Long hospitalId =
                 tenantContextService.getCurrentHospitalId();
@@ -540,19 +655,24 @@ public class DoctorServiceImpl implements DoctorService {
         Doctor doctor;
 
         if (hospitalId == null) {
-            doctor = doctorRepository
-                    .findById(doctorId)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findById(doctorId)
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         } else {
-            doctor = doctorRepository
-                    .findByIdAndHospitalId(doctorId, hospitalId)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            doctor =
+                    doctorRepository
+                            .findByIdAndHospitalId(
+                                    doctorId,
+                                    hospitalId
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Doctor not found"
+                                    ));
         }
 
         if (doctor.getDeletedAt() == null) {
@@ -562,6 +682,7 @@ public class DoctorServiceImpl implements DoctorService {
         }
 
         doctor.setDeletedAt(null);
+
         doctorRepository.save(doctor);
 
         log.info(
@@ -577,111 +698,150 @@ public class DoctorServiceImpl implements DoctorService {
                 .build();
     }
 
-    
-
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<DoctorProfileResponse> getMyProfile() {
 
-        String email = SecurityUtil.getCurrentUsername();
+        String email =
+                SecurityUtil.getCurrentUsername();
 
-        User user = userRepository
-                .findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found")
-                );
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "User not found"
+                                ));
 
-        Doctor doctor = doctorRepository
-                .findByUserIdAndDeletedAtIsNull(user.getId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Doctor profile not found"
+        Doctor doctor =
+                doctorRepository
+                        .findByUserIdAndDeletedAtIsNull(
+                                user.getId()
                         )
-                );
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Doctor profile not found"
+                                ));
 
-        return ApiResponse.<DoctorProfileResponse>builder()
+        return ApiResponse
+                .<DoctorProfileResponse>builder()
                 .success(true)
-                .message("Doctor profile fetched successfully")
-                .data(doctorMapper.toProfileResponse(doctor))
+                .message(
+                        "Doctor profile fetched successfully"
+                )
+                .data(
+                        doctorMapper.toProfileResponse(
+                                doctor
+                        )
+                )
                 .build();
     }
 
-    
     @Override
     public ApiResponse<DoctorProfileResponse> updateMyProfile(
             UpdateMyDoctorProfileRequest request) {
 
-        String email = SecurityUtil.getCurrentUsername();
+        String email =
+                SecurityUtil.getCurrentUsername();
 
-        User user = userRepository
-                .findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found")
-                );
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "User not found"
+                                ));
 
-        Doctor doctor = doctorRepository
-                .findByUserIdAndDeletedAtIsNull(user.getId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Doctor profile not found"
+        Doctor doctor =
+                doctorRepository
+                        .findByUserIdAndDeletedAtIsNull(
+                                user.getId()
                         )
-                );
- 
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Doctor profile not found"
+                                ));
 
         if (request.getBio() != null) {
-            doctor.setBio(request.getBio().trim());
+            doctor.setBio(
+                    request.getBio().trim()
+            );
         }
 
         if (request.getLanguages() != null) {
-            doctor.setLanguages(request.getLanguages().trim());
+            doctor.setLanguages(
+                    request.getLanguages().trim()
+            );
         }
 
-        Doctor updatedDoctor = doctorRepository.save(doctor);
+        Doctor updatedDoctor =
+                doctorRepository.save(doctor);
 
-        return ApiResponse.<DoctorProfileResponse>builder()
+        return ApiResponse
+                .<DoctorProfileResponse>builder()
                 .success(true)
-                .message("Doctor profile updated successfully")
-                .data(doctorMapper.toProfileResponse(updatedDoctor))
+                .message(
+                        "Doctor profile updated successfully"
+                )
+                .data(
+                        doctorMapper.toProfileResponse(
+                                updatedDoctor
+                        )
+                )
                 .build();
     }
-
-    
 
     @Override
     public ApiResponse<DoctorProfileResponse> uploadMyProfileImage(
             MultipartFile file) {
 
-        String email = SecurityUtil.getCurrentUsername();
+        String email =
+                SecurityUtil.getCurrentUsername();
 
-        User user = userRepository
-                .findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found")
-                );
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "User not found"
+                                ));
 
-        Doctor doctor = doctorRepository
-                .findByUserIdAndDeletedAtIsNull(user.getId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Doctor profile not found"
+        Doctor doctor =
+                doctorRepository
+                        .findByUserIdAndDeletedAtIsNull(
+                                user.getId()
                         )
-                );
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Doctor profile not found"
+                                ));
 
         fileValidationService.validateImage(file);
 
-        String imageUrl = fileStorageService.upload(
-                file,
-                "medcore/doctors/" + doctor.getId() + "/profile"
-        );
+        String imageUrl =
+                fileStorageService.upload(
+                        file,
+                        "medcore/doctors/"
+                                + doctor.getId()
+                                + "/profile"
+                );
 
         doctor.setProfileImageUrl(imageUrl);
 
-        Doctor updatedDoctor = doctorRepository.save(doctor);
+        Doctor updatedDoctor =
+                doctorRepository.save(doctor);
 
-        return ApiResponse.<DoctorProfileResponse>builder()
+        return ApiResponse
+                .<DoctorProfileResponse>builder()
                 .success(true)
-                .message("Profile image uploaded successfully")
-                .data(doctorMapper.toProfileResponse(updatedDoctor))
+                .message(
+                        "Profile image uploaded successfully"
+                )
+                .data(
+                        doctorMapper.toProfileResponse(
+                                updatedDoctor
+                        )
+                )
                 .build();
     }
 }

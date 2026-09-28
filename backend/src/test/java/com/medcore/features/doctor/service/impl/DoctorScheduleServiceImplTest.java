@@ -87,8 +87,7 @@ void setUp() {
         request.setDoctorId(50L);
         request.setDayOfWeek(DayOfWeek.MONDAY);
         request.setStartTime(LocalTime.of(9, 0));
-        request.setEndTime(LocalTime.of(13, 0));
-
+ 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
 
@@ -202,8 +201,7 @@ void setUp() {
         request.setDoctorId(50L);
         request.setDayOfWeek(DayOfWeek.MONDAY);
         request.setStartTime(LocalTime.of(13, 0));
-        request.setEndTime(LocalTime.of(9, 0));
-
+ 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(1L);
 
@@ -240,8 +238,7 @@ void setUp() {
         request.setDoctorId(50L);
         request.setDayOfWeek(DayOfWeek.MONDAY);
         request.setStartTime(LocalTime.of(11, 0));
-        request.setEndTime(LocalTime.of(14, 0));
-
+ 
         DoctorSchedule existingSchedule =
                 mock(DoctorSchedule.class);
 
@@ -288,8 +285,7 @@ void createSchedule_shouldAllowNonOverlappingSchedule() {
     request.setDoctorId(50L);
     request.setDayOfWeek(DayOfWeek.MONDAY);
     request.setStartTime(LocalTime.of(13, 0));
-    request.setEndTime(LocalTime.of(17, 0));
-
+ 
     DoctorSchedule existingSchedule =
             mock(DoctorSchedule.class);
 
@@ -353,8 +349,7 @@ void createSchedule_shouldAllowNonOverlappingSchedule() {
         request.setDoctorId(50L);
         request.setDayOfWeek(DayOfWeek.MONDAY);
         request.setStartTime(LocalTime.of(9, 0));
-        request.setEndTime(LocalTime.of(13, 0));
-
+ 
         when(tenantContextService.getCurrentHospitalId())
                 .thenReturn(null);
 

@@ -19,7 +19,7 @@ public class HospitalMapper {
                 .licenseNumber(request.getLicenseNumber().trim())
                 .city(request.getCity().trim())
                 .logoUrl(request.getLogo())
-                .status(HospitalStatus.PENDING)
+                .status(HospitalStatus.ACTIVE)
                 .build();
     }
 

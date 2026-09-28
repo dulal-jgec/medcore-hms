@@ -1,25 +1,28 @@
 package com.medcore.features.doctor.repository;
 
 import com.medcore.features.doctor.entity.DoctorSchedule;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.medcore.features.doctor.enums.DayOfWeek;
+
 import java.util.List;
 import java.util.Optional;
 
 public interface DoctorScheduleRepository
-extends JpaRepository<DoctorSchedule, Long> {
+        extends JpaRepository<DoctorSchedule, Long> {
 
-List<DoctorSchedule> findByDoctorIdAndDeletedAtIsNull(
-    Long doctorId
-);
+    @EntityGraph(attributePaths = {"doctor", "doctor.user"})
+    List<DoctorSchedule> findByDoctorIdAndDeletedAtIsNull(
+            Long doctorId
+    );
 
-List<DoctorSchedule> findByDoctorIdAndDayOfWeekAndDeletedAtIsNull(
-    Long doctorId,
-    DayOfWeek dayOfWeek
-);
+    List<DoctorSchedule> findByDoctorIdAndDayOfWeekAndDeletedAtIsNull(
+            Long doctorId,
+            DayOfWeek dayOfWeek
+    );
 
-Optional<DoctorSchedule> findByIdAndDeletedAtIsNull(
-    Long scheduleId
-);
+    Optional<DoctorSchedule> findByIdAndDeletedAtIsNull(
+            Long scheduleId
+    );
 }

@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -43,52 +44,59 @@ public class DoctorScheduleServiceImpl
     private final UserRepository userRepository;
 
     @Override
-    public ApiResponse<DoctorScheduleResponse> createSchedule(
-            CreateDoctorScheduleRequest request) {
+public ApiResponse<DoctorScheduleResponse> createSchedule(
+        CreateDoctorScheduleRequest request) {
 
-        Doctor doctor = resolveTargetDoctorForWrite(request.getDoctorId());
+    Doctor doctor = resolveTargetDoctorForWrite(request.getDoctorId());
 
-        if (doctor.getStatus() != DoctorStatus.ACTIVE) {
-            throw new BusinessException(
-                    "Only active doctors can have schedules"
-            );
-        }
-
-        if (!request.getStartTime().isBefore(request.getEndTime())) {
-            throw new BusinessException(
-                    "Start time must be before end time"
-            );
-        }
-
-        validateNoOverlap(
-                doctor.getId(),
-                request.getDayOfWeek(),
-                request.getStartTime(),
-                request.getEndTime(),
-                null
+    if (doctor.getStatus() != DoctorStatus.ACTIVE) {
+        throw new BusinessException(
+                "Only active doctors can have schedules"
         );
-
-        DoctorSchedule schedule =
-                scheduleMapper.toEntity(request, doctor);
-
-        DoctorSchedule savedSchedule =
-                scheduleRepository.save(schedule);
-
-        log.info(
-                "Doctor schedule created: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}",
-                savedSchedule.getId(),
-                doctor.getId(),
-                savedSchedule.getDayOfWeek(),
-                savedSchedule.getStartTime(),
-                savedSchedule.getEndTime()
-        );
-
-        return ApiResponse.<DoctorScheduleResponse>builder()
-                .success(true)
-                .message("Doctor schedule created successfully")
-                .data(scheduleMapper.toResponse(savedSchedule))
-                .build();
     }
+
+    LocalTime startTime = request.getStartTime();
+
+    LocalTime endTime =
+            startTime.plusMinutes(
+                    doctor.getConsultationDurationMinutes()
+            );
+
+    validateNoOverlap(
+            doctor.getId(),
+            request.getDayOfWeek(),
+            startTime,
+            endTime,
+            null
+    );
+
+    DoctorSchedule schedule =
+            DoctorSchedule.builder()
+                    .doctor(doctor)
+                    .dayOfWeek(request.getDayOfWeek())
+                    .startTime(startTime)
+                    .endTime(endTime)
+                    .available(true)
+                    .build();
+
+    DoctorSchedule savedSchedule =
+            scheduleRepository.save(schedule);
+
+    log.info(
+            "Doctor schedule created: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}",
+            savedSchedule.getId(),
+            doctor.getId(),
+            savedSchedule.getDayOfWeek(),
+            savedSchedule.getStartTime(),
+            savedSchedule.getEndTime()
+    );
+
+    return ApiResponse.<DoctorScheduleResponse>builder()
+            .success(true)
+            .message("Doctor schedule created successfully")
+            .data(scheduleMapper.toResponse(savedSchedule))
+            .build();
+}
 
     @Override
     @Transactional(readOnly = true)
@@ -132,24 +140,26 @@ public class DoctorScheduleServiceImpl
                     "Only active doctors can have schedules"
             );
         }
+        
+        LocalTime startTime = request.getStartTime();
 
-        if (!request.getStartTime().isBefore(request.getEndTime())) {
-            throw new BusinessException(
-                    "Start time must be before end time"
-            );
-        }
+        LocalTime endTime =
+                startTime.plusMinutes(
+                        doctor.getConsultationDurationMinutes()
+                );
+         
 
         validateNoOverlap(
                 doctor.getId(),
                 request.getDayOfWeek(),
-                request.getStartTime(),
-                request.getEndTime(),
+                startTime,
+                endTime,
                 scheduleId
         );
 
         schedule.setDayOfWeek(request.getDayOfWeek());
-        schedule.setStartTime(request.getStartTime());
-        schedule.setEndTime(request.getEndTime());
+        schedule.setStartTime(startTime);
+        schedule.setEndTime(endTime);
         schedule.setAvailable(request.getAvailable());
 
         DoctorSchedule updatedSchedule =

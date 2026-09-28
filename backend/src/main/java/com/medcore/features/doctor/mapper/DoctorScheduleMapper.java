@@ -17,7 +17,6 @@ public class DoctorScheduleMapper {
                 .doctor(doctor)
                 .dayOfWeek(request.getDayOfWeek())
                 .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
                 .available(true)
                 .build();
     }

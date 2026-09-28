@@ -568,7 +568,7 @@ class AuthServiceImplTest {
                 .setAuthentication(authentication);
 
         when(userRepository
-                .findWithRoleAndHospitalByEmail(
+                .findWithRoleAndHospitalByEmailAndDeletedAtIsNull(
                         "test@example.com"
                 ))
                 .thenReturn(Optional.of(user));
@@ -619,7 +619,7 @@ class AuthServiceImplTest {
                 .setAuthentication(authentication);
 
         when(userRepository
-                .findWithRoleAndHospitalByEmail(
+                .findWithRoleAndHospitalByEmailAndDeletedAtIsNull(
                         "test@example.com"
                 ))
                 .thenReturn(Optional.empty());

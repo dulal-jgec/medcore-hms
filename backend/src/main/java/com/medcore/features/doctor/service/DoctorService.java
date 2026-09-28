@@ -9,10 +9,11 @@ import com.medcore.features.doctor.dto.request.UpdateMyDoctorProfileRequest;
 import com.medcore.features.doctor.dto.response.DoctorProfileResponse;
 import com.medcore.features.doctor.dto.response.DoctorResponse;
 import org.springframework.web.multipart.MultipartFile;
+
 public interface DoctorService {
 
     ApiResponse<DoctorResponse> createDoctor(CreateDoctorRequest request);
-    
+
     ApiResponse<PageResponse<DoctorResponse>> getAllDoctors(
             int page,
             int size,
@@ -21,7 +22,7 @@ public interface DoctorService {
     );
 
     ApiResponse<DoctorResponse> getDoctorById(Long doctorId);
-    
+
     ApiResponse<DoctorResponse> updateDoctor(
             Long doctorId,
             UpdateDoctorRequest request
@@ -41,19 +42,14 @@ public interface DoctorService {
             int page,
             int size
     );
-    
+
     ApiResponse<DoctorProfileResponse> getMyProfile();
-    
+
     ApiResponse<DoctorProfileResponse> updateMyProfile(
             UpdateMyDoctorProfileRequest request
     );
-    
+
     ApiResponse<DoctorProfileResponse> uploadMyProfileImage(
             MultipartFile file
     );
 }
-
-
-
-
-	

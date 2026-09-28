@@ -36,15 +36,14 @@ public interface EmailOutboxRepository
     @Modifying
     @Query("""
         UPDATE EmailOutbox e
-        SET e.status = :pendingStatus,
-            e.processingStartedAt = :now
-        WHERE e.status = :processingStatus
+        SET e.status = com.medcore.features.notification.enums.EmailOutboxStatus.PENDING,
+            e.nextAttemptAt = :now,
+            e.processingStartedAt = NULL
+        WHERE e.status = com.medcore.features.notification.enums.EmailOutboxStatus.PROCESSING
           AND e.processingStartedAt < :threshold
     """)
     int recoverStaleEmails(
             @Param("threshold") LocalDateTime threshold,
-            @Param("now") LocalDateTime now,
-            @Param("pendingStatus") EmailOutboxStatus pendingStatus,
-            @Param("processingStatus") EmailOutboxStatus processingStatus
+            @Param("now") LocalDateTime now
     );
 }

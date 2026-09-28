@@ -28,10 +28,9 @@ public class DoctorController {
 
 
     
-    // SUPER_ADMIN + HOSPITAL_ADMIN
- 
+  
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<DoctorResponse>> createDoctor(
             @Valid @RequestBody CreateDoctorRequest request) {
 
@@ -42,7 +41,7 @@ public class DoctorController {
 
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<DoctorResponse>>> getAllDoctors(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -61,7 +60,7 @@ public class DoctorController {
 
 
     @GetMapping("/{doctorId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<DoctorResponse>> getDoctorById(
             @PathVariable Long doctorId) {
 
@@ -72,7 +71,7 @@ public class DoctorController {
 
 
     @PutMapping("/{doctorId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<DoctorResponse>> updateDoctor(
             @PathVariable Long doctorId,
             @Valid @RequestBody UpdateDoctorRequest request) {
@@ -87,7 +86,7 @@ public class DoctorController {
 
 
     @PatchMapping("/{doctorId}/status")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<DoctorResponse>> updateDoctorStatus(
             @PathVariable Long doctorId,
             @Valid @RequestBody UpdateDoctorStatusRequest request) {
@@ -102,7 +101,7 @@ public class DoctorController {
 
 
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<DoctorResponse>>> searchDoctors(
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
@@ -119,7 +118,7 @@ public class DoctorController {
 
 
     @DeleteMapping("/{doctorId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<String>> deleteDoctor(
             @PathVariable Long doctorId) {
 
@@ -130,7 +129,7 @@ public class DoctorController {
 
 
     @PatchMapping("/{doctorId}/restore")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<String>> restoreDoctor(
             @PathVariable Long doctorId) {
 
@@ -141,7 +140,7 @@ public class DoctorController {
 
 
     
-    // DOCTOR ONLY
+     
  
     @GetMapping("/me")
     @PreAuthorize("hasRole('DOCTOR')")
