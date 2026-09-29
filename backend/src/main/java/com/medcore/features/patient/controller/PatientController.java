@@ -79,7 +79,7 @@ public class PatientController {
     }
 
     @PatchMapping("/{patientId}/status")
-    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'RECEPTIONIST')")
     public ResponseEntity<ApiResponse<PatientResponse>> updatePatientStatus(
             @PathVariable Long patientId,
             @Valid @RequestBody UpdatePatientStatusRequest request) {
@@ -91,6 +91,7 @@ public class PatientController {
                 )
         );
     }
+
     @PostMapping("/me")
     @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<ApiResponse<PatientResponse>> createMyProfile(
@@ -100,7 +101,7 @@ public class PatientController {
                 .status(HttpStatus.CREATED)
                 .body(patientService.createMyProfile(request));
     }
-    
+
     @GetMapping("/me")
     @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<ApiResponse<PatientResponse>> getMyProfile() {
@@ -109,7 +110,7 @@ public class PatientController {
                 patientService.getMyProfile()
         );
     }
-    
+
     @PutMapping("/me")
     @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<ApiResponse<PatientResponse>> updateMyProfile(

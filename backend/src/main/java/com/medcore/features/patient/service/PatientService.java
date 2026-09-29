@@ -41,10 +41,6 @@ public interface PatientService {
             int size
     );
 
-    ApiResponse<String> deletePatient(Long patientId);
-
-    ApiResponse<String> restorePatient(Long patientId);
-    
     ApiResponse<PatientResponse> createMyProfile(
             CreatePatientMeRequest request
     );

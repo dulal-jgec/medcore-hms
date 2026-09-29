@@ -29,7 +29,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -55,51 +54,70 @@ public class PatientServiceImpl implements PatientService {
             );
 
     @Override
-    @Transactional
-    public ApiResponse<PatientResponse> createPatient(
-            CreatePatientRequest request) {
+@Transactional
+public ApiResponse<PatientResponse> createPatient(
+        CreatePatientRequest request) {
 
-        User user = userRepository
-                .findById(request.getUserId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found"
-                        ));
+    Long hospitalId =
+            tenantContextService.getCurrentHospitalId();
 
-        if (user.getRole() == null
-                || user.getRole().getName() != RoleName.PATIENT) {
-
-            throw new BusinessException(
-                    "Selected user is not assigned the PATIENT role"
-            );
-        }
-
-        if (patientRepository.existsByUserId(user.getId())) {
-
-            throw new DuplicateResourceException(
-                    "Patient profile already exists for this user"
-            );
-        }
-
-        Patient patient =
-                patientMapper.toEntity(
-                        request,
-                        user
-                );
-
-        Patient savedPatient =
-                patientRepository.save(patient);
-
-        return ApiResponse.<PatientResponse>builder()
-                .success(true)
-                .message("Patient created successfully")
-                .data(
-                        patientMapper.toResponse(
-                                savedPatient
-                        )
-                )
-                .build();
+    if (hospitalId == null) {
+        throw new BusinessException(
+                "Hospital context is required"
+        );
     }
+
+    User user = userRepository
+            .findById(request.getUserId())
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "User not found"
+                    ));
+
+    if (user.getRole() == null
+            || user.getRole().getName() != RoleName.PATIENT) {
+
+        throw new BusinessException(
+                "Selected user is not assigned the PATIENT role"
+        );
+    }
+
+    if (user.getHospital() == null
+            || !user.getHospital()
+                    .getId()
+                    .equals(hospitalId)) {
+
+        throw new BusinessException(
+                "You are not authorized to create a patient for this hospital"
+        );
+    }
+
+    if (patientRepository.existsByUserId(user.getId())) {
+
+        throw new DuplicateResourceException(
+                "Patient profile already exists for this user"
+        );
+    }
+
+    Patient patient =
+            patientMapper.toEntity(
+                    request,
+                    user
+            );
+
+    Patient savedPatient =
+            patientRepository.save(patient);
+
+    return ApiResponse.<PatientResponse>builder()
+            .success(true)
+            .message("Patient created successfully")
+            .data(
+                    patientMapper.toResponse(
+                            savedPatient
+                    )
+            )
+            .build();
+}
 
     /*
      * ---------------------------------------------------------
@@ -117,25 +135,94 @@ public class PatientServiceImpl implements PatientService {
      */
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<PageResponse<PatientResponse>> getAllPatients(
             int page,
             int size,
             String sortBy,
-            String sortDir) {
+            String sortDir
+    ) {
+        Long hospitalId = tenantContextService.getCurrentHospitalId();
 
-        throw new BusinessException(
-                "Hospital-scoped patient listing will be implemented through appointments"
-        );
+        if (hospitalId == null) {
+            throw new BusinessException("Hospital context is required");
+        }
+
+        Pageable pageable = createPageable(page, size, sortBy, sortDir);
+
+        Page<PatientResponse> patientPage = patientRepository
+                .findRecentForHospital(hospitalId, pageable)
+                .map(patientMapper::toResponse);
+
+        PageResponse<PatientResponse> pageResponse = PageResponse.<PatientResponse>builder()
+                .items(patientPage.getContent())
+                .page(patientPage.getNumber())
+                .size(patientPage.getSize())
+                .totalElements(patientPage.getTotalElements())
+                .totalPages(patientPage.getTotalPages())
+                .first(patientPage.isFirst())
+                .last(patientPage.isLast())
+                .hasNext(patientPage.hasNext())
+                .hasPrevious(patientPage.hasPrevious())
+                .build();
+
+        return ApiResponse.<PageResponse<PatientResponse>>builder()
+                .success(true)
+                .message("Patients fetched successfully")
+                .data(pageResponse)
+                .build();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<PatientResponse> getPatientById(
-            Long patientId) {
+    public ApiResponse<PatientResponse> getPatientById(Long patientId) {
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() == null) {
+            throw new BusinessException("User role not found");
+        }
+
+        if (currentUser.getRole().getName() == RoleName.PATIENT) {
+
+            Patient patient =
+                    patientRepository
+                            .findByUserIdAndDeletedAtIsNull(
+                                    currentUser.getId()
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Patient profile not found"
+                                    ));
+
+            if (!patient.getId().equals(patientId)) {
+                throw new BusinessException(
+                        "You are not authorized to access this patient"
+                );
+            }
+
+            return ApiResponse.<PatientResponse>builder()
+                    .success(true)
+                    .message("Patient fetched successfully")
+                    .data(patientMapper.toResponse(patient))
+                    .build();
+        }
+
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
+
+        if (hospitalId == null) {
+            throw new BusinessException(
+                    "Hospital context is required"
+            );
+        }
 
         Patient patient =
                 patientRepository
-                        .findByIdAndDeletedAtIsNull(patientId)
+                        .findAccessiblePatient(
+                                patientId,
+                                hospitalId
+                        )
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Patient not found"
@@ -144,159 +231,153 @@ public class PatientServiceImpl implements PatientService {
         return ApiResponse.<PatientResponse>builder()
                 .success(true)
                 .message("Patient fetched successfully")
-                .data(
-                        patientMapper.toResponse(patient)
-                )
+                .data(patientMapper.toResponse(patient))
                 .build();
     }
 
     @Override
-    public ApiResponse<PatientResponse> updatePatient(
-            Long patientId,
-            UpdatePatientRequest request) {
+@Transactional
+public ApiResponse<PatientResponse> updatePatient(
+        Long patientId,
+        UpdatePatientRequest request) {
 
-        Patient patient =
-                patientRepository
-                        .findByIdAndDeletedAtIsNull(patientId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Patient not found"
-                                ));
-
-        patientMapper.updateEntity(
-                patient,
-                request
-        );
-
-        Patient updatedPatient =
-                patientRepository.save(patient);
-
-        return ApiResponse.<PatientResponse>builder()
-                .success(true)
-                .message("Patient updated successfully")
-                .data(
-                        patientMapper.toResponse(
-                                updatedPatient
-                        )
-                )
-                .build();
-    }
-
-    @Override
-    public ApiResponse<PatientResponse> updatePatientStatus(
-            Long patientId,
-            UpdatePatientStatusRequest request) {
-
-        Patient patient =
-                patientRepository
-                        .findByIdAndDeletedAtIsNull(patientId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Patient not found"
-                                ));
-
-        if (request.getStatus() == null) {
-            throw new BusinessException(
-                    "Patient status is required"
-            );
-        }
-
-        patient.setStatus(
-                request.getStatus()
-        );
-
-        Patient updatedPatient =
-                patientRepository.save(patient);
-
-        return ApiResponse.<PatientResponse>builder()
-                .success(true)
-                .message("Patient status updated successfully")
-                .data(
-                        patientMapper.toResponse(
-                                updatedPatient
-                        )
-                )
-                .build();
-    }
-
-    @Override
-@Transactional(readOnly = true)
-public ApiResponse<PageResponse<PatientResponse>> searchPatients(
-        String keyword,
-        int page,
-        int size) {
-
-    Long hospitalId = tenantContextService.getCurrentHospitalId();
+    Long hospitalId =
+            tenantContextService.getCurrentHospitalId();
 
     if (hospitalId == null) {
-        throw new BusinessException("Hospital context is required");
+        throw new BusinessException(
+                "Hospital context is required"
+        );
     }
 
-    if (keyword == null || keyword.isBlank()) {
-        throw new BusinessException("Search keyword is required");
-    }
+    Patient patient =
+            patientRepository
+                    .findByIdAndUserHospitalIdAndDeletedAtIsNull(
+                            patientId,
+                            hospitalId
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Patient not found"
+                            ));
 
-    Pageable pageable = PageRequest.of(page, size);
+    patientMapper.updateEntity(
+            patient,
+            request
+    );
 
-    Page<Patient> patientPage = patientRepository
-            .searchPatientsForHospital(hospitalId, keyword.trim(), pageable);
+    Patient updatedPatient =
+            patientRepository.save(patient);
 
-    return buildPageResponse(patientPage, "Patients fetched successfully");
+    return ApiResponse.<PatientResponse>builder()
+            .success(true)
+            .message("Patient updated successfully")
+            .data(
+                    patientMapper.toResponse(
+                            updatedPatient
+                    )
+            )
+            .build();
 }
 
     @Override
-    public ApiResponse<String> deletePatient(
-            Long patientId) {
+@Transactional
+public ApiResponse<PatientResponse> updatePatientStatus(
+        Long patientId,
+        UpdatePatientStatusRequest request) {
 
-        Patient patient =
-                patientRepository
-                        .findByIdAndDeletedAtIsNull(patientId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Patient not found"
-                                ));
+    Long hospitalId =
+            tenantContextService.getCurrentHospitalId();
 
-        patient.setDeletedAt(
-                LocalDateTime.now()
+    if (hospitalId == null) {
+        throw new BusinessException(
+                "Hospital context is required"
         );
-
-        patientRepository.save(patient);
-
-        return ApiResponse.<String>builder()
-                .success(true)
-                .message("Patient deleted successfully")
-                .data("Deleted")
-                .build();
     }
 
+    if (request.getStatus() == null) {
+        throw new BusinessException(
+                "Patient status is required"
+        );
+    }
+
+    Patient patient =
+            patientRepository
+                    .findByIdAndUserHospitalIdAndDeletedAtIsNull(
+                            patientId,
+                            hospitalId
+                    )
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Patient not found"
+                            ));
+
+    patient.setStatus(
+            request.getStatus()
+    );
+
+    Patient updatedPatient =
+            patientRepository.save(patient);
+
+    return ApiResponse.<PatientResponse>builder()
+            .success(true)
+            .message("Patient status updated successfully")
+            .data(
+                    patientMapper.toResponse(
+                            updatedPatient
+                    )
+            )
+            .build();
+}
+
     @Override
-    public ApiResponse<String> restorePatient(
-            Long patientId) {
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<PatientResponse>> searchPatients(
+            String keyword,
+            int page,
+            int size) {
 
-        Patient patient =
-                patientRepository
-                        .findById(patientId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Patient not found"
-                                ));
+        Long hospitalId =
+                tenantContextService.getCurrentHospitalId();
 
-        if (patient.getDeletedAt() == null) {
+        if (hospitalId == null) {
             throw new BusinessException(
-                    "Patient is already active"
+                    "Hospital context is required"
             );
         }
 
-        patient.setDeletedAt(null);
+        if (keyword == null || keyword.isBlank()) {
+            throw new BusinessException(
+                    "Search keyword is required"
+            );
+        }
 
-        patientRepository.save(patient);
+        int validPage = validatePage(page);
+        int validSize = validateSize(size);
 
-        return ApiResponse.<String>builder()
-                .success(true)
-                .message("Patient restored successfully")
-                .data("Restored")
-                .build();
+        Pageable pageable =
+                PageRequest.of(
+                        validPage,
+                        validSize,
+                        Sort.by(
+                                Sort.Direction.ASC,
+                                "createdAt"
+                        )
+                );
+
+        Page<Patient> patientPage =
+                patientRepository.searchPatientsForHospital(
+                        hospitalId,
+                        keyword.trim(),
+                        pageable
+                );
+
+        return buildPageResponse(
+                patientPage,
+                "Patients fetched successfully"
+        );
     }
+
 
     @Override
     @Transactional
