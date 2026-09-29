@@ -3,17 +3,22 @@ package com.medcore.features.department.entity;
 import com.medcore.common.entity.BaseEntity;
 import com.medcore.features.department.enums.DepartmentStatus;
 import com.medcore.features.hospital.entity.Hospital;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
-@Table(
-        name = "departments",
-        uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"hospital_id", "code"}),
-                @UniqueConstraint(columnNames = {"hospital_id", "name"})
-        }
-)
+@Table(name = "departments")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -33,7 +38,7 @@ public class Department extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hospital_id", nullable = false)
     private Hospital hospital;
-    
+
     @Column(length = 500)
     private String imageUrl;
 

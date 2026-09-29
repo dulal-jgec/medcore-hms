@@ -17,6 +17,7 @@ import com.medcore.features.department.mapper.DepartmentMapper;
 import com.medcore.features.department.repository.DepartmentRepository;
 import com.medcore.features.department.service.DepartmentService;
 import com.medcore.features.hospital.entity.Hospital;
+import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -81,12 +82,16 @@ public class DepartmentServiceImpl
                                 new ResourceNotFoundException(
                                         "Hospital not found"
                                 ));
+        if (hospital.getStatus() != HospitalStatus.ACTIVE) {
+            throw new BusinessException("Hospital is not active");
+        }
+        
 
         String name = request.getName().trim();
         String code = request.getCode().trim().toUpperCase();
 
         if (departmentRepository
-                .existsByHospitalIdAndNameIgnoreCase(
+                .existsByHospitalIdAndNameIgnoreCaseAndDeletedAtIsNull(
                         hospitalId,
                         name
                 )) {
@@ -96,7 +101,7 @@ public class DepartmentServiceImpl
         }
 
         if (departmentRepository
-                .existsByHospitalIdAndCodeIgnoreCase(
+                .existsByHospitalIdAndCodeIgnoreCaseAndDeletedAtIsNull(
                         hospitalId,
                         code
                 )) {
@@ -163,6 +168,7 @@ public class DepartmentServiceImpl
     
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<DepartmentResponse> getDepartmentById(
             Long departmentId) {
 
@@ -196,7 +202,7 @@ public class DepartmentServiceImpl
 
         if (!department.getName().equalsIgnoreCase(newName)
                 && departmentRepository
-                .existsByHospitalIdAndNameIgnoreCase(
+                .existsByHospitalIdAndNameIgnoreCaseAndDeletedAtIsNull(
                         hospitalId,
                         newName
                 )) {
@@ -207,7 +213,7 @@ public class DepartmentServiceImpl
 
         if (!department.getCode().equalsIgnoreCase(newCode)
                 && departmentRepository
-                .existsByHospitalIdAndCodeIgnoreCase(
+                .existsByHospitalIdAndCodeIgnoreCaseAndDeletedAtIsNull(
                         hospitalId,
                         newCode
                 )) {
@@ -369,6 +375,34 @@ public class DepartmentServiceImpl
         if (department.getDeletedAt() == null) {
             throw new BusinessException(
                     "Department is already active"
+            );
+        }
+        
+        boolean nameExists =
+                departmentRepository
+                        .findByHospitalIdAndNameIgnoreCaseAndDeletedAtIsNull(
+                                hospitalId,
+                                department.getName()
+                        )
+                        .isPresent();
+
+        if (nameExists) {
+            throw new BusinessException(
+                    "Cannot restore department. Another active department already uses this name"
+            );
+        }
+
+        boolean codeExists =
+                departmentRepository
+                        .findByHospitalIdAndCodeIgnoreCaseAndDeletedAtIsNull(
+                                hospitalId,
+                                department.getCode()
+                        )
+                        .isPresent();
+
+        if (codeExists) {
+            throw new BusinessException(
+                    "Cannot restore department. Another active department already uses this code"
             );
         }
 

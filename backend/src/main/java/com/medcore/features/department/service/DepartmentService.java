@@ -11,36 +11,36 @@ import org.springframework.web.multipart.MultipartFile;
 public interface DepartmentService {
 
     ApiResponse<DepartmentResponse> createDepartment(CreateDepartmentRequest request);
-    	
+
     ApiResponse<PageResponse<DepartmentResponse>> getAllDepartments(
             int page,
             int size,
             String sortBy,
             String sortDir
     );
-    
+
     ApiResponse<DepartmentResponse> getDepartmentById(Long departmentId);
-    
+
     ApiResponse<DepartmentResponse> updateDepartment(
             Long departmentId,
             UpdateDepartmentRequest request
     );
-    
+
     ApiResponse<DepartmentResponse> updateDepartmentStatus(
             Long departmentId,
             UpdateDepartmentStatusRequest request
     );
-    
+
     ApiResponse<PageResponse<DepartmentResponse>> searchDepartments(
             String keyword,
             int page,
             int size
     );
-    
+
     ApiResponse<String> deleteDepartment(Long departmentId);
 
     ApiResponse<String> restoreDepartment(Long departmentId);
-    
+
     ApiResponse<DepartmentResponse> uploadDepartmentImage(
             Long departmentId,
             MultipartFile file

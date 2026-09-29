@@ -9,7 +9,6 @@ import com.medcore.features.department.enums.DepartmentStatus;
 import com.medcore.features.department.mapper.DepartmentMapper;
 import com.medcore.features.department.repository.PublicDepartmentRepository;
 import com.medcore.features.department.service.PublicDepartmentService;
-import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
 
