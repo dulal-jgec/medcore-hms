@@ -1,8 +1,23 @@
+FROM eclipse-temurin:21-jdk AS builder
+
+WORKDIR /app
+
+COPY pom.xml .
+COPY .mvn .mvn
+COPY mvnw .
+
+RUN chmod +x mvnw
+RUN ./mvnw clean package -DskipTests
+
+COPY src src
+
+RUN ./mvnw clean package -DskipTests
+
 FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-COPY target/*.jar app.jar
+COPY --from=builder /app/target/*.jar app.jar
 
 EXPOSE 8080
 
