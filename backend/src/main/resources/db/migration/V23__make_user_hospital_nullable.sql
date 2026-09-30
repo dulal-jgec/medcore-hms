@@ -1,0 +1,2 @@
+ALTER TABLE users
+ALTER COLUMN hospital_id DROP NOT NULL;

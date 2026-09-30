@@ -18,15 +18,13 @@ public interface HospitalRepository
 
     boolean existsByEmailAndDeletedAtIsNull(String email);
 
-    boolean existsByLicenseNumberAndDeletedAtIsNull(
-            String licenseNumber
-    );
+    boolean existsByLicenseNumberAndDeletedAtIsNull(String licenseNumber);
 
-    boolean existsByPhoneAndDeletedAtIsNull(
-            String phone
-    );
+    boolean existsByPhoneAndDeletedAtIsNull(String phone);
 
     Optional<Hospital> findByIdAndDeletedAtIsNull(Long id);
+
+    Optional<Hospital> findByNameAndDeletedAtIsNull(String name);
 
     Page<Hospital> findByDeletedAtIsNull(Pageable pageable);
 
@@ -48,9 +46,7 @@ public interface HospitalRepository
 
     long countByDeletedAtIsNotNull();
 
-    long countByStatusAndDeletedAtIsNull(
-            HospitalStatus status
-    );
+    long countByStatusAndDeletedAtIsNull(HospitalStatus status);
 
     Page<Hospital> findByStatusAndDeletedAtIsNull(
             HospitalStatus status,
