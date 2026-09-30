@@ -7,7 +7,6 @@ COPY .mvn .mvn
 COPY mvnw .
 
 RUN chmod +x mvnw
-RUN ./mvnw clean package -DskipTests
 
 COPY src src
 
