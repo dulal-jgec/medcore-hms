@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   CheckCircle2,
-  Building2,
   Users,
   BarChart3,
   ShieldCheck,
@@ -14,7 +13,6 @@ import {
   CalendarCheck,
   FileText,
   Phone,
-  Check,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -47,19 +45,37 @@ const BENEFITS = [
     icon: ShieldCheck,
     title: "Enterprise-grade security",
     description:
-      "Multi-tenant isolation, encrypted at rest and in transit, full audit logging, and role-based access controls.",
+      "Multi-tenant isolation, encrypted at rest and in transit, full audit logging, role-based access.",
   },
   {
     icon: BarChart3,
     title: "Real-time visibility",
     description:
-      "Dashboards for administrators and department heads. Track operations, revenue, and patient flow at a glance.",
+      "Dashboards for administrators and department heads. Track operations, revenue, and patient flow.",
   },
   {
     icon: Wallet,
     title: "Transparent pricing",
     description:
       "Simple per-hospital pricing. No hidden fees, no per-user charges that balloon as you grow.",
+  },
+];
+
+const STEPS = [
+  {
+    n: "01",
+    title: "Sign up",
+    desc: "Create your hospital account. No credit card required for the trial.",
+  },
+  {
+    n: "02",
+    title: "Configure",
+    desc: "Add departments, invite staff, set roles, and import existing patient data.",
+  },
+  {
+    n: "03",
+    title: "Go live",
+    desc: "Start registering patients, booking appointments, and running your hospital.",
   },
 ];
 
@@ -114,28 +130,52 @@ export default function ForHospitalsPage() {
   return (
     <>
       {/* HERO */}
-      <section className="border-b border-border">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-            <div className="lg:col-span-6">
-              <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+      <section className="relative overflow-hidden border-b border-border">
+        <div className="relative h-[420px] w-full sm:h-[520px] lg:h-[600px]">
+          <Image
+            src="/images/for-hospitals-hero.jpg"
+            alt="Hospital staff using MedCore"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-br from-primary-darker via-primary-darker/85 to-primary-darker/50"
+          />
+
+          <div className="absolute inset-0 flex items-end">
+            <div className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 sm:pb-16 lg:px-8 lg:pb-20">
+              <p className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand backdrop-blur">
                 For Hospitals
               </p>
-              <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
-                Run your hospital on <span className="text-brand">one platform</span>
+
+              <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
+                Run your hospital on{" "}
+                <span className="text-brand">one platform.</span>
               </h1>
-              <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground">
+
+              <p className="mt-5 max-w-2xl text-sm leading-6 text-white/80 sm:text-base">
                 Replace disconnected tools, spreadsheets, and paper records with
-                a single system your entire team actually uses. MedCore handles
-                everything from patient registration to lab reports, pharmacy,
-                and billing.
+                one system your entire team uses. MedCore handles everything
+                from registration to billing.
               </p>
 
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button asChild size="lg">
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-11 bg-brand text-brand-foreground hover:bg-brand/90"
+                >
                   <Link href="/contact">Request a demo</Link>
                 </Button>
-                <Button asChild size="lg" variant="outline">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-11 border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20 hover:text-white"
+                >
                   <a href="tel:+919000000000">
                     <Phone className="mr-2 h-4 w-4" />
                     Talk to sales
@@ -143,32 +183,19 @@ export default function ForHospitalsPage() {
                 </Button>
               </div>
 
-              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-muted-foreground">
+              <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/75">
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5 text-brand" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-brand" />
                   No setup fees
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5 text-brand" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-brand" />
                   30-day trial
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5 text-brand" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-brand" />
                   Free migration
                 </span>
-              </div>
-            </div>
-
-            <div className="lg:col-span-6">
-              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-border bg-muted">
-                <Image
-                  src="/images/for-hospitals-hero.jpg"
-                  alt="Hospital staff using MedCore"
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  className="object-cover"
-                />
               </div>
             </div>
           </div>
@@ -177,12 +204,14 @@ export default function ForHospitalsPage() {
 
       {/* MODULES */}
       <section className="border-b border-border bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+            <p className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+              <span className="h-px w-6 bg-brand" />
               Modules
+              <span className="h-px w-6 bg-brand" />
             </p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
               Everything your hospital needs
             </h2>
             <p className="mt-4 text-sm text-muted-foreground">
@@ -200,7 +229,7 @@ export default function ForHospitalsPage() {
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft text-brand-soft-foreground">
                   <Icon className="h-5 w-5" />
                 </span>
-                <p className="text-sm font-medium">{label}</p>
+                <p className="text-xs font-medium sm:text-sm">{label}</p>
               </div>
             ))}
           </div>
@@ -209,67 +238,72 @@ export default function ForHospitalsPage() {
 
       {/* BENEFITS */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">
-              Why MedCore
-            </p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-              Built for hospitals, not just software buyers
-            </h2>
-          </div>
-
-          <div className="mt-10 grid gap-5 sm:grid-cols-2">
-            {BENEFITS.map(({ icon: Icon, title, description }) => (
-              <div
-                key={title}
-                className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-brand/40 hover:shadow-sm"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft text-brand-soft-foreground">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 text-base font-semibold tracking-tight">
-                  {title}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {description}
-                </p>
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-16">
+            <div className="lg:col-span-5">
+              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border border-border shadow-xl">
+                <Image
+                  src="/images/for-hospitals-team.jpg"
+                  alt="Hospital team"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 40vw"
+                  className="object-cover"
+                />
+                <div
+                  aria-hidden
+                  className="absolute inset-0 bg-gradient-to-t from-primary-darker/60 via-transparent to-transparent"
+                />
               </div>
-            ))}
+            </div>
+
+            <div className="lg:col-span-7">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+                <span className="h-px w-6 bg-brand" />
+                Why MedCore
+              </p>
+              <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+                Built for hospitals, not just software buyers
+              </h2>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                {BENEFITS.map(({ icon: Icon, title, description }) => (
+                  <div
+                    key={title}
+                    className="rounded-2xl border border-border bg-card p-5 transition-all hover:border-brand/40"
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <h3 className="mt-4 text-sm font-semibold tracking-tight">
+                      {title}
+                    </h3>
+                    <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                      {description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ONBOARDING STEPS */}
+      {/* ONBOARDING */}
       <section className="border-b border-border bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+            <p className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+              <span className="h-px w-6 bg-brand" />
               Onboarding
+              <span className="h-px w-6 bg-brand" />
             </p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
               Live in three steps
             </h2>
           </div>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
-            {[
-              {
-                n: "01",
-                title: "Sign up",
-                desc: "Create your hospital account. No credit card required for the trial.",
-              },
-              {
-                n: "02",
-                title: "Configure",
-                desc: "Add departments, invite staff, set roles, and import existing patient data.",
-              },
-              {
-                n: "03",
-                title: "Go live",
-                desc: "Start registering patients, booking appointments, and running your hospital.",
-              },
-            ].map(({ n, title, desc }) => (
+            {STEPS.map(({ n, title, desc }) => (
               <div
                 key={n}
                 className="rounded-2xl border border-border bg-card p-6"
@@ -289,12 +323,14 @@ export default function ForHospitalsPage() {
 
       {/* PRICING */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+            <p className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+              <span className="h-px w-6 bg-brand" />
               Pricing
+              <span className="h-px w-6 bg-brand" />
             </p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
               Simple, transparent pricing
             </h2>
             <p className="mt-4 text-sm text-muted-foreground">
@@ -347,7 +383,7 @@ export default function ForHospitalsPage() {
 
                 <Button
                   asChild
-                  className={`mt-8 w-full ${plan.highlight ? "" : ""}`}
+                  className="mt-8 w-full"
                   variant={plan.highlight ? "default" : "outline"}
                 >
                   <Link href="/contact">{plan.cta}</Link>
@@ -359,16 +395,28 @@ export default function ForHospitalsPage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-border bg-primary p-8 sm:p-12 lg:p-16">
-            <div className="relative flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
+      <section className="bg-background">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="relative overflow-hidden rounded-3xl">
+            <Image
+              src="/images/cta-hospital.jpg"
+              alt=""
+              fill
+              sizes="100vw"
+              className="object-cover"
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-gradient-to-r from-primary-darker via-primary-darker/85 to-primary-darker/40"
+            />
+
+            <div className="relative flex flex-col items-start justify-between gap-8 p-8 sm:p-12 lg:flex-row lg:items-center lg:p-16">
               <div className="max-w-xl">
-                <h2 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl">
+                <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                   Ready to modernize your hospital?
                 </h2>
-                <p className="mt-4 text-sm leading-6 text-primary-foreground/75">
-                  Schedule a demo with our team. We'll walk you through the
+                <p className="mt-4 text-sm leading-6 text-white/75">
+                  Schedule a demo with our team. We&apos;ll walk you through the
                   platform and answer any questions.
                 </p>
               </div>
@@ -376,7 +424,7 @@ export default function ForHospitalsPage() {
                 <Button
                   asChild
                   size="lg"
-                  className="bg-brand text-brand-foreground hover:bg-brand/90"
+                  className="h-11 bg-brand text-brand-foreground hover:bg-brand/90"
                 >
                   <Link href="/contact">Request a demo</Link>
                 </Button>
@@ -384,7 +432,7 @@ export default function ForHospitalsPage() {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+                  className="h-11 border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20 hover:text-white"
                 >
                   <a href="tel:+919000000000">
                     <Phone className="mr-2 h-4 w-4" />

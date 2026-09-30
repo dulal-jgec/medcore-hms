@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, LogOut, Menu, User } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -55,13 +55,13 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-8 px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:gap-6 sm:px-6 lg:gap-8 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-brand-foreground font-bold text-lg">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand font-bold text-brand-foreground text-lg shadow-sm">
             M
           </div>
-          <span className="text-xl font-bold tracking-tight">
+          <span className="text-lg font-bold tracking-tight sm:text-xl">
             Med<span className="text-brand">Core</span>
           </span>
         </Link>
@@ -74,7 +74,7 @@ export function SiteHeader() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
                     ? "text-brand"
                     : "text-muted-foreground hover:bg-hover hover:text-hover-foreground",
@@ -86,32 +86,29 @@ export function SiteHeader() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 sm:gap-2.5">
           <ThemeToggle />
 
-          {/* ------------------ AUTH AREA ------------------ */}
           {!initialized ? (
-            // Skeleton while auth initializes — keeps layout stable
-            <div className="hidden h-9 w-24 animate-pulse rounded-md bg-muted sm:block" />
+            <div className="hidden h-9 w-24 animate-pulse rounded-md bg-muted md:block" />
           ) : isAuthenticated ? (
             <>
               <Link
                 href={dashboardHref}
                 className={cn(
                   buttonVariants(),
-                  "hidden sm:inline-flex bg-brand text-brand-foreground hover:bg-brand/90",
+                  "hidden bg-brand text-brand-foreground hover:bg-brand/90 md:inline-flex",
                 )}
               >
                 <LayoutDashboard className="mr-1.5 h-4 w-4" />
                 Dashboard
               </Link>
-
               <button
                 type="button"
                 onClick={handleLogout}
                 className={cn(
                   buttonVariants({ variant: "outline" }),
-                  "hidden sm:inline-flex hover:bg-hover hover:text-hover-foreground",
+                  "hidden hover:bg-hover hover:text-hover-foreground md:inline-flex",
                 )}
               >
                 <LogOut className="mr-1.5 h-4 w-4" />
@@ -124,41 +121,38 @@ export function SiteHeader() {
                 href="/contact"
                 className={cn(
                   buttonVariants(),
-                  "hidden sm:inline-flex bg-brand text-brand-foreground hover:bg-brand/90",
+                  "hidden bg-brand text-brand-foreground hover:bg-brand/90 md:inline-flex",
                 )}
               >
                 Contact Us
               </Link>
-
               <Link
                 href="/login"
                 className={cn(
                   buttonVariants({ variant: "outline" }),
-                  "hidden sm:inline-flex hover:bg-hover hover:text-hover-foreground",
+                  "hidden hover:bg-hover hover:text-hover-foreground md:inline-flex",
                 )}
               >
                 Sign In
               </Link>
             </>
           )}
-          {/* ------------------ /AUTH AREA ------------------ */}
 
-          {/* Mobile menu */}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
               aria-label="Open menu"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-hover hover:text-hover-foreground lg:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-hover hover:text-hover-foreground lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </SheetTrigger>
 
-            <SheetContent side="right" className="w-72">
+            <SheetContent side="right" className="w-[85vw] max-w-sm sm:w-80">
               <div className="mt-8 flex flex-col gap-1">
                 {NAV_LINKS.map((link) => (
                   <SheetClose asChild key={link.href}>
                     <Link
                       href={link.href}
-                      className="rounded-md px-3 py-2 text-sm font-medium hover:bg-hover hover:text-hover-foreground"
+                      className="rounded-md px-3 py-2.5 text-sm font-medium hover:bg-hover hover:text-hover-foreground"
                     >
                       {link.label}
                     </Link>
@@ -173,20 +167,19 @@ export function SiteHeader() {
                           href={dashboardHref}
                           className={cn(
                             buttonVariants(),
-                            "w-full bg-brand text-brand-foreground hover:bg-brand/90",
+                            "h-11 w-full bg-brand text-brand-foreground hover:bg-brand/90",
                           )}
                         >
                           <LayoutDashboard className="mr-1.5 h-4 w-4" />
                           Dashboard
                         </Link>
                       </SheetClose>
-
                       <button
                         type="button"
                         onClick={handleLogout}
                         className={cn(
                           buttonVariants({ variant: "outline" }),
-                          "w-full hover:bg-hover hover:text-hover-foreground",
+                          "h-11 w-full hover:bg-hover hover:text-hover-foreground",
                         )}
                       >
                         <LogOut className="mr-1.5 h-4 w-4" />
@@ -200,19 +193,18 @@ export function SiteHeader() {
                           href="/login"
                           className={cn(
                             buttonVariants({ variant: "outline" }),
-                            "w-full hover:bg-hover hover:text-hover-foreground",
+                            "h-11 w-full hover:bg-hover hover:text-hover-foreground",
                           )}
                         >
                           Sign In
                         </Link>
                       </SheetClose>
-
                       <SheetClose asChild>
                         <Link
                           href="/contact"
                           className={cn(
                             buttonVariants(),
-                            "w-full bg-brand text-brand-foreground hover:bg-brand/90",
+                            "h-11 w-full bg-brand text-brand-foreground hover:bg-brand/90",
                           )}
                         >
                           Contact Us

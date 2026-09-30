@@ -32,7 +32,7 @@ export default async function DoctorDetailsPage({ params }) {
   if (!doctorData) notFound();
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20">
       <Link
         href={`/hospitals/${id}/doctors`}
         className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -41,7 +41,7 @@ export default async function DoctorDetailsPage({ params }) {
         All doctors
       </Link>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-12 lg:gap-14">
+      <div className="mt-10 grid gap-8 lg:grid-cols-12 lg:gap-14">
         <aside className="lg:col-span-5 xl:col-span-4">
           <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border border-border bg-muted">
             <PublicImage
@@ -55,11 +55,11 @@ export default async function DoctorDetailsPage({ params }) {
 
             <div
               aria-hidden
-              className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-primary via-primary/40 to-transparent"
+              className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-primary-darker via-primary-darker/40 to-transparent"
             />
 
             {doctorData.specialization && (
-              <div className="absolute inset-x-0 bottom-0 p-6">
+              <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-foreground">
                   <Stethoscope className="h-3 w-3" />
                   {doctorData.specialization}
@@ -94,16 +94,17 @@ export default async function DoctorDetailsPage({ params }) {
         </aside>
 
         <div className="lg:col-span-7 xl:col-span-8">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+            <span className="h-px w-6 bg-brand" />
             Doctor profile
           </p>
 
-          <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
+          <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
             {doctorData.doctorName}
           </h1>
 
           {doctorData.departmentName && (
-            <p className="mt-3 text-lg text-muted-foreground">
+            <p className="mt-3 text-base text-muted-foreground lg:text-lg">
               {doctorData.departmentName}
             </p>
           )}
@@ -140,7 +141,7 @@ export default async function DoctorDetailsPage({ params }) {
           </div>
 
           {doctorData.bio && (
-            <div className="mt-10 rounded-2xl border border-border bg-card p-7">
+            <div className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-7">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand">
                 <Briefcase className="h-3.5 w-3.5" />
                 About the doctor

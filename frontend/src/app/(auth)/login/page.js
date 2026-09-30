@@ -1,8 +1,6 @@
-// src/app/(auth)/login/page.js
-
 "use client";
 
-import { Suspense } from 'react';
+import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,77 +8,87 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, CheckCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DemoAccountsPanel } from "@/components/auth/demo-accounts-panel";
 import { useAuthStore } from "@/store/auth-store";
 
- 
-// ------------------- Your existing logic, now safely inside a component -------------------
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
 function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
   const hospitalId = params.get("hospitalId");
+  const nextParam = params.get("next");
 
   const login = useAuthStore((state) => state.login);
 
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
 
-  const loginSchema = z.object({
-    email: z.string().email("Enter a valid email"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-  });
-
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 
- const nextParam = params.get("next");
+  async function onSubmit(data) {
+    setServerError("");
 
-async function onSubmit(data) {
-  setServerError("");
+    try {
+      const user = await login(data);
 
-  try {
-    const user = await login(data);
+      if (nextParam && nextParam.startsWith("/")) {
+        router.replace(nextParam);
+        router.refresh();
+        return;
+      }
 
-    // 1) If we came from a protected route, go back there.
-    if (nextParam && nextParam.startsWith("/")) {
-      router.replace(nextParam);
+      const role = user.role;
+
+      if (role === "SUPER_ADMIN") router.push("/super-admin");
+      else if (role === "HOSPITAL_ADMIN") router.push("/portal/admin");
+      else if (role === "DOCTOR") router.push("/portal/doctor");
+      else if (role === "NURSE") router.push("/portal/nurse");
+      else if (role === "ACCOUNTANT") router.push("/portal/accounts");
+      else if (role === "RECEPTIONIST") router.push("/portal/reception");
+      else router.push("/portal/patient");
+
       router.refresh();
-      return;
+    } catch (err) {
+      setServerError(err.message || "Login failed. Please try again.");
     }
-
-    // 2) Otherwise, default per role.
-    const role = user.role;
-
-    if (role === "SUPER_ADMIN") router.push("/super-admin");
-    else if (role === "HOSPITAL_ADMIN") router.push("/portal/admin");
-    else if (role === "DOCTOR") router.push("/portal/doctor");
-    else if (role === "NURSE") router.push("/portal/nurse");
-    else if (role === "ACCOUNTANT") router.push("/portal/accounts");
-    else if (role === "RECEPTIONIST") router.push("/portal/reception");
-    else router.push("/portal/patient");
-
-    router.refresh();
-  } catch (err) {
-    setServerError(err.message || "Login failed. Please try again.");
   }
-}
+
+  function handleUseAccount(account) {
+    setServerError("");
+    setValue("email", account.email, { shouldValidate: true });
+    setValue("password", account.password, { shouldValidate: true });
+  }
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* LEFT — form */}
-      <div className="flex flex-col px-6 py-10 sm:px-10 lg:px-16">
-        {/* Logo */}
+      <div className="flex flex-col px-5 py-8 sm:px-8 sm:py-10 lg:px-16">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-lg font-bold text-brand-foreground">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-lg font-bold text-brand-foreground shadow-sm">
             M
           </div>
           <span className="text-xl font-bold tracking-tight">
@@ -88,22 +96,22 @@ async function onSubmit(data) {
           </span>
         </Link>
 
-        {/* Form panel */}
         <div className="my-auto w-full max-w-md py-10">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand-soft/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-brand-soft-foreground">
+            <ShieldCheck className="h-3.5 w-3.5" />
             Welcome back
-          </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+          </div>
+
+          <h1 className="mt-5 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             Sign in to your account
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
             {hospitalId
               ? "Sign in to access your hospital portal."
-              : "Enter your credentials to continue."}
+              : "Enter your credentials to continue to your workspace."}
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
-            {/* Email */}
             <div>
               <label className="mb-1.5 block text-sm font-medium">
                 Email address
@@ -113,6 +121,7 @@ async function onSubmit(data) {
                 <Input
                   {...register("email")}
                   type="email"
+                  autoComplete="email"
                   placeholder="you@example.com"
                   className="h-11 pl-10"
                 />
@@ -124,7 +133,6 @@ async function onSubmit(data) {
               )}
             </div>
 
-            {/* Password */}
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label className="text-sm font-medium">Password</label>
@@ -140,13 +148,14 @@ async function onSubmit(data) {
                 <Input
                   {...register("password")}
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
                   className="h-11 pl-10 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground hover:bg-muted"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-hover hover:text-hover-foreground"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -163,25 +172,31 @@ async function onSubmit(data) {
               )}
             </div>
 
-            {/* Server error */}
             {serverError && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                 {serverError}
               </div>
             )}
 
-            {/* Submit */}
             <Button
               type="submit"
               size="lg"
               disabled={isSubmitting}
-              className="h-11 w-full"
+              className="h-11 w-full bg-brand text-brand-foreground hover:bg-brand/90"
             >
-              {isSubmitting ? "Signing in..." : "Sign in"}
+              {isSubmitting ? (
+                "Signing in..."
+              ) : (
+                <>
+                  Sign in
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
             </Button>
           </form>
 
-          {/* Divider */}
+          <DemoAccountsPanel onUseAccount={handleUseAccount} />
+
           <div className="my-7 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
             <span className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -193,34 +208,17 @@ async function onSubmit(data) {
           <Button asChild variant="outline" size="lg" className="h-11 w-full">
             <Link href="/register">Create a patient account</Link>
           </Button>
-
-          {/* Demo hint */}
-          <div className="mt-8 rounded-lg border border-border bg-muted/30 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Demo tip
-            </p>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              Try prefixes to see different roles:
-              <br />
-              <span className="font-mono text-foreground">doctor@x.com</span>{" "}
-              ·{" "}
-              <span className="font-mono text-foreground">nurse@x.com</span>{" "}
-              ·{" "}
-              <span className="font-mono text-foreground">admin@x.com</span>
-            </p>
-          </div>
         </div>
 
-        {/* Footer */}
         <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} MedCore. All rights reserved.
+          &copy; {new Date().getFullYear()} MedCore. All rights reserved.
         </p>
       </div>
 
-      {/* RIGHT — image panel */}
+      {/* RIGHT — visual */}
       <div className="relative hidden lg:block">
         <Image
-          src="/images/hero-doctor.jpg"
+          src="/images/auth-login.jpg"
           alt="Healthcare professional using MedCore"
           fill
           priority
@@ -229,23 +227,22 @@ async function onSubmit(data) {
         />
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-primary/40"
+          className="absolute inset-0 bg-gradient-to-br from-primary-darker via-primary-darker/85 to-primary-darker/40"
         />
 
-        {/* Overlay content */}
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
-            <ShieldCheck className="h-4 w-4 text-brand" />
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand">
+            <ShieldCheck className="h-4 w-4" />
             Secure hospital platform
           </div>
 
           <div>
-            <h2 className="max-w-lg text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+            <h2 className="max-w-lg text-3xl font-bold leading-tight tracking-tight xl:text-4xl">
               Connected care for{" "}
               <span className="text-brand">every hospital role.</span>
             </h2>
-            <p className="mt-5 max-w-md text-sm leading-7 text-white/80">
-              One platform for patients, doctors, nurses, and administrators —
+            <p className="mt-5 max-w-md text-sm leading-7 text-white/75">
+              One platform for patients, doctors, nurses, and administrators
               with complete data isolation and role-based access.
             </p>
 
@@ -275,11 +272,15 @@ async function onSubmit(data) {
   );
 }
 
-// ------------------- The default export wraps the content in Suspense -------------------
 export default function LoginPage() {
-   
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+        </div>
+      }
+    >
       <LoginContent />
     </Suspense>
   );

@@ -1,105 +1,87 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  User,
-  Mail,
-  Phone,
-  Lock,
-  Eye,
-  EyeOff,
-  Building2,
-  ShieldCheck,
+  AlertCircle,
+  Briefcase,
   CheckCircle2,
   Droplets,
+  Eye,
+  EyeOff,
   Heart,
+  Lock,
+  Mail,
   MapPin,
-  Briefcase,
-  Users,
-  AlertCircle,
+  Phone,
+  ShieldCheck,
+  User,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { HOSPITALS } from "@/lib/hospitals";
 import { register as registerUser } from "@/services/auth.service";
 
 const registerSchema = z
   .object({
-    // ── User: basic ──
-    fullName: z
-      .string()
-      .min(2, "Enter your full name")
-      .max(80, "Name is too long"),
-
+    fullName: z.string().min(2, "Enter your full name").max(80),
     email: z.string().email("Enter a valid email"),
-
     phone: z
       .string()
-      .regex(
-        /^[6-9]\d{9}$/,
-        "Enter a valid 10-digit Indian mobile number"
-      ),
-
-    // ── User: personal ──
-    city: z.string().min(2, "City is required"),
-
-    state: z.string().min(2, "State is required"),
-
-    pincode: z
-      .string()
-      .regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
-
-    occupation: z.string().min(2, "Occupation is required"),
-
-    gender: z.string().min(1, "Gender is required"),
-
-    maritalStatus: z.string().min(1, "Marital status is required"),
-
-    // ── User: auth ──
-    hospitalId: z.string().min(1, "Select your hospital"),
-
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(20, "Password must be at most 20 characters"),
-
+      .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
+    password: z.string().min(8, "At least 8 characters").max(20),
     confirmPassword: z.string().min(8, "Please confirm your password"),
-
-    // ── Patient: medical ──
+    city: z.string().min(2, "City is required"),
+    state: z.string().min(2, "State is required"),
+    pincode: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
+    occupation: z.string().min(2, "Occupation is required"),
+    gender: z.string().min(1, "Gender is required"),
+    maritalStatus: z.string().min(1, "Marital status is required"),
     dateOfBirth: z.string().min(1, "Date of birth is required"),
-
     bloodGroup: z.string().min(1, "Blood group is required"),
-
-    emergencyContactName: z
-      .string()
-      .min(2, "Emergency contact name is required"),
-
-    emergencyContactRelation: z
-      .string()
-      .min(2, "Relationship is required"),
-
+    emergencyContactName: z.string().min(2, "Emergency contact name required"),
+    emergencyContactRelation: z.string().min(2, "Relationship required"),
     emergencyContactPhone: z
       .string()
-      .regex(
-        /^[6-9]\d{9}$/,
-        "Enter a valid 10-digit Indian mobile number"
-      ),
-
+      .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
     allergies: z.string().optional(),
-
     chronicConditions: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
   });
+
+const BLOOD_GROUPS = [
+  { value: "A_POSITIVE", label: "A+" },
+  { value: "A_NEGATIVE", label: "A-" },
+  { value: "B_POSITIVE", label: "B+" },
+  { value: "B_NEGATIVE", label: "B-" },
+  { value: "AB_POSITIVE", label: "AB+" },
+  { value: "AB_NEGATIVE", label: "AB-" },
+  { value: "O_POSITIVE", label: "O+" },
+  { value: "O_NEGATIVE", label: "O-" },
+];
+
+const GENDERS = [
+  { value: "MALE", label: "Male" },
+  { value: "FEMALE", label: "Female" },
+  { value: "OTHER", label: "Other" },
+  { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say" },
+];
+
+const MARITAL_STATUSES = [
+  { value: "SINGLE", label: "Single" },
+  { value: "MARRIED", label: "Married" },
+  { value: "DIVORCED", label: "Divorced" },
+  { value: "WIDOWED", label: "Widowed" },
+  { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say" },
+];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -119,15 +101,14 @@ export default function RegisterPage() {
       fullName: "",
       email: "",
       phone: "",
+      password: "",
+      confirmPassword: "",
       city: "",
       state: "",
       pincode: "",
       occupation: "",
       gender: "",
       maritalStatus: "",
-      hospitalId: "",
-      password: "",
-      confirmPassword: "",
       dateOfBirth: "",
       bloodGroup: "",
       emergencyContactName: "",
@@ -142,42 +123,27 @@ export default function RegisterPage() {
     setServerError("");
     try {
       await registerUser({
-        // User
-        fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        hospitalId: Number(data.hospitalId),
-
-        city: data.city,
-        state: data.state,
-        pincode: data.pincode,
-        occupation: data.occupation,
-        gender: data.gender,
-        maritalStatus: data.maritalStatus,
-
+        fullName: data.fullName.trim(),
+        email: data.email.trim().toLowerCase(),
+        phone: data.phone.trim(),
         password: data.password,
         confirmPassword: data.confirmPassword,
-
-        // Patient
+        city: data.city.trim(),
+        state: data.state.trim(),
+        pincode: data.pincode.trim(),
+        occupation: data.occupation.trim(),
+        gender: data.gender,
+        maritalStatus: data.maritalStatus,
         dateOfBirth: data.dateOfBirth,
         bloodGroup: data.bloodGroup,
-
-        emergencyContactName: data.emergencyContactName,
-        emergencyContactRelation: data.emergencyContactRelation,
-        emergencyContactPhone: data.emergencyContactPhone,
-
+        emergencyContactName: data.emergencyContactName.trim(),
+        emergencyContactRelation: data.emergencyContactRelation.trim(),
+        emergencyContactPhone: data.emergencyContactPhone.trim(),
         allergies: data.allergies
-          ? data.allergies
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean)
+          ? data.allergies.split(",").map((i) => i.trim()).filter(Boolean)
           : [],
-
         chronicConditions: data.chronicConditions
-          ? data.chronicConditions
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean)
+          ? data.chronicConditions.split(",").map((i) => i.trim()).filter(Boolean)
           : [],
       });
 
@@ -188,19 +154,18 @@ export default function RegisterPage() {
     }
   }
 
-  // ── Success screen ──
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6">
+      <div className="flex min-h-screen items-center justify-center px-5">
         <div className="w-full max-w-md text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand-soft-foreground">
             <CheckCircle2 className="h-8 w-8" />
           </div>
           <h1 className="mt-6 text-2xl font-bold tracking-tight">
-            Registration successful
+            Welcome to MedCore
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Redirecting you to sign in...
+            Your account was created successfully. Redirecting you to sign in...
           </p>
         </div>
       </div>
@@ -210,9 +175,9 @@ export default function RegisterPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* LEFT — form */}
-      <div className="flex flex-col px-6 py-10 sm:px-10 lg:px-16">
+      <div className="flex flex-col px-5 py-8 sm:px-8 sm:py-10 lg:px-16">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-lg font-bold text-brand-foreground">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-lg font-bold text-brand-foreground shadow-sm">
             M
           </div>
           <span className="text-xl font-bold tracking-tight">
@@ -221,22 +186,22 @@ export default function RegisterPage() {
         </Link>
 
         <div className="my-auto w-full max-w-lg py-10">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
-            Patient registration
-          </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
-            Create your account
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand-soft/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-brand-soft-foreground">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Welcome to MedCore
+          </div>
+
+          <h1 className="mt-5 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+            Create your patient account
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Register with your hospital to access appointments, prescriptions,
-            lab reports, and billing — all in one place.
+            Register once to access appointments, prescriptions, lab reports,
+            and billing across every hospital on MedCore.
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-            {/* ══════════ PERSONAL INFORMATION ══════════ */}
             <SectionTitle>Personal information</SectionTitle>
 
-            {/* Full name */}
             <FormField label="Full name" required error={errors.fullName?.message}>
               <div className="relative">
                 <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -248,7 +213,6 @@ export default function RegisterPage() {
               </div>
             </FormField>
 
-            {/* Email + Phone */}
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField label="Email" required error={errors.email?.message}>
                 <div className="relative">
@@ -256,6 +220,7 @@ export default function RegisterPage() {
                   <Input
                     {...register("email")}
                     type="email"
+                    autoComplete="email"
                     placeholder="you@example.com"
                     className="h-11 pl-10"
                   />
@@ -276,7 +241,6 @@ export default function RegisterPage() {
               </FormField>
             </div>
 
-            {/* City + State */}
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField label="City" required error={errors.city?.message}>
                 <div className="relative">
@@ -298,7 +262,6 @@ export default function RegisterPage() {
               </FormField>
             </div>
 
-            {/* Pincode + Occupation */}
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField label="Pincode" required error={errors.pincode?.message}>
                 <Input
@@ -310,11 +273,7 @@ export default function RegisterPage() {
                 />
               </FormField>
 
-              <FormField
-                label="Occupation"
-                required
-                error={errors.occupation?.message}
-              >
+              <FormField label="Occupation" required error={errors.occupation?.message}>
                 <div className="relative">
                   <Briefcase className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -326,7 +285,6 @@ export default function RegisterPage() {
               </FormField>
             </div>
 
-            {/* Gender + Marital status */}
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField label="Gender" required error={errors.gender?.message}>
                 <select
@@ -334,10 +292,11 @@ export default function RegisterPage() {
                   className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                 >
                   <option value="">Select gender</option>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
-                  <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                  {GENDERS.map((g) => (
+                    <option key={g.value} value={g.value}>
+                      {g.label}
+                    </option>
+                  ))}
                 </select>
               </FormField>
 
@@ -351,25 +310,19 @@ export default function RegisterPage() {
                   className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                 >
                   <option value="">Select marital status</option>
-                  <option value="SINGLE">Single</option>
-                  <option value="MARRIED">Married</option>
-                  <option value="DIVORCED">Divorced</option>
-                  <option value="WIDOWED">Widowed</option>
-                  <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                  {MARITAL_STATUSES.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
                 </select>
               </FormField>
             </div>
 
-            {/* ══════════ MEDICAL INFORMATION ══════════ */}
             <SectionTitle>Medical information</SectionTitle>
 
-            {/* DOB + Blood group */}
             <div className="grid gap-5 sm:grid-cols-2">
-              <FormField
-                label="Date of birth"
-                required
-                error={errors.dateOfBirth?.message}
-              >
+              <FormField label="Date of birth" required error={errors.dateOfBirth?.message}>
                 <Input
                   {...register("dateOfBirth")}
                   type="date"
@@ -390,20 +343,16 @@ export default function RegisterPage() {
                     className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                   >
                     <option value="">Select blood group</option>
-                    <option value="A_POSITIVE">A+</option>
-                    <option value="A_NEGATIVE">A-</option>
-                    <option value="B_POSITIVE">B+</option>
-                    <option value="B_NEGATIVE">B-</option>
-                    <option value="AB_POSITIVE">AB+</option>
-                    <option value="AB_NEGATIVE">AB-</option>
-                    <option value="O_POSITIVE">O+</option>
-                    <option value="O_NEGATIVE">O-</option>
+                    {BLOOD_GROUPS.map((bg) => (
+                      <option key={bg.value} value={bg.value}>
+                        {bg.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </FormField>
             </div>
 
-            {/* Allergies + Chronic conditions */}
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField label="Allergies" error={errors.allergies?.message}>
                 <Input
@@ -431,31 +380,6 @@ export default function RegisterPage() {
               </FormField>
             </div>
 
-            {/* ══════════ HOSPITAL ══════════ */}
-            <SectionTitle>Hospital</SectionTitle>
-
-            <FormField
-              label="Your hospital"
-              required
-              error={errors.hospitalId?.message}
-            >
-              <div className="relative">
-                <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <select
-                  {...register("hospitalId")}
-                  className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                >
-                  <option value="">Choose your hospital</option>
-                  {HOSPITALS.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.name} — {h.city}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </FormField>
-
-            {/* ══════════ EMERGENCY CONTACT ══════════ */}
             <div className="rounded-xl border border-border bg-muted/30 p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Heart className="h-4 w-4 text-brand" />
@@ -505,27 +429,23 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* ══════════ SECURITY ══════════ */}
             <SectionTitle>Security</SectionTitle>
 
             <div className="grid gap-5 sm:grid-cols-2">
-              <FormField
-                label="Password"
-                required
-                error={errors.password?.message}
-              >
+              <FormField label="Password" required error={errors.password?.message}>
                 <div className="relative">
                   <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     {...register("password")}
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    placeholder="At least 8 characters"
                     className="h-11 pl-10 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground hover:bg-muted"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-hover hover:text-hover-foreground"
                     aria-label={showPassword ? "Hide" : "Show"}
                   >
                     {showPassword ? (
@@ -547,13 +467,14 @@ export default function RegisterPage() {
                   <Input
                     {...register("confirmPassword")}
                     type={showConfirm ? "text" : "password"}
-                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    placeholder="Re-enter password"
                     className="h-11 pl-10 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground hover:bg-muted"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-hover hover:text-hover-foreground"
                     aria-label={showConfirm ? "Hide" : "Show"}
                   >
                     {showConfirm ? (
@@ -567,8 +488,9 @@ export default function RegisterPage() {
             </div>
 
             {serverError && (
-              <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {serverError}
+              <div className="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{serverError}</span>
               </div>
             )}
 
@@ -576,7 +498,7 @@ export default function RegisterPage() {
               type="submit"
               size="lg"
               disabled={isSubmitting}
-              className="h-11 w-full"
+              className="h-11 w-full bg-brand text-brand-foreground hover:bg-brand/90"
             >
               {isSubmitting ? "Creating account..." : "Create account"}
             </Button>
@@ -601,11 +523,11 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* RIGHT — image panel */}
+      {/* RIGHT — visual */}
       <div className="relative hidden lg:block">
         <Image
-          src="/images/hero-doctor.jpg"
-          alt="Healthcare professional"
+          src="/images/auth-register.jpg"
+          alt="Patient registering on MedCore"
           fill
           priority
           sizes="50vw"
@@ -613,30 +535,30 @@ export default function RegisterPage() {
         />
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-primary/40"
+          className="absolute inset-0 bg-gradient-to-br from-primary-darker via-primary-darker/85 to-primary-darker/40"
         />
 
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
-            <ShieldCheck className="h-4 w-4 text-brand" />
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand">
+            <ShieldCheck className="h-4 w-4" />
             Patient portal access
           </div>
 
           <div>
-            <h2 className="max-w-lg text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-              Your health records,{" "}
-              <span className="text-brand">always accessible.</span>
+            <h2 className="max-w-lg text-3xl font-bold leading-tight tracking-tight xl:text-4xl">
+              One account,{" "}
+              <span className="text-brand">every hospital you visit.</span>
             </h2>
-            <p className="mt-5 max-w-md text-sm leading-7 text-white/80">
+            <p className="mt-5 max-w-md text-sm leading-7 text-white/75">
               Book appointments, view prescriptions, download lab reports, and
-              pay bills — from anywhere, at any time.
+              pay bills from anywhere.
             </p>
 
             <ul className="mt-8 space-y-3">
               {[
                 "Access from any device",
-                "Secure & encrypted",
-                "Only your hospital sees your data",
+                "Secure and encrypted",
+                "Your data is scoped to your hospital",
               ].map((item) => (
                 <li
                   key={item}
@@ -650,15 +572,13 @@ export default function RegisterPage() {
           </div>
 
           <p className="text-xs text-white/60">
-            Your data stays private to your hospital.
+            Your data stays private to each hospital.
           </p>
         </div>
       </div>
     </div>
   );
 }
-
-/* ══════════ Sub-components ══════════ */
 
 function SectionTitle({ children }) {
   return (

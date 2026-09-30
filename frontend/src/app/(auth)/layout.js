@@ -1,3 +1,7 @@
 export default function AuthLayout({ children }) {
-  return <div className="min-h-screen bg-background">{children}</div>;
+  return (
+    <div className="min-h-screen bg-background antialiased">
+      {children}
+    </div>
+  );
 }

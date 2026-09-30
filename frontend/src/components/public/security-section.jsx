@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -7,8 +8,8 @@ import {
   Building2,
   ServerCog,
   CheckCircle2,
-  ArrowRight
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 
 const PILLARS = [
@@ -16,13 +17,13 @@ const PILLARS = [
     icon: Building2,
     title: "Multi-tenant by design",
     description:
-      "Every hospital operates in its own isolated environment. No data leaks between tenants — ever.",
+      "Every hospital operates in its own isolated environment. No data leaks between tenants.",
   },
   {
     icon: KeyRound,
     title: "Role-based access",
     description:
-      "Doctors, nurses, receptionists, and admins see only what their role permits. Enforced at the API.",
+      "Doctors, nurses, receptionists, and admins see only what their role permits — enforced at the API.",
   },
   {
     icon: Lock,
@@ -33,8 +34,7 @@ const PILLARS = [
   {
     icon: ScrollText,
     title: "Full audit trail",
-    description:
-      "Every action is logged — who did what, when, and from where. Nothing is off the record.",
+    description: "Every action is logged — who did what, when, and from where.",
   },
 ];
 
@@ -47,53 +47,55 @@ const COMPLIANCE = [
 
 export function SecuritySection() {
   return (
-    <section className="relative overflow-hidden bg-primary-deep text-primary-deep-foreground">
+    <section className="relative overflow-hidden bg-primary-darker text-primary-darker-foreground">
+      <Image
+        src="/images/security-bg.jpg"
+        alt=""
+        fill
+        sizes="100vw"
+        className="object-cover opacity-25"
+      />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.06]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
-          backgroundSize: "32px 32px",
-        }}
+        className="absolute inset-0 bg-gradient-to-br from-primary-darker via-primary-darker/95 to-primary-darker/85"
       />
 
-      <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-        <div className="grid items-start gap-14 lg:grid-cols-12 lg:gap-16">
+      <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-32">
+        <div className="grid items-start gap-10 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand">
-              <span className="h-px w-6 bg-brand" />
+            <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand sm:text-xs sm:tracking-[0.18em]">
+              <span className="h-px w-5 bg-brand sm:w-6" />
               Security & Compliance
             </p>
 
-            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.5rem] lg:leading-[1.1]">
+            <h2 className="mt-4 text-2xl font-bold leading-tight tracking-tight sm:mt-5 sm:text-3xl md:text-4xl lg:text-5xl">
               Built for hospitals where{" "}
-              <span className="text-brand">privacy isn't optional</span>.
+              <span className="text-brand">privacy isn&apos;t optional.</span>
             </h2>
 
-            <p className="mt-5 text-base leading-7 opacity-80">
+            <p className="mt-5 text-sm leading-7 opacity-75 sm:mt-6 sm:text-base">
               MedCore is engineered from the ground up to keep patient data
               safe, isolated, and auditable — matching the standards hospitals
               are held to.
             </p>
 
-            <ul className="mt-8 flex flex-wrap gap-2">
+            <ul className="mt-6 flex flex-wrap gap-2 sm:mt-8">
               {COMPLIANCE.map((item) => (
                 <li
                   key={item}
-                  className="flex items-center gap-1.5 rounded-full border border-primary-deep-foreground/20 bg-primary-deep-foreground/5 px-3 py-1.5 text-xs font-medium"
+                  className="flex items-center gap-1.5 rounded-full border border-primary-darker-foreground/15 bg-primary-darker-foreground/5 px-3 py-1.5 text-[11px] font-medium sm:text-xs"
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5 text-brand" />
+                  <CheckCircle2 className="h-3 w-3 shrink-0 text-brand sm:h-3.5 sm:w-3.5" />
                   {item}
                 </li>
               ))}
             </ul>
 
-            <div className="mt-10">
+            <div className="mt-8 sm:mt-10">
               <Button
                 asChild
                 size="lg"
-                className="bg-brand text-brand-foreground hover:bg-brand/90"
+                className="h-11 w-full bg-brand text-brand-foreground hover:bg-brand/90 sm:h-12 sm:w-auto"
               >
                 <Link href="/about">Read our security approach</Link>
               </Button>
@@ -101,19 +103,19 @@ export function SecuritySection() {
           </div>
 
           <div className="lg:col-span-7">
-            <div className="grid gap-px overflow-hidden rounded-2xl border border-primary-deep-foreground/15 bg-primary-deep-foreground/10 sm:grid-cols-2">
+            <div className="grid gap-px overflow-hidden rounded-2xl border border-primary-darker-foreground/15 bg-primary-darker-foreground/10 sm:grid-cols-2">
               {PILLARS.map(({ icon: Icon, title, description }) => (
                 <div
                   key={title}
-                  className="group bg-primary-deep p-6 transition-colors hover:bg-primary-deep-foreground/5"
+                  className="group bg-primary-darker p-5 transition-colors hover:bg-primary-darker-foreground/5 sm:p-6"
                 >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand/15 text-brand transition-colors group-hover:bg-brand group-hover:text-brand-foreground">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/15 text-brand transition-colors group-hover:bg-brand group-hover:text-brand-foreground sm:h-11 sm:w-11">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-5 text-base font-semibold tracking-tight">
+                  <h3 className="mt-4 text-sm font-semibold tracking-tight sm:mt-5 sm:text-base">
                     {title}
                   </h3>
-                  <p className="mt-2 text-sm leading-6 opacity-75">
+                  <p className="mt-2 text-xs leading-5 opacity-70 sm:text-sm sm:leading-6">
                     {description}
                   </p>
                 </div>
@@ -122,9 +124,9 @@ export function SecuritySection() {
           </div>
         </div>
 
-        <div className="relative mt-16 flex flex-wrap items-center justify-between gap-6 border-t border-primary-deep-foreground/10 pt-8">
+        <div className="relative mt-12 flex flex-col gap-5 border-t border-primary-darker-foreground/10 pt-6 sm:mt-16 sm:gap-6 sm:pt-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/15 text-brand">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
@@ -137,7 +139,7 @@ export function SecuritySection() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs opacity-70">
-            <ServerCog className="h-4 w-4" />
+            <ServerCog className="h-4 w-4 shrink-0" />
             <span>Deployed on isolated infrastructure per tenant</span>
           </div>
         </div>

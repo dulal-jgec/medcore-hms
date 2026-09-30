@@ -19,6 +19,7 @@ import {
   Sparkles,
   CheckCircle2,
   Download,
+  Info,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,24 @@ export default function AccountantDashboard() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      {/* ══════════ DATA NOTICE ══════════ */}
+      <div className="mb-6 flex items-start gap-3 rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-4 sm:items-center sm:p-5">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground">
+          <Info className="h-5 w-5" />
+        </span>
+        <div className="flex-1">
+          <p className="text-sm font-bold uppercase tracking-wider text-destructive">
+            Demo data — not real figures
+          </p>
+          <p className="mt-1 text-sm leading-6 text-foreground">
+            Everything shown on this dashboard is sample data for design
+            purposes only. The accounting backend is partially ready — I&apos;m
+            connecting it to this dashboard now. Once live, your real
+            financial data will appear here automatically.
+          </p>
+        </div>
+      </div>
+
       {/* ══════════ HERO ══════════ */}
       <div className="relative overflow-hidden rounded-3xl bg-primary p-6 sm:p-8 lg:p-10">
         <div
@@ -228,7 +247,6 @@ export default function AccountantDashboard() {
                 })}
               </div>
 
-              {/* Footer stats */}
               <div className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-5">
                 <FooterStat
                   label="Total billed"

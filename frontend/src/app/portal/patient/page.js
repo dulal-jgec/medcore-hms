@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
+  ArrowRight,
   ArrowUpRight,
   CalendarDays,
   CalendarX2,
@@ -11,10 +12,13 @@ import {
   ChevronRight,
   Clock,
   Droplets,
+  FlaskConical,
   Heart,
   Loader2,
   MapPin,
+  Pill,
   Plus,
+  Receipt,
   ShieldCheck,
   Sparkles,
   Stethoscope,
@@ -26,14 +30,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { getMyPatientProfile } from "@/services/patient.service";
-import { getPatientAppointments } from "@/services/appointment.service";
+import { getMyAppointments } from "@/services/appointment.service";
 
 const PAGE_SIZE = 100;
 
 export default function PatientDashboardPage() {
   const [patient, setPatient] = useState(null);
   const [appointments, setAppointments] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -45,18 +48,19 @@ export default function PatientDashboardPage() {
         setLoading(true);
         setError("");
 
-        const profileRes = await getMyPatientProfile();
-        const me = profileRes.data;
-        if (!mounted) return;
-        setPatient(me);
+        const [profileRes, appointmentsRes] = await Promise.all([
+          getMyPatientProfile(),
+          getMyAppointments({ page: 0, size: PAGE_SIZE }),
+        ]);
 
-        const result = await getPatientAppointments(me.id, {
-          page: 0,
-          size: PAGE_SIZE,
-        });
         if (!mounted) return;
 
-        setAppointments(result.data?.items || result.data?.content || []);
+        setPatient(profileRes.data);
+        setAppointments(
+          appointmentsRes.data?.items ||
+            appointmentsRes.data?.content ||
+            []
+        );
       } catch (err) {
         if (!mounted) return;
         setError(err.message || "Unable to load your dashboard.");
@@ -107,8 +111,6 @@ export default function PatientDashboardPage() {
     };
   }, [appointments, today]);
 
-  const greeting = getGreeting();
-
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -133,10 +135,17 @@ export default function PatientDashboardPage() {
     );
   }
 
+  const greeting = getGreeting();
+  const displayName =
+    patient.fullName || patient.user?.fullName || "there";
+  const bloodGroupLabel = patient.bloodGroup
+    ? patient.bloodGroup.replace("_POSITIVE", "+").replace("_NEGATIVE", "-")
+    : null;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       {/* ══════════ HERO ══════════ */}
-      <div className="relative overflow-hidden rounded-3xl bg-primary p-6 sm:p-8 lg:p-10">
+      <section className="relative overflow-hidden rounded-3xl bg-primary-darker p-6 sm:p-10 lg:p-12">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.07]"
@@ -148,12 +157,12 @@ export default function PatientDashboardPage() {
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-brand/20 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand/20 blur-3xl"
         />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
-            <div className="flex items-center gap-2 text-xs font-medium text-primary-foreground/70">
+            <div className="flex items-center gap-2 text-xs font-medium text-white/70">
               <Sparkles className="h-3.5 w-3.5 text-brand" />
               <span>
                 {new Date().toLocaleDateString("en-IN", {
@@ -164,13 +173,13 @@ export default function PatientDashboardPage() {
               </span>
             </div>
 
-            <h1 className="mt-3 text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl lg:text-4xl">
-              {greeting}, {patient.fullName || patient.user?.fullName || "there"} 👋
+            <h1 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl lg:text-4xl">
+              {greeting}, {displayName} 👋
             </h1>
 
-            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">
               You have{" "}
-              <span className="font-semibold text-primary-foreground">
+              <span className="font-semibold text-white">
                 {stats.upcoming.length} upcoming appointment
                 {stats.upcoming.length !== 1 ? "s" : ""}
               </span>{" "}
@@ -178,11 +187,11 @@ export default function PatientDashboardPage() {
               {stats.past.length !== 1 ? "s" : ""}.
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-primary-foreground/70">
-              {patient.bloodGroup && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-white/70">
+              {bloodGroupLabel && (
                 <span className="inline-flex items-center gap-1.5">
                   <Droplets className="h-3.5 w-3.5 text-brand" />
-                  {patient.bloodGroup}
+                  {bloodGroupLabel}
                 </span>
               )}
               {patient.user?.email && (
@@ -198,7 +207,7 @@ export default function PatientDashboardPage() {
             <Button
               asChild
               size="lg"
-              className="bg-brand text-brand-foreground hover:bg-brand/90"
+              className="h-11 bg-brand text-brand-foreground hover:bg-brand/90"
             >
               <Link href="/hospitals">
                 <Plus className="mr-1.5 h-4 w-4" />
@@ -209,7 +218,7 @@ export default function PatientDashboardPage() {
               asChild
               size="lg"
               variant="outline"
-              className="border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+              className="h-11 border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20 hover:text-white"
             >
               <Link href="/portal/patient/appointments">
                 My appointments
@@ -217,15 +226,15 @@ export default function PatientDashboardPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* ══════════ STATS ══════════ */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={CalendarDays}
           label="Upcoming"
           value={stats.upcoming.length}
-          sub="scheduled visits"
+          sub="Scheduled visits"
           href="/portal/patient/appointments"
           accent
         />
@@ -233,28 +242,28 @@ export default function PatientDashboardPage() {
           icon={CheckCircle2}
           label="Completed"
           value={stats.past.length}
-          sub="all time"
+          sub="All time"
           href="/portal/patient/appointments"
         />
         <StatCard
           icon={Stethoscope}
           label="Doctors consulted"
           value={stats.uniqueDoctors}
-          sub="unique doctors"
+          sub="Unique doctors"
           href="/portal/patient/appointments"
         />
         <StatCard
           icon={XCircle}
           label="Cancelled"
           value={stats.cancelled.length}
-          sub="all time"
+          sub="All time"
           href="/portal/patient/appointments"
         />
-      </div>
+      </section>
 
       {/* ══════════ NEXT APPOINTMENT ══════════ */}
       {stats.next && (
-        <div className="mt-6 overflow-hidden rounded-2xl border-2 border-brand bg-gradient-to-br from-brand-soft/60 to-brand-soft/20">
+        <section className="mt-6 overflow-hidden rounded-2xl border-2 border-brand bg-gradient-to-br from-brand-soft/60 to-brand-soft/20">
           <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
               <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand text-brand-foreground">
@@ -310,15 +319,17 @@ export default function PatientDashboardPage() {
                   href={`/portal/patient/appointments#apt-${stats.next.id}`}
                 >
                   View details
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* ══════════ RECENT APPOINTMENTS ══════════ */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      {/* ══════════ MAIN GRID ══════════ */}
+      <section className="mt-6 grid gap-6 lg:grid-cols-3">
+        {/* Recent appointments */}
         <div className="lg:col-span-2">
           <div className="rounded-2xl border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -411,20 +422,20 @@ export default function PatientDashboardPage() {
             <ProfileRow
               icon={Droplets}
               label="Blood group"
-              value={patient.bloodGroup || "Not set"}
+              value={bloodGroupLabel || "Not set"}
             />
             <ProfileRow
-              icon={Heart}
+              icon={AlertCircle}
               label="Allergies"
               value={patient.allergies || "None recorded"}
             />
             <ProfileRow
-              icon={ShieldCheck}
+              icon={Heart}
               label="Chronic conditions"
               value={patient.chronicConditions || "None recorded"}
             />
             <ProfileRow
-              icon={User}
+              icon={ShieldCheck}
               label="Emergency contact"
               value={
                 patient.emergencyContactName
@@ -438,10 +449,51 @@ export default function PatientDashboardPage() {
             />
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* ══════════ QUICK ACCESS ══════════ */}
+      <section className="mt-8">
+        <h2 className="text-base font-semibold tracking-tight">
+          Your records
+        </h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Everything in one place
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <ActionTile
+            icon={CalendarDays}
+            label="Appointments"
+            desc="All visits & bookings"
+            href="/portal/patient/appointments"
+            accent
+          />
+          <ActionTile
+            icon={Pill}
+            label="Prescriptions"
+            desc="Medicines prescribed"
+            href="/portal/patient/prescriptions"
+            soon
+          />
+          <ActionTile
+            icon={FlaskConical}
+            label="Lab reports"
+            desc="Test results"
+            href="/portal/patient/lab-reports"
+            soon
+          />
+          <ActionTile
+            icon={Receipt}
+            label="Bills"
+            desc="Invoices & payments"
+            href="/portal/patient/bills"
+            soon
+          />
+        </div>
+      </section>
 
       {/* ══════════ QUICK ACTIONS ══════════ */}
-      <div className="mt-8">
+      <section className="mt-8">
         <h2 className="text-base font-semibold tracking-tight">
           Quick actions
         </h2>
@@ -458,10 +510,10 @@ export default function PatientDashboardPage() {
             accent
           />
           <ActionTile
-            icon={CalendarDays}
-            label="My appointments"
-            desc="View all visits"
-            href="/portal/patient/appointments"
+            icon={Stethoscope}
+            label="Browse doctors"
+            desc="Find specialists"
+            href="/hospitals"
           />
           <ActionTile
             icon={User}
@@ -470,13 +522,13 @@ export default function PatientDashboardPage() {
             href="/portal/patient/profile"
           />
           <ActionTile
-            icon={Stethoscope}
-            label="Browse doctors"
-            desc="Find specialists"
-            href="/hospitals"
+            icon={CalendarDays}
+            label="My appointments"
+            desc="View all visits"
+            href="/portal/patient/appointments"
           />
         </div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -511,11 +563,11 @@ function StatCard({ icon: Icon, label, value, sub, href, accent }) {
   );
 }
 
-function ActionTile({ icon: Icon, label, desc, href, accent }) {
+function ActionTile({ icon: Icon, label, desc, href, accent, soon }) {
   return (
     <Link
       href={href}
-      className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-all hover:border-brand/40 hover:shadow-sm"
+      className="group relative flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-all hover:border-brand/40 hover:shadow-sm"
     >
       <span
         className={cn(
@@ -533,7 +585,14 @@ function ActionTile({ icon: Icon, label, desc, href, accent }) {
         </p>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{desc}</p>
       </div>
-      <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand" />
+
+      {soon ? (
+        <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-brand-soft-foreground">
+          Soon
+        </span>
+      ) : (
+        <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand" />
+      )}
     </Link>
   );
 }
@@ -548,7 +607,7 @@ function ProfileRow({ icon: Icon, label, value }) {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {label}
         </p>
-        <p className="mt-0.5 text-sm font-medium break-words">{value}</p>
+        <p className="mt-0.5 break-words text-sm font-medium">{value}</p>
       </div>
     </div>
   );
@@ -583,7 +642,7 @@ function StatusPill({ status }) {
     },
     NO_SHOW: {
       label: "No show",
-      icon: AlertCircle,
+      icon: CalendarX2,
       class: "bg-destructive/10 text-destructive",
     },
   };

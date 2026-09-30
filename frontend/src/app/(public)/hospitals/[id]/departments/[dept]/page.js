@@ -38,9 +38,9 @@ export default async function DepartmentDetailPage({ params }) {
 
   return (
     <div className="bg-background">
-      {/* ══════════ CINEMATIC HERO ══════════ */}
+      {/* HERO */}
       <section className="relative">
-        <div className="relative h-[520px] w-full overflow-hidden sm:h-[580px] lg:h-[620px]">
+        <div className="relative h-[440px] w-full overflow-hidden sm:h-[520px] lg:h-[600px]">
           {department.imageUrl ? (
             <PublicImage
               src={department.imageUrl}
@@ -51,8 +51,8 @@ export default async function DepartmentDetailPage({ params }) {
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-primary">
-              <span className="text-[180px] font-bold leading-none text-brand/20 sm:text-[220px]">
+            <div className="flex h-full w-full items-center justify-center bg-primary-darker">
+              <span className="text-[120px] font-bold leading-none text-brand/20 sm:text-[180px]">
                 {initials}
               </span>
             </div>
@@ -60,11 +60,11 @@ export default async function DepartmentDetailPage({ params }) {
 
           <div
             aria-hidden
-            className="absolute inset-0 bg-gradient-to-t from-primary via-primary/70 to-primary/20"
+            className="absolute inset-0 bg-gradient-to-t from-primary-darker via-primary-darker/70 to-primary-darker/20"
           />
 
           <div className="absolute inset-0 flex items-end">
-            <div className="mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 sm:pb-14 lg:px-8">
               <div className="flex flex-wrap items-center gap-2">
                 {department.code && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-foreground">
@@ -78,22 +78,22 @@ export default async function DepartmentDetailPage({ params }) {
                 </span>
               </div>
 
-              <h1 className="mt-6 max-w-4xl text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">
+              <h1 className="mt-5 max-w-4xl text-3xl font-bold leading-[1.05] tracking-tight text-white sm:text-4xl lg:text-5xl xl:text-6xl">
                 {department.name}
               </h1>
 
               {department.hospitalName && (
-                <p className="mt-5 flex items-center gap-2 text-sm text-white/85">
+                <p className="mt-4 flex items-center gap-2 text-sm text-white/85">
                   <Building2 className="h-4 w-4" />
                   {department.hospitalName}
                 </p>
               )}
 
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-7 flex flex-wrap gap-3">
                 <Button
                   asChild
                   size="lg"
-                  className="bg-brand text-brand-foreground hover:bg-brand/90"
+                  className="h-11 bg-brand text-brand-foreground hover:bg-brand/90"
                 >
                   <Link href={`/hospitals/${id}/doctors`}>
                     <Stethoscope className="mr-2 h-4 w-4" />
@@ -105,7 +105,7 @@ export default async function DepartmentDetailPage({ params }) {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20 hover:text-white"
+                  className="h-11 border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20 hover:text-white"
                 >
                   <Link href={`/hospitals/${id}/departments`}>
                     All departments
@@ -117,7 +117,7 @@ export default async function DepartmentDetailPage({ params }) {
         </div>
       </section>
 
-      {/* ══════════ QUICK INFO STRIP ══════════ */}
+      {/* QUICK INFO */}
       <section className="border-b border-border bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="grid gap-4 sm:grid-cols-3">
@@ -140,17 +140,17 @@ export default async function DepartmentDetailPage({ params }) {
         </div>
       </section>
 
-      {/* ══════════ DESCRIPTION ══════════ */}
+      {/* DESCRIPTION */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="grid gap-14 lg:grid-cols-12 lg:gap-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="grid gap-12 lg:grid-cols-12 lg:gap-20">
             <div className="lg:col-span-8">
-              <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-brand">
+              <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
                 <span className="h-px w-8 bg-brand" />
                 Overview
               </div>
 
-              <h2 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
+              <h2 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                 About this department
               </h2>
 
@@ -191,7 +191,10 @@ export default async function DepartmentDetailPage({ params }) {
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">
                     Book an appointment with a consultant in this department.
                   </p>
-                  <Button asChild className="mt-5 w-full">
+                  <Button
+                    asChild
+                    className="mt-5 w-full bg-brand text-brand-foreground hover:bg-brand/90"
+                  >
                     <Link href={`/hospitals/${id}/doctors`}>
                       Find a doctor
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -208,9 +211,7 @@ export default async function DepartmentDetailPage({ params }) {
                     {department.hospitalName || "—"}
                   </p>
                   <Button asChild variant="outline" className="mt-4 w-full">
-                    <Link href={`/hospitals/${id}`}>
-                      View hospital
-                    </Link>
+                    <Link href={`/hospitals/${id}`}>View hospital</Link>
                   </Button>
                 </div>
               </div>
@@ -219,10 +220,10 @@ export default async function DepartmentDetailPage({ params }) {
         </div>
       </section>
 
-      {/* ══════════ FINAL CTA ══════════ */}
+      {/* FINAL CTA */}
       <section>
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-primary p-10 sm:p-14">
+          <div className="relative overflow-hidden rounded-3xl bg-primary-darker p-8 sm:p-12 lg:p-16">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 opacity-[0.06]"
@@ -235,10 +236,10 @@ export default async function DepartmentDetailPage({ params }) {
 
             <div className="relative flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
               <div className="max-w-xl">
-                <h3 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl">
+                <h3 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                   Need care in {department.name}?
                 </h3>
-                <p className="mt-3 text-sm leading-6 text-primary-foreground/75">
+                <p className="mt-3 text-sm leading-6 text-white/75">
                   Our specialists are available for consultations. Book an
                   appointment or explore other departments.
                 </p>
@@ -248,7 +249,7 @@ export default async function DepartmentDetailPage({ params }) {
                 <Button
                   asChild
                   size="lg"
-                  className="bg-brand text-brand-foreground hover:bg-brand/90"
+                  className="h-11 bg-brand text-brand-foreground hover:bg-brand/90"
                 >
                   <Link href={`/hospitals/${id}/doctors`}>
                     Book appointment
@@ -258,7 +259,7 @@ export default async function DepartmentDetailPage({ params }) {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+                  className="h-11 border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20 hover:text-white"
                 >
                   <Link href={`/hospitals/${id}/departments`}>
                     All departments

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowLeft, Stethoscope } from "lucide-react";
 
 import { getPublicHospital } from "@/services/hospital-public.service";
@@ -19,12 +20,12 @@ export default async function DoctorsPage({ params }) {
   ]);
 
   const hospital = hospitalResult.data;
-  if (!hospital) return null;
+  if (!hospital) notFound();
 
   const doctors = doctorsResult.data?.content || [];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20">
       <Link
         href={`/hospitals/${id}`}
         className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -34,12 +35,12 @@ export default async function DoctorsPage({ params }) {
       </Link>
 
       <header className="mt-10 max-w-2xl">
-        <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-brand">
+        <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
           <Stethoscope className="h-4 w-4" />
           Medical team
         </div>
 
-        <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
+        <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
           Our specialists
         </h1>
 
@@ -49,7 +50,7 @@ export default async function DoctorsPage({ params }) {
       </header>
 
       {doctors.length === 0 ? (
-        <div className="mt-16 rounded-2xl border border-dashed border-border p-16 text-center">
+        <div className="mt-14 rounded-2xl border border-dashed border-border p-12 text-center sm:p-16">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
             <Stethoscope className="h-6 w-6 text-muted-foreground" />
           </div>
@@ -59,7 +60,7 @@ export default async function DoctorsPage({ params }) {
           </p>
         </div>
       ) : (
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
           {doctors.map((doctor) => (
             <DoctorCard
               key={doctor.id}

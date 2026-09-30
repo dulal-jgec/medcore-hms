@@ -11,20 +11,20 @@ export const metadata = {
 
 function getTileSize(index) {
   const pattern = [
-    "featured", // 0  2×2
-    "small",    // 1
-    "tall",     // 2  1×2
-    "small",    // 3
-    "wide",     // 4  2×1
-    "small",    // 5
-    "small",    // 6
-    "featured", // 7  2×2
-    "small",    // 8
-    "tall",     // 9
-    "small",    // 10
-    "wide",     // 11
-    "small",    // 12
-    "small",    // 13
+    "featured",
+    "small",
+    "tall",
+    "small",
+    "wide",
+    "small",
+    "small",
+    "featured",
+    "small",
+    "tall",
+    "small",
+    "wide",
+    "small",
+    "small",
   ];
   return pattern[index % pattern.length];
 }
@@ -60,14 +60,14 @@ export default async function GalleryPage({ params }) {
           }}
         />
 
-        <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+        <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
           <div className="max-w-3xl">
-            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-brand">
+            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
               <span className="h-px w-8 bg-brand" />
               Gallery
             </div>
 
-            <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+            <h1 className="mt-5 text-3xl font-bold leading-[1.05] tracking-tight sm:text-4xl lg:text-5xl">
               A look inside{" "}
               <span className="text-brand">{hospital.name}</span>
             </h1>
@@ -97,11 +97,11 @@ export default async function GalleryPage({ params }) {
       </section>
 
       <section>
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           {gallery.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="grid auto-rows-[160px] grid-cols-2 gap-3 sm:auto-rows-[200px] sm:grid-cols-3 lg:auto-rows-[220px] lg:grid-cols-4">
+            <div className="grid auto-rows-[140px] grid-cols-2 gap-2 sm:auto-rows-[180px] sm:grid-cols-3 sm:gap-3 lg:auto-rows-[220px] lg:grid-cols-4">
               {gallery.map((image, index) => (
                 <GalleryCard
                   key={image.id}
@@ -119,7 +119,7 @@ export default async function GalleryPage({ params }) {
 
 function EmptyState() {
   return (
-    <div className="rounded-2xl border border-dashed border-border py-20 text-center">
+    <div className="rounded-2xl border border-dashed border-border py-16 text-center sm:py-20">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft">
         <Images className="h-7 w-7 text-brand-soft-foreground" />
       </div>

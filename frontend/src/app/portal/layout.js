@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { PortalSidebar } from "@/components/portal/portal-sidebar";
 import { PortalTopbar } from "@/components/portal/portal-topbar";
-import { MaintenanceModal } from "@/components/portal/maintenance-modal";
-import { MaintenanceTopBar } from "@/components/portal/maintenance-top-bar";
 import { DemoNavigator } from "@/components/portal/demo-navigator";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuthStore } from "@/store/auth-store";
@@ -39,7 +37,7 @@ export default function PortalLayout({ children }) {
 
       {/* Main column — only this scrolls */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <MaintenanceTopBar />
+         
 
         <div className="flex-1 overflow-y-auto">
           <PortalTopbar onOpenSidebar={() => setMobileOpen(true)} />
@@ -48,7 +46,7 @@ export default function PortalLayout({ children }) {
       </div>
 
       <DemoNavigator />
-      <MaintenanceModal />
+    
     </div>
   );
 }

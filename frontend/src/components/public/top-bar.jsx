@@ -1,41 +1,43 @@
-import { Phone, Mail, MapPin } from "lucide-react";
 import Link from "next/link";
+import { Phone, Mail, MapPin, Building2 } from "lucide-react";
 
 export function TopBar() {
   return (
-    <div className="hidden md:block bg-primary text-primary-foreground">
-      <div className="mx-auto flex h-9 max-w-7xl items-center justify-between px-4 text-xs sm:px-6 lg:px-8">
-        <div className="flex items-center gap-5">
+    <div className="hidden border-b border-primary-darker-foreground/10 bg-primary-darker text-primary-darker-foreground md:block">
+      <div className="mx-auto flex h-10 max-w-7xl items-center justify-between px-4 text-xs sm:px-6 lg:px-8">
+        <div className="flex items-center gap-6">
           <a
-            href="tel:+919000000000"
-            className="flex items-center gap-1.5 opacity-90 transition-opacity hover:opacity-100"
+            href="tel:+917364821623"
+            className="flex items-center gap-1.5 opacity-75 transition-opacity hover:opacity-100"
           >
             <Phone className="h-3 w-3" />
-            <span>+91 90000 00000</span>
+            <span>+91 73648 21623</span>
           </a>
           <a
-            href="mailto:hello@medcore.health"
-            className="flex items-center gap-1.5 opacity-90 transition-opacity hover:opacity-100"
+            href="mailto:skdulalislam1@gmail.com"
+            className="flex items-center gap-1.5 opacity-75 transition-opacity hover:opacity-100"
           >
             <Mail className="h-3 w-3" />
-            <span>hello@medcore.health</span>
+            <span>skdulalislam1@gmail.com</span>
           </a>
-          <span className="hidden items-center gap-1.5 opacity-90 lg:inline-flex">
+          <span className="hidden items-center gap-1.5 opacity-75 lg:inline-flex">
             <MapPin className="h-3 w-3" />
-            <span>Made for hospitals across India</span>
+            <span>Jalpaiguri, India</span>
           </span>
         </div>
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-5">
           <Link
             href="/for-hospitals"
-            className="opacity-90 transition-opacity hover:opacity-100"
+            className="flex items-center gap-1.5 opacity-75 transition-opacity hover:opacity-100"
           >
-            For Hospitals
+            <Building2 className="h-3 w-3" />
+            <span>For Hospitals</span>
           </Link>
-          <span className="opacity-40">|</span>
+          <span className="opacity-30">|</span>
           <Link
-            href="/contact"
-            className="opacity-90 transition-opacity hover:opacity-100"
+            href="/support"
+            className="opacity-75 transition-opacity hover:opacity-100"
           >
             Support
           </Link>

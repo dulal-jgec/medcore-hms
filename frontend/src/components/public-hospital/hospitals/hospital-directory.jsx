@@ -1,33 +1,70 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, Building2, MapPin, Layers, X, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Building2, Layers, MapPin, Search, Sparkles, X } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+import { getPublicHospitals } from "@/services/hospital-public.service";
 import HospitalCard from "./hospital-card";
 
-export default function HospitalDirectory({ hospitals = [] }) {
+export default function HospitalDirectory({
+  hospitals: initialHospitals = [],
+  serverError = "",
+}) {
+  const [hospitals, setHospitals] = useState(initialHospitals);
+  const [loading, setLoading] = useState(initialHospitals.length === 0);
+  const [error, setError] = useState(serverError);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
 
+  // If server passed no data, try once client-side
+  useEffect(() => {
+    if (initialHospitals.length > 0) return;
+    if (serverError) return;
+
+    let mounted = true;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setError("");
+        const res = await getPublicHospitals({
+          page: 0,
+          size: 100,
+          sortBy: "name",
+          sortDir: "asc",
+        });
+        const list = Array.isArray(res.data)
+          ? res.data
+          : res.data?.content || [];
+        if (mounted) setHospitals(list);
+      } catch (err) {
+        if (mounted) setError(err?.message || "Unable to load hospitals");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [initialHospitals.length, serverError]);
+
   const cities = useMemo(() => {
     const set = new Set();
-    hospitals.forEach((h) => {
-      if (h.city) set.add(h.city);
-    });
+    hospitals.forEach((h) => h.city && set.add(h.city));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [hospitals]);
 
-  const states = useMemo(() => {
+  const statesCount = useMemo(() => {
     const set = new Set();
-    hospitals.forEach((h) => {
-      if (h.state) set.add(h.state);
-    });
+    hospitals.forEach((h) => h.state && set.add(h.state));
     return set.size;
   }, [hospitals]);
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-
     return hospitals.filter((h) => {
       const matchesSearch =
         !q ||
@@ -52,38 +89,27 @@ export default function HospitalDirectory({ hospitals = [] }) {
 
   return (
     <div className="bg-background">
-      {/* ══════════ PREMIUM HEADER ══════════ */}
-      <section className="relative overflow-hidden border-b border-border">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
-            backgroundSize: "28px 28px",
-          }}
-        />
-
-        <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+      {/* HEADER */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <div className="max-w-3xl">
-            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-brand">
+            <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
               <span className="h-px w-8 bg-brand" />
-              MedCore Network
-            </div>
+              Hospital Directory
+            </p>
 
-            <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-              Find your hospital in the{" "}
-              <span className="text-brand">MedCore network</span>
+            <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+              Find your hospital on <span className="text-brand">MedCore</span>
             </h1>
 
-            <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground lg:text-lg">
-              Explore hospitals registered on MedCore. View their departments,
-              doctors, facilities, and contact information — all in one place.
+            <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
+              Browse hospitals registered on the MedCore network. View their
+              departments, doctors, facilities, and contact information.
             </p>
           </div>
 
           {hospitals.length > 0 && (
-            <div className="mt-12 grid max-w-3xl gap-4 sm:grid-cols-3">
+            <div className="mt-10 grid max-w-3xl gap-4 sm:grid-cols-3">
               <StatTile
                 icon={Building2}
                 value={hospitals.length}
@@ -96,33 +122,32 @@ export default function HospitalDirectory({ hospitals = [] }) {
               />
               <StatTile
                 icon={Layers}
-                value={states}
-                label={`State${states !== 1 ? "s" : ""} live`}
+                value={statesCount}
+                label={`State${statesCount !== 1 ? "s" : ""} live`}
               />
             </div>
           )}
         </div>
       </section>
 
-      {/* ══════════ SEARCH + FILTERS ══════════ */}
+      {/* SEARCH */}
       <section className="border-b border-border bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-5">
-            {/* Search */}
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by hospital name, city, or state..."
-                className="h-14 w-full rounded-2xl border border-border bg-card pl-12 pr-4 text-base outline-none transition-all placeholder:text-muted-foreground focus:border-brand/50 focus:ring-4 focus:ring-brand/10"
+                className="h-12 w-full rounded-xl border border-border bg-card pl-11 pr-10 text-sm outline-none transition-all placeholder:text-muted-foreground focus:border-brand/50 focus:ring-4 focus:ring-brand/10"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-hover hover:text-hover-foreground"
                   aria-label="Clear search"
                 >
                   <X className="h-4 w-4" />
@@ -130,27 +155,26 @@ export default function HospitalDirectory({ hospitals = [] }) {
               )}
             </div>
 
-            {/* City chips */}
-            {cities.length > 0 && (
+            {cities.length > 1 && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Filter:
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  City:
                 </span>
 
                 <CityChip
                   active={selectedCity === "all"}
                   onClick={() => setSelectedCity("all")}
                 >
-                  All cities
+                  All
                 </CityChip>
 
-                {cities.map((city) => (
+                {cities.map((c) => (
                   <CityChip
-                    key={city}
-                    active={selectedCity === city}
-                    onClick={() => setSelectedCity(city)}
+                    key={c}
+                    active={selectedCity === c}
+                    onClick={() => setSelectedCity(c)}
                   >
-                    {city}
+                    {c}
                   </CityChip>
                 ))}
 
@@ -170,10 +194,14 @@ export default function HospitalDirectory({ hospitals = [] }) {
         </div>
       </section>
 
-      {/* ══════════ RESULTS ══════════ */}
+      {/* RESULTS */}
       <section>
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
-          {hospitals.length === 0 ? (
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+          {loading ? (
+            <GridSkeleton />
+          ) : error ? (
+            <ErrorState message={error} />
+          ) : hospitals.length === 0 ? (
             <EmptyState
               icon={Building2}
               title="No hospitals yet"
@@ -183,14 +211,18 @@ export default function HospitalDirectory({ hospitals = [] }) {
             <EmptyState
               icon={Search}
               title="No hospitals match your search"
-              message="Try a different search term or clear the filters to see all hospitals."
+              message={
+                searchQuery
+                  ? `Nothing matched "${searchQuery}"`
+                  : "Try a different search or clear the filters."
+              }
               action={{ label: "Clear filters", onClick: clearFilters }}
             />
           ) : (
             <>
               <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
                     <Sparkles className="h-3.5 w-3.5" />
                     Hospitals
                   </div>
@@ -220,6 +252,8 @@ export default function HospitalDirectory({ hospitals = [] }) {
   );
 }
 
+/* ══════════ Sub-components ══════════ */
+
 function StatTile({ icon: Icon, value, label }) {
   return (
     <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5">
@@ -241,20 +275,43 @@ function CityChip({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all ${
+      className={cn(
+        "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
         active
           ? "border-brand bg-brand text-brand-foreground shadow-sm"
-          : "border-border bg-card text-muted-foreground hover:border-brand/40 hover:text-foreground"
-      }`}
+          : "border-border bg-card text-muted-foreground hover:border-brand/40 hover:text-foreground",
+      )}
     >
       {children}
     </button>
   );
 }
 
+function GridSkeleton() {
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div
+          key={i}
+          className="aspect-[16/12] animate-pulse rounded-2xl border border-border bg-muted/40"
+        />
+      ))}
+    </div>
+  );
+}
+
+function ErrorState({ message }) {
+  return (
+    <div className="mx-auto max-w-md rounded-2xl border border-destructive/20 bg-destructive/5 p-8 text-center">
+      <p className="font-semibold text-destructive">Unable to load hospitals</p>
+      <p className="mt-1 text-sm text-muted-foreground">{message}</p>
+    </div>
+  );
+}
+
 function EmptyState({ icon: Icon, title, message, action }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border py-20 text-center">
+    <div className="rounded-3xl border border-dashed border-border py-20 text-center">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft">
         <Icon className="h-7 w-7 text-brand-soft-foreground" />
       </div>

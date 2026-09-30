@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { Phone, Mail, MapPin } from "lucide-react";
 
-/* ─── Brand icons (lucide removed them; we inline them) ─── */
 function LinkedInIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
-      <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zm1.78 13.02H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 0 .77 0 0 0 1.77 0 1.77 0zm0 0" />
+      <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zm1.78 13.02H3.56V9h3.56v11.45z" />
     </svg>
   );
 }
@@ -41,17 +40,17 @@ const LINK_GROUPS = [
     links: [
       { label: "About", href: "/about" },
       { label: "Contact", href: "/contact" },
-      { label: "Careers", href: "/contact" },
-      { label: "Press Kit", href: "/contact" },
+      { label: "Support", href: "/support" },
+      { label: "Status", href: "/support" },
     ],
   },
   {
     title: "Resources",
     links: [
-      { label: "Help Center", href: "/faq" },
-      { label: "Documentation", href: "/faq" },
-      { label: "System Status", href: "/faq" },
-      { label: "API Reference", href: "/faq" },
+      { label: "Help Center", href: "/support" },
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Security", href: "/security" },
     ],
   },
 ];
@@ -63,61 +62,48 @@ const SOCIALS = [
 ];
 
 const LEGAL = [
-  { label: "Privacy Policy", href: "/privacy" },
-  { label: "Terms of Service", href: "/privacy" },
-  { label: "Security", href: "/about" },
-  { label: "Cookie Settings", href: "/privacy" },
+  { label: "Privacy", href: "/privacy" },
+  { label: "Terms", href: "/terms" },
+  { label: "Security", href: "/security" },
+  { label: "Cookies", href: "/cookies" },
 ];
+
+const CONTACT = {
+  phone: "+91 73648 21623",
+  phoneHref: "tel:+917364821623",
+  email: "skdulalislam1@gmail.com",
+  emailHref: "mailto:skdulalislam1@gmail.com",
+  location: "Jalpaiguri, India",
+};
 
 export function SiteFooter() {
   return (
     <footer className="relative overflow-hidden bg-primary-darker text-primary-darker-foreground">
-      <div className="mx-auto max-w-7xl px-4 pt-12 pb-6 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-4">
-            <Link href="/" className="inline-flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-lg font-bold text-brand-foreground">
-                M
-              </div>
-              <span className="text-lg font-bold tracking-tight">
-                Med<span className="text-brand">Core</span>
-              </span>
-            </Link>
-
-            <p className="mt-4 max-w-sm text-sm leading-6 opacity-70">
-              A multi-tenant hospital management platform connecting patients,
-              doctors, and hospitals — with privacy, isolation, and audit built
-              into every layer.
-            </p>
-
-            <div className="mt-5 space-y-2 text-sm">
-              <a
-                href="tel:+919000000000"
-                className="flex items-center gap-2.5 opacity-70 transition-opacity hover:opacity-100"
-              >
-                <Phone className="h-3.5 w-3.5 shrink-0" />
-                <span>+91 90000 00000</span>
-              </a>
-              <a
-                href="mailto:hello@medcore.health"
-                className="flex items-center gap-2.5 opacity-70 transition-opacity hover:opacity-100"
-              >
-                <Mail className="h-3.5 w-3.5 shrink-0" />
-                <span>hello@medcore.health</span>
-              </a>
-              <div className="flex items-center gap-2.5 opacity-70">
-                <MapPin className="h-3.5 w-3.5 shrink-0" />
-                <span>Bengaluru, India</span>
-              </div>
+      <div className="mx-auto max-w-7xl px-4 pb-6 pt-12 sm:px-6 sm:pt-14 lg:px-8">
+        <div className="lg:hidden">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <Link href="/" className="inline-flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-base font-bold text-brand-foreground">
+                  M
+                </div>
+                <span className="text-base font-bold tracking-tight">
+                  Med<span className="text-brand">Core</span>
+                </span>
+              </Link>
+              <p className="mt-2.5 max-w-[240px] text-xs leading-5 opacity-60">
+                A multi-tenant hospital platform — secure, isolated, built for
+                every role.
+              </p>
             </div>
 
-            <div className="mt-5 flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-0.5">
               {SOCIALS.map(({ Icon, href, label }) => (
                 <a
                   key={label}
                   href={href}
                   aria-label={label}
-                  className="flex h-8 w-8 items-center justify-center rounded-md opacity-60 transition-all hover:bg-primary-darker-foreground/10 hover:opacity-100"
+                  className="flex h-9 w-9 items-center justify-center rounded-md opacity-60 transition-all hover:bg-primary-darker-foreground/10 hover:opacity-100"
                 >
                   <Icon className="h-4 w-4" />
                 </a>
@@ -125,45 +111,60 @@ export function SiteFooter() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-8 lg:pl-8">
-            {LINK_GROUPS.map((group) => (
+          <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4">
+            {LINK_GROUPS.slice(0, 2).map((group) => (
               <div key={group.title}>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-brand">
+                <h3 className="text-[10px] font-semibold uppercase tracking-wider text-brand">
                   {group.title}
                 </h3>
-                <ul className="mt-4 space-y-3">
+                <ul className="mt-2.5 space-y-2">
                   {group.links.map((link) => (
                     <li key={link.label}>
                       <Link
-  href={link.href}
-  className="text-sm opacity-70 transition-all hover:opacity-100"
->
-  {link.label}
-</Link>
+                        href={link.href}
+                        className="text-[13px] opacity-65 transition-opacity hover:opacity-100"
+                      >
+                        {link.label}
+                      </Link>
                     </li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
-        </div>
 
-        <div className="mt-10 border-t border-primary-darker-foreground/10 pt-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              <span className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
-                </span>
-                <span className="opacity-70">All systems operational</span>
+          <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-primary-darker-foreground/10 pt-5 text-xs">
+            <a
+              href={CONTACT.phoneHref}
+              className="flex items-center gap-2 opacity-70 transition-opacity hover:opacity-100"
+            >
+              <Phone className="h-3.5 w-3.5 shrink-0 text-brand" />
+              <span className="truncate">{CONTACT.phone}</span>
+            </a>
+            <a
+              href={CONTACT.emailHref}
+              className="flex items-center gap-2 opacity-70 transition-opacity hover:opacity-100"
+            >
+              <Mail className="h-3.5 w-3.5 shrink-0 text-brand" />
+              <span className="truncate">{CONTACT.email}</span>
+            </a>
+            <div className="col-span-2 flex items-center gap-2 opacity-70">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-brand" />
+              <span>{CONTACT.location}</span>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-primary-darker-foreground/10 pt-5 text-[11px]">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand" />
               </span>
-              <span className="opacity-40">·</span>
               <span className="opacity-60">
-                © {new Date().getFullYear()} MedCore
+                &copy; {new Date().getFullYear()} MedCore
               </span>
             </div>
-            <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+            <ul className="flex items-center gap-x-4">
               {LEGAL.map((item) => (
                 <li key={item.label}>
                   <Link
@@ -177,10 +178,117 @@ export function SiteFooter() {
             </ul>
           </div>
         </div>
+
+        <div className="hidden lg:block">
+          <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
+            <div className="lg:col-span-4">
+              <Link href="/" className="inline-flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-lg font-bold text-brand-foreground">
+                  M
+                </div>
+                <span className="text-lg font-bold tracking-tight">
+                  Med<span className="text-brand">Core</span>
+                </span>
+              </Link>
+
+              <p className="mt-4 max-w-sm text-sm leading-6 opacity-70">
+                A multi-tenant hospital management platform connecting patients,
+                doctors, and hospitals — with privacy, isolation, and audit
+                built into every layer.
+              </p>
+
+              <div className="mt-5 space-y-2 text-sm">
+                <a
+                  href={CONTACT.phoneHref}
+                  className="flex items-center gap-2.5 opacity-70 transition-opacity hover:opacity-100"
+                >
+                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                  <span>{CONTACT.phone}</span>
+                </a>
+                <a
+                  href={CONTACT.emailHref}
+                  className="flex items-center gap-2.5 opacity-70 transition-opacity hover:opacity-100"
+                >
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  <span>{CONTACT.email}</span>
+                </a>
+                <div className="flex items-center gap-2.5 opacity-70">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span>{CONTACT.location}</span>
+                </div>
+              </div>
+
+              <div className="mt-5 flex items-center gap-1">
+                {SOCIALS.map(({ Icon, href, label }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    aria-label={label}
+                    className="flex h-8 w-8 items-center justify-center rounded-md opacity-60 transition-all hover:bg-primary-darker-foreground/10 hover:opacity-100"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-8 lg:col-span-8 lg:pl-8">
+              {LINK_GROUPS.map((group) => (
+                <div key={group.title}>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-brand">
+                    {group.title}
+                  </h3>
+                  <ul className="mt-4 space-y-3">
+                    {group.links.map((link) => (
+                      <li key={link.label}>
+                        <Link
+                          href={link.href}
+                          className="text-sm opacity-70 transition-all hover:opacity-100"
+                        >
+                          {link.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-12 border-t border-primary-darker-foreground/10 pt-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-x-3 text-xs">
+                <span className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
+                  </span>
+                  <span className="opacity-70">All systems operational</span>
+                </span>
+                <span className="opacity-40">·</span>
+                <span className="opacity-60">
+                  &copy; {new Date().getFullYear()} MedCore
+                </span>
+              </div>
+              <ul className="flex items-center gap-x-5 text-xs">
+                {LEGAL.map((item) => (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
+                      className="opacity-60 transition-opacity hover:opacity-100"
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div aria-hidden className="pointer-events-none select-none">
-        <p className="translate-y-[18%] text-center font-black leading-none tracking-tighter text-[clamp(3rem,10vw,7rem)] text-primary-darker-foreground opacity-[0.05]">
+        <p className="translate-y-[18%] text-center text-[clamp(2rem,9vw,7rem)] font-black leading-none tracking-tighter text-primary-darker-foreground opacity-[0.04]">
           MEDCORE
         </p>
       </div>

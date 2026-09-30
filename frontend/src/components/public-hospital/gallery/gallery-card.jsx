@@ -7,10 +7,10 @@ export default function GalleryCard({ image, size = "small" }) {
     size === "featured"
       ? "col-span-2 row-span-2"
       : size === "wide"
-      ? "col-span-2"
-      : size === "tall"
-      ? "row-span-2"
-      : "";
+        ? "col-span-2"
+        : size === "tall"
+          ? "row-span-2"
+          : "";
 
   return (
     <div
@@ -26,7 +26,7 @@ export default function GalleryCard({ image, size = "small" }) {
 
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        className="absolute inset-0 bg-gradient-to-t from-primary-darker/95 via-primary-darker/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
       />
 
       {image.category && (

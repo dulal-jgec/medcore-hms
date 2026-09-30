@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Search,
   LogIn,
@@ -60,7 +61,7 @@ const HOSPITAL_STEPS = [
     n: "03",
     icon: ShieldCheck,
     title: "Go live securely",
-    desc: "Start registering patients, booking appointments, and running your hospital — isolated from every other tenant.",
+    desc: "Start registering patients, booking appointments, and running your hospital.",
   },
 ];
 
@@ -78,34 +79,52 @@ const ROLES = [
 export default function HowItWorksPage() {
   return (
     <>
-      {/* Hero */}
-      <section className="border-b border-border">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">
-              How It Works
-            </p>
-            <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
-              From finding a hospital to{" "}
-              <span className="text-brand">running one</span>
-            </h1>
-            <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground">
-              MedCore connects two worlds: patients who need care, and hospitals
-              that provide it. Both sides use the same secure platform — with
-              complete data isolation between tenants.
-            </p>
+      {/* HERO */}
+      <section className="relative overflow-hidden border-b border-border">
+        <div className="relative h-[420px] w-full sm:h-[500px] lg:h-[560px]">
+          <Image
+            src="/images/how-it-works-hero.jpg"
+            alt="How MedCore works"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-br from-primary-darker via-primary-darker/85 to-primary-darker/50"
+          />
+
+          <div className="absolute inset-0 flex items-end">
+            <div className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 sm:pb-16 lg:px-8 lg:pb-20">
+              <p className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand backdrop-blur">
+                How It Works
+              </p>
+
+              <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
+                From finding a hospital to{" "}
+                <span className="text-brand">running one.</span>
+              </h1>
+
+              <p className="mt-5 max-w-2xl text-sm leading-6 text-white/80 sm:text-base">
+                MedCore connects two worlds: patients who need care, and
+                hospitals that provide it. Both sides use the same secure
+                platform — with complete data isolation between tenants.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* For Patients */}
+      {/* FOR PATIENTS */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+              <span className="h-px w-6 bg-brand" />
               For Patients
             </p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
               Three steps to your care
             </h2>
           </div>
@@ -133,21 +152,25 @@ export default function HowItWorksPage() {
           </div>
 
           <div className="mt-8">
-            <Button asChild>
+            <Button
+              asChild
+              className="h-11 bg-brand text-brand-foreground hover:bg-brand/90"
+            >
               <Link href="/hospitals">Find your hospital</Link>
             </Button>
           </div>
         </div>
       </section>
 
-      {/* For Hospitals */}
+      {/* FOR HOSPITALS */}
       <section className="border-b border-border bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+              <span className="h-px w-6 bg-brand" />
               For Hospitals
             </p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
               Onboard in days, not months
             </h2>
           </div>
@@ -175,21 +198,26 @@ export default function HowItWorksPage() {
           </div>
 
           <div className="mt-8">
-            <Button asChild>
+            <Button
+              asChild
+              className="h-11 bg-brand text-brand-foreground hover:bg-brand/90"
+            >
               <Link href="/for-hospitals">Onboard your hospital</Link>
             </Button>
           </div>
         </div>
       </section>
 
-      {/* Roles */}
+      {/* ROLES */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+            <p className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+              <span className="h-px w-6 bg-brand" />
               Roles
+              <span className="h-px w-6 bg-brand" />
             </p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
               Everyone sees exactly what they should
             </h2>
             <p className="mt-4 text-sm text-muted-foreground">
@@ -201,7 +229,7 @@ export default function HowItWorksPage() {
             {ROLES.map(({ icon: Icon, name, gets }) => (
               <div
                 key={name}
-                className="rounded-xl border border-border bg-card p-5 transition-all hover:border-brand/40 hover:bg-hover/40"
+                className="rounded-xl border border-border bg-card p-5 transition-all hover:border-brand/40"
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
                   <Icon className="h-5 w-5" />
@@ -219,15 +247,27 @@ export default function HowItWorksPage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-border bg-primary p-8 sm:p-12 lg:p-16">
-            <div className="relative flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
+      <section className="bg-background">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="relative overflow-hidden rounded-3xl">
+            <Image
+              src="/images/cta-hospital.jpg"
+              alt=""
+              fill
+              sizes="100vw"
+              className="object-cover"
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-gradient-to-r from-primary-darker via-primary-darker/85 to-primary-darker/40"
+            />
+
+            <div className="relative flex flex-col items-start justify-between gap-8 p-8 sm:p-12 lg:flex-row lg:items-center lg:p-16">
               <div className="max-w-xl">
-                <h2 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl">
+                <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                   Ready to get started?
                 </h2>
-                <p className="mt-4 text-sm leading-6 text-primary-foreground/75">
+                <p className="mt-4 text-sm leading-6 text-white/75">
                   Find your hospital or onboard your own — in minutes.
                 </p>
               </div>
@@ -235,7 +275,7 @@ export default function HowItWorksPage() {
                 <Button
                   asChild
                   size="lg"
-                  className="bg-brand text-brand-foreground hover:bg-brand/90"
+                  className="h-11 bg-brand text-brand-foreground hover:bg-brand/90"
                 >
                   <Link href="/hospitals">Find hospital</Link>
                 </Button>
@@ -243,7 +283,7 @@ export default function HowItWorksPage() {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+                  className="h-11 border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20 hover:text-white"
                 >
                   <Link href="/for-hospitals">For hospitals</Link>
                 </Button>

@@ -7,8 +7,10 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
+  Clock,
   Droplets,
   Heart,
+  Info,
   Loader2,
   Mail,
   Phone,
@@ -41,9 +43,19 @@ export default function PatientProfilePage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
-  const [meta, setMeta] = useState({ fullName: "", email: "", phone: "" });
+
+  const [account, setAccount] = useState({
+    patientName: "",
+    phone: "",
+    email: "",
+    patientId: null,
+    status: "",
+    createdAt: "",
+  });
 
   const [form, setForm] = useState({
+    patientName: "",
+    phone: "",
     dateOfBirth: "",
     bloodGroup: "",
     allergies: "",
@@ -65,17 +77,27 @@ export default function PatientProfilePage() {
         const p = res.data;
         if (!mounted) return;
 
-        setMeta({
-          fullName: p.fullName || p.user?.fullName || "",
-          email: p.user?.email || "",
-          phone: p.user?.phone || "",
+        const name =
+          p.patientName || p.fullName || p.user?.fullName || "";
+        const phone = p.phone || p.user?.phone || "";
+        const email = p.email || p.user?.email || "";
+
+        setAccount({
+          patientName: name,
+          phone,
+          email,
+          patientId: p.id,
+          status: p.status || "",
+          createdAt: p.createdAt || "",
         });
 
         setForm({
+          patientName: name,
+          phone,
           dateOfBirth: p.dateOfBirth || "",
           bloodGroup: p.bloodGroup || "",
-          allergies: p.allergies || "",
-          chronicConditions: p.chronicConditions || "",
+          allergies: normalizeList(p.allergies),
+          chronicConditions: normalizeList(p.chronicConditions),
           emergencyContactName: p.emergencyContactName || "",
           emergencyContactPhone: p.emergencyContactPhone || "",
           emergencyContactRelation: p.emergencyContactRelation || "",
@@ -104,12 +126,19 @@ export default function PatientProfilePage() {
     event.preventDefault();
     if (saving) return;
 
+    if (!form.patientName.trim()) {
+      setError("Full name is required.");
+      return;
+    }
+
     try {
       setSaving(true);
       setError("");
       setSuccess("");
 
       await updateMyPatientProfile({
+        fullName: form.patientName.trim(),
+        phone: form.phone.trim() || null,
         dateOfBirth: form.dateOfBirth || null,
         bloodGroup: form.bloodGroup || null,
         allergies: form.allergies.trim() || null,
@@ -118,6 +147,12 @@ export default function PatientProfilePage() {
         emergencyContactPhone: form.emergencyContactPhone.trim(),
         emergencyContactRelation: form.emergencyContactRelation.trim(),
       });
+
+      setAccount((prev) => ({
+        ...prev,
+        patientName: form.patientName.trim(),
+        phone: form.phone.trim(),
+      }));
 
       setSuccess("Profile updated successfully.");
     } catch (err) {
@@ -135,8 +170,19 @@ export default function PatientProfilePage() {
     );
   }
 
+  const initials = (account.patientName || "P")
+    .split(" ")
+    .map((w) => w.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  const bloodGroupLabel = form.bloodGroup
+    ? form.bloodGroup.replace("_POSITIVE", "+").replace("_NEGATIVE", "-")
+    : "—";
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <Link
         href="/portal/patient"
         className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -145,21 +191,18 @@ export default function PatientProfilePage() {
         Back to dashboard
       </Link>
 
-      <div className="mt-6 flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand-soft-foreground">
-          <User className="h-6 w-6" />
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
-            My Profile
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-            Personal & medical details
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Keep your medical information up to date.
-          </p>
-        </div>
+      <div className="mt-6">
+        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+          <span className="h-px w-6 bg-brand" />
+          My Profile
+        </p>
+        <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+          Personal & medical details
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Keep your information up to date so hospitals and doctors can care
+          for you better.
+        </p>
       </div>
 
       {error && (
@@ -178,148 +221,248 @@ export default function PatientProfilePage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-        <SectionCard
-          icon={User}
-          title="Account information"
-          desc="Managed by your login. Contact support to change."
-        >
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Full name" icon={User}>
-              <Input value={meta.fullName} disabled className="h-11 pl-10" />
-            </Field>
+      <div className="mt-6 grid gap-6 lg:grid-cols-12">
+        <aside className="lg:col-span-4">
+          <div className="sticky top-24 rounded-2xl border border-border bg-card p-6">
+            <div className="flex flex-col items-center text-center">
+              <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-brand text-3xl font-bold text-brand-foreground shadow-lg">
+                {initials}
+              </div>
 
-            <Field label="Email" icon={Mail}>
-              <Input value={meta.email} disabled className="h-11 pl-10" />
-            </Field>
+              <h2 className="mt-4 text-lg font-bold tracking-tight">
+                {account.patientName || "—"}
+              </h2>
 
-            <Field label="Phone" icon={Phone} className="sm:col-span-2">
-              <Input value={meta.phone} disabled className="h-11 pl-10" />
-            </Field>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Patient #{account.patientId ?? "—"}
+              </p>
+
+              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-soft-foreground">
+                <ShieldCheck className="h-3 w-3" />
+                {account.status || "Active"}
+              </span>
+            </div>
+
+            <dl className="mt-6 space-y-3 border-t border-border pt-5 text-sm">
+              <Row icon={Droplets} label="Blood group" value={bloodGroupLabel} />
+              <Row
+                icon={Calendar}
+                label="Date of birth"
+                value={formatDate(form.dateOfBirth)}
+              />
+              <Row
+                icon={Clock}
+                label="Member since"
+                value={formatDate(account.createdAt)}
+              />
+            </dl>
+
+            <div className="mt-6 rounded-xl border border-border bg-muted/30 p-4">
+              <div className="flex items-start gap-2">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <p className="text-[11px] leading-5 text-muted-foreground">
+                  Your email is tied to your account and cannot be changed
+                  here. Contact your hospital to update it.
+                </p>
+              </div>
+            </div>
           </div>
-        </SectionCard>
+        </aside>
 
-        <SectionCard
-          icon={Heart}
-          title="Medical information"
-          desc="Used by doctors to personalize your care."
-        >
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Date of birth" icon={Calendar}>
-              <Input
-                type="date"
-                max={new Date().toISOString().split("T")[0]}
-                value={form.dateOfBirth}
-                onChange={(e) => update("dateOfBirth", e.target.value)}
-                className="h-11 pl-10"
-              />
-            </Field>
-
-            <Field label="Blood group" icon={Droplets}>
-              <select
-                value={form.bloodGroup}
-                onChange={(e) => update("bloodGroup", e.target.value)}
-                className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-              >
-                <option value="">Select</option>
-                {BLOOD_GROUPS.map((bg) => (
-                  <option key={bg.value} value={bg.value}>
-                    {bg.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field
-              label="Allergies"
-              icon={AlertCircle}
-              className="sm:col-span-2"
+        <div className="space-y-6 lg:col-span-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <SectionCard
+              icon={User}
+              title="Personal information"
+              desc="How you appear across MedCore."
             >
-              <textarea
-                value={form.allergies}
-                onChange={(e) => update("allergies", e.target.value)}
-                rows={3}
-                placeholder="e.g. Penicillin, peanuts"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-              />
-            </Field>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field
+                  label="Full name"
+                  icon={User}
+                  required
+                  className="sm:col-span-2"
+                >
+                  <Input
+                    value={form.patientName}
+                    onChange={(e) => update("patientName", e.target.value)}
+                    placeholder="Your full name"
+                    className="h-11 pl-10"
+                    required
+                    minLength={2}
+                    maxLength={80}
+                  />
+                </Field>
 
-            <Field
-              label="Chronic conditions"
+                <Field label="Phone" icon={Phone}>
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => update("phone", e.target.value)}
+                    placeholder="9876543210"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className="h-11 pl-10"
+                  />
+                </Field>
+
+                <Field label="Email" icon={Mail}>
+                  <Input
+                    value={account.email}
+                    disabled
+                    className="h-11 pl-10"
+                  />
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Contact your hospital to update your email.
+                  </p>
+                </Field>
+              </div>
+            </SectionCard>
+
+            <SectionCard
               icon={Heart}
-              className="sm:col-span-2"
+              title="Medical information"
+              desc="Used by doctors to personalize your care."
             >
-              <textarea
-                value={form.chronicConditions}
-                onChange={(e) => update("chronicConditions", e.target.value)}
-                rows={3}
-                placeholder="e.g. Type 2 diabetes, hypertension"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-              />
-            </Field>
-          </div>
-        </SectionCard>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field label="Date of birth" icon={Calendar}>
+                  <Input
+                    type="date"
+                    max={new Date().toISOString().split("T")[0]}
+                    value={form.dateOfBirth}
+                    onChange={(e) => update("dateOfBirth", e.target.value)}
+                    className="h-11 pl-10"
+                  />
+                </Field>
 
-        <SectionCard
-          icon={ShieldCheck}
-          title="Emergency contact"
-          desc="Person we should reach in case of an emergency."
-        >
-          <div className="grid gap-5 sm:grid-cols-3">
-            <Field label="Contact name" required>
-              <Input
-                value={form.emergencyContactName}
-                onChange={(e) =>
-                  update("emergencyContactName", e.target.value)
-                }
-                placeholder="Full name"
-                className="h-11"
-              />
-            </Field>
+                <Field label="Blood group" icon={Droplets}>
+                  <select
+                    value={form.bloodGroup}
+                    onChange={(e) => update("bloodGroup", e.target.value)}
+                    className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  >
+                    <option value="">Select</option>
+                    {BLOOD_GROUPS.map((bg) => (
+                      <option key={bg.value} value={bg.value}>
+                        {bg.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-            <Field label="Relationship" required>
-              <Input
-                value={form.emergencyContactRelation}
-                onChange={(e) =>
-                  update("emergencyContactRelation", e.target.value)
-                }
-                placeholder="e.g. Spouse"
-                className="h-11"
-              />
-            </Field>
+                <Field
+                  label="Allergies"
+                  icon={AlertCircle}
+                  className="sm:col-span-2"
+                >
+                  <textarea
+                    value={form.allergies}
+                    onChange={(e) => update("allergies", e.target.value)}
+                    rows={3}
+                    placeholder="e.g. Penicillin, peanuts"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  />
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Separate multiple with commas
+                  </p>
+                </Field>
 
-            <Field label="Phone" required>
-              <Input
-                value={form.emergencyContactPhone}
-                onChange={(e) =>
-                  update("emergencyContactPhone", e.target.value)
-                }
-                placeholder="+91 90000 00000"
-                className="h-11"
-              />
-            </Field>
-          </div>
-        </SectionCard>
+                <Field
+                  label="Chronic conditions"
+                  icon={Heart}
+                  className="sm:col-span-2"
+                >
+                  <textarea
+                    value={form.chronicConditions}
+                    onChange={(e) =>
+                      update("chronicConditions", e.target.value)
+                    }
+                    rows={3}
+                    placeholder="e.g. Type 2 diabetes, hypertension"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  />
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Separate multiple with commas
+                  </p>
+                </Field>
+              </div>
+            </SectionCard>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" asChild>
-            <Link href="/portal/patient">Cancel</Link>
-          </Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save changes
-              </>
-            )}
-          </Button>
+            <SectionCard
+              icon={ShieldCheck}
+              title="Emergency contact"
+              desc="Who we should reach in case of an emergency."
+            >
+              <div className="grid gap-5 sm:grid-cols-3">
+                <Field label="Contact name">
+                  <Input
+                    value={form.emergencyContactName}
+                    onChange={(e) =>
+                      update("emergencyContactName", e.target.value)
+                    }
+                    placeholder="Full name"
+                    className="h-11"
+                  />
+                </Field>
+
+                <Field label="Relationship">
+                  <Input
+                    value={form.emergencyContactRelation}
+                    onChange={(e) =>
+                      update("emergencyContactRelation", e.target.value)
+                    }
+                    placeholder="e.g. Spouse"
+                    className="h-11"
+                  />
+                </Field>
+
+                <Field label="Phone">
+                  <Input
+                    value={form.emergencyContactPhone}
+                    onChange={(e) =>
+                      update("emergencyContactPhone", e.target.value)
+                    }
+                    placeholder="9876543210"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className="h-11"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-5 flex items-start gap-2 rounded-xl border border-border bg-muted/30 p-3.5">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <p className="text-[11px] leading-5 text-muted-foreground">
+                  This person will be contacted if you need emergency care and
+                  we can&apos;t reach you first.
+                </p>
+              </div>
+            </SectionCard>
+
+            <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" asChild>
+                <Link href="/portal/patient">Cancel</Link>
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving}
+                className="bg-brand text-brand-foreground hover:bg-brand/90"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save changes
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
@@ -354,4 +497,33 @@ function Field({ label, icon: Icon, required, className, children }) {
       {children}
     </div>
   );
+}
+
+function Row({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="flex items-center gap-2 text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </dt>
+      <dd className="truncate text-right font-medium">{value || "—"}</dd>
+    </div>
+  );
+}
+
+function normalizeList(value) {
+  if (!value) return "";
+  if (Array.isArray(value)) return value.join(", ");
+  return String(value);
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
