@@ -137,4 +137,11 @@ public class SuperAdminController {
 
         return superAdminService.getAllHospitalAdmins(page, size);
     }
+    
+    @PostMapping("/admins/{userId}/resend-invitation")
+    public ApiResponse<String> resendHospitalAdminInvitation(
+            @PathVariable Long userId) {
+
+        return superAdminService.resendHospitalAdminInvitation(userId);
+    }
 }

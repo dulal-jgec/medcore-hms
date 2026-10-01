@@ -25,6 +25,7 @@ import com.medcore.features.doctor.service.DoctorService;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
+import com.medcore.features.notification.enums.EmailType;
 import com.medcore.features.notification.service.EmailOutboxService;
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
@@ -108,13 +109,13 @@ public class DoctorServiceImpl implements DoctorService {
                 request.getPhone()
                         .trim();
 
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsActiveEmail(email)) {
             throw new DuplicateResourceException(
                     "Email already exists"
             );
         }
 
-        if (userRepository.existsByPhone(phone)) {
+        if (userRepository.existsActivePhone(phone)) {
             throw new DuplicateResourceException(
                     "Phone number already exists"
             );
@@ -155,7 +156,7 @@ public class DoctorServiceImpl implements DoctorService {
                         )
                         .hospital(hospital)
                         .role(doctorRole)
-                        .status(UserStatus.ACTIVE)
+                        .status(UserStatus.PENDING_VERIFICATION)
                         .emailVerified(false)
                         .phoneVerified(false)
                         .build();
@@ -198,9 +199,12 @@ public class DoctorServiceImpl implements DoctorService {
         );
 
         emailOutboxService.createEmail(
+                savedUser,
+                EmailType.DOCTOR_CREDENTIALS,
                 savedUser.getEmail(),
                 "Your MedCore Doctor Account",
-                emailBody
+                emailBody,
+                1
         );
 
         log.info(

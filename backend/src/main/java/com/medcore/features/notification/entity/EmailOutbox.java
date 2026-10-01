@@ -2,6 +2,8 @@ package com.medcore.features.notification.entity;
 
 import com.medcore.common.entity.BaseEntity;
 import com.medcore.features.notification.enums.EmailOutboxStatus;
+import com.medcore.features.notification.enums.EmailType;
+import com.medcore.features.user.entity.User;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -30,6 +32,18 @@ public class EmailOutbox extends BaseEntity {
     @Column(nullable = false, length = 30)
     @Builder.Default
     private EmailOutboxStatus status = EmailOutboxStatus.PENDING;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private EmailType type;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+    
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer invitationAttempt = 1;
 
     private LocalDateTime sentAt;
 

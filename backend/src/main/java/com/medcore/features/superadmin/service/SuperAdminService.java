@@ -64,4 +64,6 @@ public interface SuperAdminService {
             int page,
             int size
     );
+    
+    ApiResponse<String> resendHospitalAdminInvitation(Long userId);
 }

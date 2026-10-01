@@ -9,6 +9,8 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.medcore.features.user.enums.RoleName;
+import com.medcore.features.user.enums.UserStatus;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -36,6 +38,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
             Long hospitalId
     );
     
+    Optional<User> findByEmailAndStatus(
+            String email,
+            UserStatus status
+    );
+    
     @EntityGraph(attributePaths = {"hospital", "role"})
     Page<User> findByRoleNameAndDeletedAtIsNull(
             RoleName roleName,
@@ -49,4 +56,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
     	    WHERE u.email = :email
     	""")
     	Optional<User> findByEmailWithRole(@Param("email") String email);
+    
+    @Query("""
+            SELECT COUNT(u) > 0
+            FROM User u
+            WHERE u.email = :email
+              AND u.status <> com.medcore.features.user.enums.UserStatus.INVITATION_EXPIRED
+            """)
+    boolean existsActiveEmail(@Param("email") String email);
+    
+    @Query("""
+            SELECT COUNT(u) > 0
+            FROM User u
+            WHERE u.phone = :phone
+              AND u.status <> com.medcore.features.user.enums.UserStatus.INVITATION_EXPIRED
+            """)
+    boolean existsActivePhone(@Param("phone") String phone);
 }

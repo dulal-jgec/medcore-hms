@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.medcore.features.notification.entity.EmailOutbox;
 import com.medcore.features.notification.enums.EmailOutboxStatus;
 import com.medcore.features.notification.repository.EmailOutboxRepository;
+import com.medcore.features.user.enums.UserStatus;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,49 +36,66 @@ public class EmailOutboxStateService {
         return emails;
     }
 
-    @Transactional
-    public void markAsSent(Long emailId) {
+   @Transactional
+public void markAsSent(Long emailId) {
 
-        EmailOutbox email =
-                emailOutboxRepository.findById(emailId)
-                        .orElseThrow();
+    EmailOutbox email =
+            emailOutboxRepository.findById(emailId)
+                    .orElseThrow();
 
-        email.setStatus(EmailOutboxStatus.SENT);
-        email.setSentAt(LocalDateTime.now());
-        email.setProcessingStartedAt(null);
-        email.setNextAttemptAt(null);
+    email.setStatus(EmailOutboxStatus.SENT);
+    email.setSentAt(LocalDateTime.now());
+    email.setProcessingStartedAt(null);
+    email.setNextAttemptAt(null);
 
-        emailOutboxRepository.save(email);
+    if (email.getUser() != null
+            && email.getUser().getStatus() == UserStatus.PENDING_VERIFICATION) {
+
+        email.getUser().setStatus(UserStatus.ACTIVE);
     }
 
-    @Transactional
-    public void markAsFailed(Long emailId, Exception ex) {
+    emailOutboxRepository.save(email);
+}
 
-        EmailOutbox email =
-                emailOutboxRepository.findById(emailId)
-                        .orElseThrow();
+   @Transactional
+public void markAsFailed(Long emailId, Exception ex) {
 
-        int retryCount = email.getRetryCount() + 1;
+    EmailOutbox email =
+            emailOutboxRepository.findById(emailId)
+                    .orElseThrow();
 
-        email.setRetryCount(retryCount);
-        email.setLastError(ex.getMessage());
-        email.setProcessingStartedAt(null);
+    int retryCount = email.getRetryCount() + 1;
 
-        if (retryCount >= 5) {
+    email.setRetryCount(retryCount);
+    email.setLastError(ex.getMessage());
+    email.setProcessingStartedAt(null);
 
-            email.setStatus(EmailOutboxStatus.FAILED);
-            email.setNextAttemptAt(null);
+    if (retryCount >= 5) {
 
-        } else {
+        email.setStatus(EmailOutboxStatus.EXHAUSTED);
+        email.setNextAttemptAt(null);
 
-            email.setStatus(EmailOutboxStatus.PENDING);
-            email.setNextAttemptAt(
-                    LocalDateTime.now().plusMinutes(5)
+        if (email.getInvitationAttempt() >= 3
+                && email.getUser() != null
+                && email.getUser().getStatus()
+                == UserStatus.PENDING_VERIFICATION) {
+
+            email.getUser().setStatus(
+                    UserStatus.INVITATION_EXPIRED
             );
         }
 
-        emailOutboxRepository.save(email);
+    } else {
+
+        email.setStatus(EmailOutboxStatus.PENDING);
+
+        email.setNextAttemptAt(
+                LocalDateTime.now().plusMinutes(5)
+        );
     }
+
+    emailOutboxRepository.save(email);
+}
 
     @Transactional
     public int recoverStaleEmails() {

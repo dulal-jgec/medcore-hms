@@ -129,49 +129,70 @@ public ApiResponse<String> register(RegisterRequest request) {
 }
     
     @Override
-    public ApiResponse<AuthResponse> login(LoginRequest request) {
-    	
-    	String email = request.getEmail().trim().toLowerCase();
+@Transactional
+public ApiResponse<AuthResponse> login(LoginRequest request) {
 
-    	authenticationManager.authenticate(
-    	        new UsernamePasswordAuthenticationToken(
-    	                email,
-    	                request.getPassword()
-    	        )
-    	);
-    	
-    	log.info(
-    			"User authentication successful: email={}",
-    			email
-    			);
+    String email = request.getEmail().trim().toLowerCase();
 
-    	User user = userRepository.findByEmail(email)
-    	        .orElseThrow(() ->
-    	                new ResourceNotFoundException("User not found"));
+    User user =
+            userRepository.findByEmail(email)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "User not found"
+                            )
+                    );
 
-    	String accessToken = jwtService.generateAccessToken(user.getEmail());
-    		
-    		RefreshTokenResult refreshTokenResult =
-    		        refreshTokenService.createRefreshToken(user);
-    		
-    		log.info(
-    		        "Login successful: userId={}",
-    		        user.getId()
-    		);
-    		
-    		AuthResponse authResponse = AuthResponse.builder()
-    		        .accessToken(accessToken)
-    		        .refreshToken(refreshTokenResult.getRawToken())
-    		        .tokenType("Bearer")
-    		        .expiresIn(jwtProperties.getAccessTokenExpiration())
-    		        .build();
+    if (user.getStatus() == UserStatus.INVITATION_EXPIRED) {
 
-    		return ApiResponse.<AuthResponse>builder()
-    		        .success(true)
-    		        .message("Login successful")
-    		        .data(authResponse)
-    		        .build();
+        throw new BusinessException(
+                "This invitation has expired. " +
+                "Please contact your hospital administrator."
+        );
     }
+
+    authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(
+                    email,
+                    request.getPassword()
+            )
+    );
+
+    log.info(
+            "User authentication successful: email={}",
+            email
+    );
+
+    String accessToken =
+            jwtService.generateAccessToken(
+                    user.getEmail()
+            );
+
+    RefreshTokenResult refreshTokenResult =
+            refreshTokenService.createRefreshToken(user);
+
+    log.info(
+            "Login successful: userId={}",
+            user.getId()
+    );
+
+    AuthResponse authResponse =
+            AuthResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(
+                            refreshTokenResult.getRawToken()
+                    )
+                    .tokenType("Bearer")
+                    .expiresIn(
+                            jwtProperties.getAccessTokenExpiration()
+                    )
+                    .build();
+
+    return ApiResponse.<AuthResponse>builder()
+            .success(true)
+            .message("Login successful")
+            .data(authResponse)
+            .build();
+}
     
     @Override
 @Transactional(readOnly = true)

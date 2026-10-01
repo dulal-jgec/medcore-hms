@@ -10,6 +10,8 @@ import com.medcore.features.hospital.dto.response.CreateHospitalResponse;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.hospital.service.HospitalService;
+import com.medcore.features.notification.enums.EmailType;
+import com.medcore.features.notification.repository.EmailOutboxRepository;
 import com.medcore.features.notification.service.EmailOutboxService;
 import com.medcore.features.notification.service.EmailService;
 import com.medcore.features.superadmin.dto.response.SuperAdminDashboardResponse;
@@ -25,6 +27,9 @@ import com.medcore.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.superadmin.dto.request.CreateHospitalAdminRequest;
@@ -51,7 +56,8 @@ public class SuperAdminServiceImpl implements SuperAdminService {
      private final PasswordEncoder passwordEncoder;
      private final EmailService emailService;
      private final EmailOutboxService emailOutboxService;
-    
+     private final EmailOutboxRepository emailOutboxRepository;
+     
     @Override
     public ApiResponse<SuperAdminResponse> getCurrentSuperAdmin() {
 
@@ -271,13 +277,25 @@ public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
     String email = request.getEmail().trim().toLowerCase();
     String phone = request.getPhone().trim();
 
-    if (userRepository.existsByEmail(email)) {
+    Optional<User> pendingUser =
+            userRepository.findByEmailAndStatus(
+                    email,
+                    UserStatus.PENDING_VERIFICATION
+            );
+
+    if (pendingUser.isPresent()) {
+        throw new BusinessException(
+                "A pending hospital admin invitation already exists for this email. Please resend the invitation."
+        );
+    }
+
+    if (userRepository.existsActiveEmail(email)) {
         throw new DuplicateResourceException(
                 "Email already exists"
         );
     }
 
-    if (userRepository.existsByPhone(phone)) {
+    if (userRepository.existsActivePhone(phone)) {
         throw new DuplicateResourceException(
                 "Phone number already exists"
         );
@@ -317,14 +335,13 @@ public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
             )
             .hospital(hospital)
             .role(hospitalAdminRole)
-            .status(UserStatus.ACTIVE)
+            .status(UserStatus.PENDING_VERIFICATION)
             .emailVerified(false)
             .phoneVerified(false)
             .build();
 
     User savedAdmin = userRepository.save(hospitalAdmin);
 
-    // Create email outbox record inside the same DB transaction
     String emailBody = """
             Welcome to MedCore
 
@@ -351,9 +368,12 @@ public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
     );
 
     emailOutboxService.createEmail(
+            savedAdmin,
+            EmailType.HOSPITAL_ADMIN_CREDENTIALS,
             savedAdmin.getEmail(),
             "Your MedCore Hospital Admin Account",
-            emailBody
+            emailBody,
+            1
     );
 
     CreateHospitalAdminResponse response =
@@ -371,6 +391,108 @@ public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
             .success(true)
             .message("Hospital Admin created successfully")
             .data(response)
+            .build();
+}
+			
+
+@Transactional
+@Override
+public ApiResponse<String> resendHospitalAdminInvitation(Long userId) {
+
+    validateSuperAdmin();
+
+    User hospitalAdmin =
+            userRepository.findById(userId)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Hospital Admin not found"
+                            )
+                    );
+
+    if (hospitalAdmin.getRole() == null
+            || hospitalAdmin.getRole().getName()
+            != RoleName.HOSPITAL_ADMIN) {
+
+        throw new BusinessException(
+                "User is not a Hospital Admin"
+        );
+    }
+
+    if (hospitalAdmin.getStatus()
+            != UserStatus.PENDING_VERIFICATION) {
+
+        throw new BusinessException(
+                "Hospital Admin invitation is not pending"
+        );
+    }
+
+    EmailType emailType =
+            EmailType.HOSPITAL_ADMIN_CREDENTIALS;
+
+    long exhaustedAttempts =
+            emailOutboxRepository.countExhaustedAttempts(
+                    hospitalAdmin.getId(),
+                    emailType
+            );
+
+    if (exhaustedAttempts >= 3) {
+
+        throw new BusinessException(
+                "Maximum invitation attempts reached. " +
+                "Please cancel this invitation and create a new one."
+        );
+    }
+
+    int invitationAttempt =
+            (int) exhaustedAttempts + 1;
+
+    String temporaryPassword =
+            generateTemporaryPassword();
+
+    hospitalAdmin.setPassword(
+            passwordEncoder.encode(temporaryPassword)
+    );
+
+    userRepository.save(hospitalAdmin);
+
+    String emailBody = """
+            Welcome to MedCore
+
+            Hello %s,
+
+            You have been appointed as a Hospital Administrator
+            for %s.
+
+            Your login credentials are:
+
+            Email: %s
+            Temporary Password: %s
+
+            Please log in to MedCore and change your password
+            after your first login.
+
+            Regards,
+            MedCore Team
+            """.formatted(
+            hospitalAdmin.getFullName(),
+            hospitalAdmin.getHospital().getName(),
+            hospitalAdmin.getEmail(),
+            temporaryPassword
+    );
+
+    emailOutboxService.createEmail(
+            hospitalAdmin,
+            emailType,
+            hospitalAdmin.getEmail(),
+            "Your MedCore Hospital Admin Account",
+            emailBody,
+            invitationAttempt
+    );
+
+    return ApiResponse.<String>builder()
+            .success(true)
+            .message("Hospital Admin invitation resent successfully")
+            .data("Invitation email queued")
             .build();
 }
     

@@ -5,6 +5,6 @@ public enum UserStatus {
     ACTIVE,
     INACTIVE,
     BLOCKED,
-    PENDING_VERIFICATION
-
+    PENDING_VERIFICATION,
+    INVITATION_EXPIRED
 }

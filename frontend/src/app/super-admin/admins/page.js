@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+
 import {
   Users,
   Search,
@@ -17,7 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
-import { getAllHospitalAdmins } from "@/services/super-admin.service";
+
+import {
+  getAllHospitalAdmins,
+} from "@/services/super-admin.service";
 
 const PAGE_SIZE = 12;
 
@@ -42,19 +46,34 @@ export default function SuperAdminAdminsPage() {
         setLoading(true);
         setError("");
 
-        const result = await getAllHospitalAdmins(page, PAGE_SIZE);
+        const result = await getAllHospitalAdmins(
+          page,
+          PAGE_SIZE
+        );
 
         if (cancelled) return;
 
-        setAdmins(result.data?.content || []);
+        const allAdmins = result.data?.content || [];
+
+        const activeAdmins = allAdmins.filter(
+          (admin) => admin.status === "ACTIVE"
+        );
+
+        setAdmins(activeAdmins);
         setTotalPages(result.data?.totalPages || 0);
-        setTotalElements(result.data?.totalElements || 0);
+        setTotalElements(
+          result.data?.totalElements || 0
+        );
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || "Failed to load admins.");
+          setError(
+            err.message || "Failed to load admins."
+          );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -67,13 +86,22 @@ export default function SuperAdminAdminsPage() {
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return admins;
+
+    if (!q) {
+      return admins;
+    }
 
     return admins.filter(
       (admin) =>
-        admin.fullName?.toLowerCase().includes(q) ||
-        admin.email?.toLowerCase().includes(q) ||
-        admin.hospitalName?.toLowerCase().includes(q)
+        admin.fullName
+          ?.toLowerCase()
+          .includes(q) ||
+        admin.email
+          ?.toLowerCase()
+          .includes(q) ||
+        admin.hospitalName
+          ?.toLowerCase()
+          .includes(q)
     );
   }, [admins, query]);
 
@@ -86,13 +114,16 @@ export default function SuperAdminAdminsPage() {
           <p className="text-xs font-semibold uppercase tracking-wider text-brand">
             Platform
           </p>
+
           <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
             Hospital admins
           </h1>
+
           <p className="mt-1 text-sm text-muted-foreground">
             {totalElements} administrators assigned across hospitals
           </p>
         </div>
+
         <Button asChild>
           <Link href="/super-admin/admins/create">
             <Plus className="mr-1.5 h-4 w-4" />
@@ -104,6 +135,7 @@ export default function SuperAdminAdminsPage() {
       <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -111,6 +143,7 @@ export default function SuperAdminAdminsPage() {
             className="h-11 pl-10"
           />
         </div>
+
         {hasFilters && (
           <Button
             variant="ghost"
@@ -136,7 +169,10 @@ export default function SuperAdminAdminsPage() {
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((admin) => (
-                <AdminCard key={admin.userId} admin={admin} />
+                <AdminCard
+                  key={admin.userId}
+                  admin={admin}
+                />
               ))}
             </div>
 
@@ -144,9 +180,13 @@ export default function SuperAdminAdminsPage() {
               <Pagination
                 page={page}
                 totalPages={totalPages}
-                onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+                onPrevious={() =>
+                  setPage((p) => Math.max(0, p - 1))
+                }
                 onNext={() =>
-                  setPage((p) => Math.min(totalPages - 1, p + 1))
+                  setPage((p) =>
+                    Math.min(totalPages - 1, p + 1)
+                  )
                 }
               />
             )}
@@ -171,21 +211,32 @@ function AdminCard({ admin }) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-semibold tracking-tight">
-            {admin.fullName}
-          </h3>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="truncate text-base font-semibold tracking-tight">
+              {admin.fullName}
+            </h3>
+
+            <span className="shrink-0 rounded-full bg-green-500/10 px-2 py-1 text-[10px] font-semibold text-green-600">
+              Active
+            </span>
+          </div>
 
           <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
             {admin.email && (
               <div className="flex items-center gap-1.5">
                 <Mail className="h-3 w-3 shrink-0" />
-                <span className="truncate">{admin.email}</span>
+                <span className="truncate">
+                  {admin.email}
+                </span>
               </div>
             )}
+
             {admin.phone && (
               <div className="flex items-center gap-1.5">
                 <Phone className="h-3 w-3 shrink-0" />
-                <span className="truncate">{admin.phone}</span>
+                <span className="truncate">
+                  {admin.phone}
+                </span>
               </div>
             )}
           </div>
@@ -197,10 +248,12 @@ function AdminCard({ admin }) {
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-soft text-[10px] font-bold text-brand-soft-foreground">
             {admin.hospitalName.charAt(0)}
           </div>
+
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Hospital
             </p>
+
             <p className="truncate text-xs font-medium">
               {admin.hospitalName}
             </p>
@@ -211,12 +264,18 @@ function AdminCard({ admin }) {
   );
 }
 
-function Pagination({ page, totalPages, onPrevious, onNext }) {
+function Pagination({
+  page,
+  totalPages,
+  onPrevious,
+  onNext,
+}) {
   return (
     <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
       <p className="text-xs text-muted-foreground">
         Page {page + 1} of {totalPages}
       </p>
+
       <div className="flex gap-2">
         <Button
           variant="outline"
@@ -227,6 +286,7 @@ function Pagination({ page, totalPages, onPrevious, onNext }) {
           <ChevronLeft className="mr-1 h-3.5 w-3.5" />
           Previous
         </Button>
+
         <Button
           variant="outline"
           size="sm"
@@ -241,30 +301,35 @@ function Pagination({ page, totalPages, onPrevious, onNext }) {
   );
 }
 
-function EmptyState({ hasFilters, onClear }) {
+function EmptyState({
+  hasFilters,
+  onClear,
+}) {
   return (
     <div className="rounded-2xl border border-dashed border-border py-16 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
         <Users className="h-6 w-6 text-muted-foreground" />
       </div>
+
       <p className="mt-5 text-base font-semibold">
-        {hasFilters ? "No admins found" : "No admins yet"}
+        {hasFilters
+          ? "No admins found"
+          : "No active admins yet"}
       </p>
+
       <p className="mt-1.5 text-sm text-muted-foreground">
         {hasFilters
           ? "Try adjusting your search."
-          : "Assign the first admin to a hospital."}
+          : "There are currently no active hospital administrators."}
       </p>
-      {hasFilters ? (
-        <Button variant="outline" onClick={onClear} className="mt-5">
+
+      {hasFilters && (
+        <Button
+          variant="outline"
+          onClick={onClear}
+          className="mt-5"
+        >
           Clear search
-        </Button>
-      ) : (
-        <Button asChild className="mt-5">
-          <Link href="/super-admin/admins/create">
-            <Plus className="mr-1.5 h-4 w-4" />
-            Create admin
-          </Link>
         </Button>
       )}
     </div>
@@ -275,7 +340,10 @@ function GridSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="h-44 animate-pulse rounded-2xl bg-muted" />
+        <div
+          key={i}
+          className="h-44 animate-pulse rounded-2xl bg-muted"
+        />
       ))}
     </div>
   );

@@ -27,9 +27,11 @@ export async function getAllHospitals(
     sortBy,
     sortDir,
   });
+
   const response = await apiFetch(
     `/super-admin/hospitals?${params.toString()}`
   );
+
   return handleResponse(response);
 }
 
@@ -39,6 +41,7 @@ export async function createHospital(data) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
   return handleResponse(response);
 }
 
@@ -47,7 +50,11 @@ export async function getAllHospitalAdmins(page = 0, size = 10) {
     page: String(page),
     size: String(size),
   });
-  const response = await apiFetch(`/super-admin/admins?${params.toString()}`);
+
+  const response = await apiFetch(
+    `/super-admin/admins?${params.toString()}`
+  );
+
   return handleResponse(response);
 }
 
@@ -57,5 +64,17 @@ export async function createHospitalAdmin(data) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
+  return handleResponse(response);
+}
+
+export async function resendHospitalAdminInvitation(userId) {
+  const response = await apiFetch(
+    `/super-admin/admins/${userId}/resend-invitation`,
+    {
+      method: "POST",
+    }
+  );
+
   return handleResponse(response);
 }

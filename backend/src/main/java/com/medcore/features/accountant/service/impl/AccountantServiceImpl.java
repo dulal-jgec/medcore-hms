@@ -1,13 +1,15 @@
 package com.medcore.features.accountant.service.impl;
 
 import com.medcore.common.exception.BusinessException;
-
+import com.medcore.common.exception.DuplicateResourceException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
 import com.medcore.common.security.SecurityUtil;
 import com.medcore.common.security.TenantContextService;
 import com.medcore.common.storage.FileStorageService;
+import com.medcore.common.util.PasswordGenerator;
+
 import com.medcore.features.accountant.dto.request.CreateAccountantRequest;
 import com.medcore.features.accountant.dto.request.UpdateAccountantRequest;
 import com.medcore.features.accountant.dto.request.UpdateMyAccountantProfileRequest;
@@ -31,13 +33,21 @@ import com.medcore.features.billing.enums.PaymentMethod;
 import com.medcore.features.billing.repository.BillRepository;
 import com.medcore.features.billing.service.BillingService;
 
+import com.medcore.features.notification.enums.EmailType;
+import com.medcore.features.notification.service.EmailOutboxService;
+
+import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
 import com.medcore.features.user.enums.UserStatus;
+import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -45,21 +55,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import com.medcore.common.util.PasswordGenerator;
-import com.medcore.features.notification.service.EmailService;
-import com.medcore.features.user.entity.Role;
-import com.medcore.features.user.repository.RoleRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 @RequiredArgsConstructor
 public class AccountantServiceImpl
         implements AccountantService {
-	
-	private static final Logger log= 
-			LoggerFactory.getLogger(AccountantServiceImpl.class);
+
+    private static final Logger log =
+            LoggerFactory.getLogger(AccountantServiceImpl.class);
 
     private final AccountantRepository accountantRepository;
     private final UserRepository userRepository;
@@ -68,10 +71,10 @@ public class AccountantServiceImpl
     private final BillRepository billRepository;
     private final TenantContextService tenantContextService;
     private final RoleRepository roleRepository;
-    private final EmailService emailService;
+    private final EmailOutboxService emailOutboxService;
     private final FileStorageService fileStorageService;
     private final PasswordEncoder passwordEncoder;
-    
+
     private Long getCurrentHospitalId() {
 
         Long hospitalId =
@@ -82,94 +85,128 @@ public class AccountantServiceImpl
                     "User is not associated with a hospital"
             );
         }
-        
-        
 
         return hospitalId;
     }
 
-
     @Override
-public ApiResponse<AccountantResponse> createAccountant(
-        CreateAccountantRequest request) {
+    public ApiResponse<AccountantResponse> createAccountant(
+            CreateAccountantRequest request) {
 
-    Long hospitalId = getCurrentHospitalId();
+        Long hospitalId = getCurrentHospitalId();
 
-    if (userRepository.existsByEmail(request.getEmail())) {
-        throw new BusinessException(
-                "A user already exists with this email"
-        );
-    }
+        String email = request.getEmail().trim().toLowerCase();
+        String phone = request.getPhone().trim();
 
-    if (userRepository.existsByPhone(request.getPhone())) {
-        throw new BusinessException(
-                "A user already exists with this phone number"
-        );
-    }
-
-    Role accountantRole =
-            roleRepository.findByName(RoleName.ACCOUNTANT)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "ACCOUNTANT role not found"
-                            ));
-
-    String temporaryPassword =
-            PasswordGenerator.generate();
-
-    User user = User.builder()
-            .fullName(request.getFullName().trim())
-            .email(request.getEmail().trim().toLowerCase())
-            .phone(request.getPhone().trim())
-            .password(passwordEncoder.encode(temporaryPassword))
-            .role(accountantRole)
-            .hospital(
-                    tenantContextService.getCurrentHospital()
-            )
-            .emailVerified(false)
-            .phoneVerified(false)
-            .status(UserStatus.ACTIVE)
-            .build();
-
-    user = userRepository.save(user);
-
-    Accountant accountant =
-            accountantMapper.toEntity(
-                    request,
-                    user
+        if (userRepository.existsActiveEmail(email)) {
+            throw new DuplicateResourceException(
+                    "Email already exists"
             );
+        }
 
-    accountant.setStatus(
-            AccountantStatus.ACTIVE
-    );
+        if (userRepository.existsActivePhone(phone)) {
+            throw new DuplicateResourceException(
+                    "Phone number already exists"
+            );
+        }
 
-    Accountant savedAccountant =
-            accountantRepository.save(accountant);
+        Role accountantRole =
+                roleRepository.findByName(RoleName.ACCOUNTANT)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "ACCOUNTANT role not found"
+                                )
+                        );
 
-    emailService.sendAccountantCredentials(
-            user.getEmail(),
-            user.getFullName(),
-            temporaryPassword,
-            accountant.getHospital().getName()
-    );
+        String temporaryPassword =
+                PasswordGenerator.generate();
 
-    log.info(
-            "Accountant created: accountantId={}, userId={}, hospitalId={}",
-            savedAccountant.getId(),
-            user.getId(),
-            hospitalId
-    );
+        User user = User.builder()
+                .fullName(request.getFullName().trim())
+                .email(email)
+                .phone(phone)
+                .password(
+                        passwordEncoder.encode(
+                                temporaryPassword
+                        )
+                )
+                .role(accountantRole)
+                .hospital(
+                        tenantContextService.getCurrentHospital()
+                )
+                .emailVerified(false)
+                .phoneVerified(false)
+                .status(UserStatus.PENDING_VERIFICATION)
+                .build();
 
-    return ApiResponse.<AccountantResponse>builder()
-            .success(true)
-            .message("Accountant created successfully")
-            .data(
-                    accountantMapper.toResponse(
-                            savedAccountant
-                    )
-            )
-            .build();
-}
+        user = userRepository.save(user);
+
+        Accountant accountant =
+                accountantMapper.toEntity(
+                        request,
+                        user
+                );
+
+        accountant.setStatus(
+                AccountantStatus.ACTIVE
+        );
+
+        Accountant savedAccountant =
+                accountantRepository.save(
+                        accountant
+                );
+
+        String emailBody = """
+                Welcome to MedCore
+
+                Hello %s,
+
+                You have been appointed as an Accountant
+                for %s.
+
+                Your login credentials are:
+
+                Email: %s
+                Temporary Password: %s
+
+                Please log in to MedCore and change your password
+                after your first login.
+
+                Regards,
+                MedCore Team
+                """.formatted(
+                user.getFullName(),
+                user.getHospital().getName(),
+                user.getEmail(),
+                temporaryPassword
+        );
+
+        emailOutboxService.createEmail(
+                user,
+                EmailType.ACCOUNTANT_CREDENTIALS,
+                user.getEmail(),
+                "Your MedCore Accountant Account",
+                emailBody,
+                1
+        );
+
+        log.info(
+                "Accountant created: accountantId={}, userId={}, hospitalId={}",
+                savedAccountant.getId(),
+                user.getId(),
+                hospitalId
+        );
+
+        return ApiResponse.<AccountantResponse>builder()
+                .success(true)
+                .message("Accountant created successfully")
+                .data(
+                        accountantMapper.toResponse(
+                                savedAccountant
+                        )
+                )
+                .build();
+    }
 
     @Override
     public ApiResponse<AccountantResponse>
@@ -264,7 +301,7 @@ public ApiResponse<AccountantResponse> createAccountant(
         accountantRepository.save(
                 accountant
         );
-        
+
         log.info(
                 "Accountant deleted: accountantId={}, hospitalId={}",
                 accountantId,
@@ -296,7 +333,7 @@ public ApiResponse<AccountantResponse> createAccountant(
                 accountantRepository.save(
                         accountant
                 );
-        
+
         log.info(
                 "Accountant activated: accountantId={}, hospitalId={}",
                 accountantId,
@@ -332,7 +369,7 @@ public ApiResponse<AccountantResponse> createAccountant(
                 accountantRepository.save(
                         accountant
                 );
-        
+
         log.info(
                 "Accountant deactivated: accountantId={}, hospitalId={}",
                 accountantId,
@@ -504,7 +541,7 @@ public ApiResponse<AccountantResponse> createAccountant(
                 totalBilledAmount.subtract(
                         totalPaidAmount
                 );
-        
+
         log.info(
                 "Financial report requested: hospitalId={}, fromDate={}, toDate={}",
                 hospitalId,
@@ -552,8 +589,6 @@ public ApiResponse<AccountantResponse> createAccountant(
                         hospitalId,
                         BillingStatus.CANCELLED
                 );
-        
-        
 
         List<PaymentMethodCollectionResponse>
                 response =
@@ -709,9 +744,7 @@ public ApiResponse<AccountantResponse> createAccountant(
 
         return response;
     }
-    
-    
-    
+
     private Accountant getAccountant(
             Long accountantId) {
 
@@ -767,15 +800,18 @@ public ApiResponse<AccountantResponse> createAccountant(
 
         return accountant;
     }
-    
+
     @Override
     public ApiResponse<AccountantProfileResponse> getMyProfile() {
 
-        Accountant accountant = getActiveAccountant();
+        Accountant accountant =
+                getActiveAccountant();
 
         return ApiResponse.<AccountantProfileResponse>builder()
                 .success(true)
-                .message("Accountant profile fetched successfully")
+                .message(
+                        "Accountant profile fetched successfully"
+                )
                 .data(
                         accountantMapper.toProfileResponse(
                                 accountant
@@ -783,12 +819,13 @@ public ApiResponse<AccountantResponse> createAccountant(
                 )
                 .build();
     }
-    
+
     @Override
     public ApiResponse<AccountantProfileResponse> updateMyProfile(
             UpdateMyAccountantProfileRequest request) {
 
-        Accountant accountant = getActiveAccountant();
+        Accountant accountant =
+                getActiveAccountant();
 
         accountantMapper.updateMyProfile(
                 accountant,
@@ -796,11 +833,15 @@ public ApiResponse<AccountantResponse> createAccountant(
         );
 
         Accountant updatedAccountant =
-                accountantRepository.save(accountant);
+                accountantRepository.save(
+                        accountant
+                );
 
         return ApiResponse.<AccountantProfileResponse>builder()
                 .success(true)
-                .message("Accountant profile updated successfully")
+                .message(
+                        "Accountant profile updated successfully"
+                )
                 .data(
                         accountantMapper.toProfileResponse(
                                 updatedAccountant
@@ -808,12 +849,14 @@ public ApiResponse<AccountantResponse> createAccountant(
                 )
                 .build();
     }
-    
+
     @Override
-    public ApiResponse<AccountantProfileResponse> uploadMyProfileImage(
+    public ApiResponse<AccountantProfileResponse>
+    uploadMyProfileImage(
             MultipartFile file) {
 
-        Accountant accountant = getActiveAccountant();
+        Accountant accountant =
+                getActiveAccountant();
 
         String imageUrl =
                 fileStorageService.upload(
@@ -821,14 +864,20 @@ public ApiResponse<AccountantResponse> createAccountant(
                         "accountants/profile-images"
                 );
 
-        accountant.setProfileImageUrl(imageUrl);
+        accountant.setProfileImageUrl(
+                imageUrl
+        );
 
         Accountant updatedAccountant =
-                accountantRepository.save(accountant);
+                accountantRepository.save(
+                        accountant
+                );
 
         return ApiResponse.<AccountantProfileResponse>builder()
                 .success(true)
-                .message("Profile image uploaded successfully")
+                .message(
+                        "Profile image uploaded successfully"
+                )
                 .data(
                         accountantMapper.toProfileResponse(
                                 updatedAccountant
@@ -836,7 +885,7 @@ public ApiResponse<AccountantResponse> createAccountant(
                 )
                 .build();
     }
-    
+
     private User getCurrentUser() {
 
         String email =

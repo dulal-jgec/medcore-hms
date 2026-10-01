@@ -1,6 +1,7 @@
 package com.medcore.features.receptionist.service.impl;
 
 import com.medcore.common.exception.BusinessException;
+import com.medcore.common.exception.DuplicateResourceException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
 import com.medcore.common.response.PageResponse;
@@ -16,7 +17,7 @@ import com.medcore.features.appointment.service.AppointmentService;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
-
+import com.medcore.features.notification.enums.EmailType;
 import com.medcore.features.notification.service.EmailOutboxService;
 
 import com.medcore.features.patient.dto.request.CreatePatientRequest;
@@ -96,12 +97,16 @@ public class ReceptionistServiceImpl implements ReceptionistService {
         String email = request.getEmail().trim().toLowerCase();
         String phone = request.getPhone().trim();
 
-        if (userRepository.existsByEmail(email)) {
-            throw new BusinessException("Email already exists");
+        if (userRepository.existsActiveEmail(email)) {
+            throw new DuplicateResourceException(
+                    "Email already exists"
+            );
         }
 
-        if (userRepository.existsByPhone(phone)) {
-            throw new BusinessException("Phone number already exists");
+        if (userRepository.existsActivePhone(phone)) {
+            throw new DuplicateResourceException(
+                    "Phone number already exists"
+            );
         }
 
         Role receptionistRole = roleRepository
@@ -120,7 +125,7 @@ public class ReceptionistServiceImpl implements ReceptionistService {
                 .password(passwordEncoder.encode(temporaryPassword))
                 .hospital(hospital)
                 .role(receptionistRole)
-                .status(UserStatus.ACTIVE)
+                .status(UserStatus.PENDING_VERIFICATION)
                 .emailVerified(false)
                 .phoneVerified(false)
                 .build();
@@ -157,11 +162,13 @@ public class ReceptionistServiceImpl implements ReceptionistService {
         );
 
         emailOutboxService.createEmail(
+                savedUser,
+                EmailType.RECEPTIONIST_CREDENTIALS,
                 savedUser.getEmail(),
                 "Your MedCore Receptionist Account",
-                emailBody
+                emailBody,
+                1
         );
-
         return ApiResponse.<ReceptionistResponse>builder()
                 .success(true)
                 .message("Receptionist created successfully")

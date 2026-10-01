@@ -50,4 +50,11 @@ public class HospitalController {
 
         return hospitalAdminService.uploadBanner(file);
     }
+    
+    @PostMapping("/staff/{userId}/resend-invitation")
+    public ApiResponse<String> resendInvitation(
+            @PathVariable Long userId) {
+
+        return hospitalAdminService.resendInvitation(userId);
+    }
 }

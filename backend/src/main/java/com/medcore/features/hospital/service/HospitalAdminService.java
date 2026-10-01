@@ -20,4 +20,5 @@ public interface HospitalAdminService {
     ApiResponse<HospitalProfileResponse> uploadBanner(
             MultipartFile file
     );
+    ApiResponse<String> resendInvitation(Long userId);
 }

@@ -22,6 +22,7 @@ import com.medcore.features.nurse.enums.NurseStatus;
 import com.medcore.features.nurse.mapper.NurseMapper;
 import com.medcore.features.nurse.repository.NurseRepository;
 import com.medcore.features.nurse.service.NurseService;
+import com.medcore.features.notification.enums.EmailType;
 import com.medcore.features.notification.service.EmailOutboxService;
 import com.medcore.features.notification.service.EmailService;
 import com.medcore.features.user.entity.Role;
@@ -85,13 +86,13 @@ public ApiResponse<NurseResponse> createNurse(
             request.getPhone()
                     .trim();
 
-    if (userRepository.existsByEmail(email)) {
+    if (userRepository.existsActiveEmail(email)) {
         throw new DuplicateResourceException(
                 "Email already exists"
         );
     }
 
-    if (userRepository.existsByPhone(phone)) {
+    if (userRepository.existsActivePhone(phone)) {
         throw new DuplicateResourceException(
                 "Phone number already exists"
         );
@@ -122,7 +123,7 @@ public ApiResponse<NurseResponse> createNurse(
                     )
                     .hospital(hospital)
                     .role(nurseRole)
-                    .status(UserStatus.ACTIVE)
+                    .status(UserStatus.PENDING_VERIFICATION)
                     .emailVerified(false)
                     .phoneVerified(false)
                     .build();
@@ -166,9 +167,12 @@ public ApiResponse<NurseResponse> createNurse(
     );
 
     emailOutboxService.createEmail(
+            savedUser,
+            EmailType.NURSE_CREDENTIALS,
             savedUser.getEmail(),
             "Your MedCore Nurse Account",
-            emailBody
+            emailBody,
+            1
     );
 
     return ApiResponse

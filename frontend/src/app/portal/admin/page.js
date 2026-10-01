@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
 import {
   Users,
   Stethoscope,
   HeartPulse,
   ClipboardList,
-  CalendarCheck,
-  Wallet,
   Building2,
   TrendingUp,
   ArrowUpRight,
@@ -24,22 +23,45 @@ import {
   Mail,
   ArrowRight,
   Info,
+  Clock3,
+  RefreshCw,
+  CheckCircle2,
+  AlertTriangle,
+  Wallet,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
-import { getHospitalProfile } from "@/services/hospital-admin.service";
+
+import {
+  getHospitalProfile,
+  resendStaffInvitation,
+} from "@/services/hospital-admin.service";
+
 import { getDoctors } from "@/services/doctor.service";
 import { getNurses } from "@/services/nurse.service";
 import { getReceptionists } from "@/services/receptionist.service";
 
-// Temporary mock data — replace when the corresponding backend endpoints exist
-import {
-  HOSPITAL_STATS,
-  RECENT_ACTIVITY,
-  REVENUE_LAST_7_DAYS,
-} from "@/lib/admin-mock-data";
+const REVENUE_LAST_7_DAYS = [
+  { day: "Mon", value: 42000 },
+  { day: "Tue", value: 58000 },
+  { day: "Wed", value: 39000 },
+  { day: "Thu", value: 61000 },
+  { day: "Fri", value: 74000 },
+  { day: "Sat", value: 88000 },
+  { day: "Sun", value: 51000 },
+];
+
+const FALLBACK_STATS = {
+  appointmentsToday: 0,
+  appointmentsCompleted: 0,
+  pendingBills: 0,
+  totalPatients: 0,
+  newPatientsThisMonth: 0,
+  totalNurses: 0,
+  totalReceptionists: 0,
+};
 
 export default function AdminDashboard() {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -57,48 +79,70 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!accessToken) return;
 
+    let cancelled = false;
+
     async function load() {
-      try {
-        setLoading(true);
-        setError("");
+      setLoading(true);
+      setError("");
 
-        const [profileRes, doctorsRes, nursesRes, receptionistsRes] =
-          await Promise.all([
-            getHospitalProfile(accessToken),
-            getDoctors(accessToken, {
-              page: 0,
-              size: 50,
-              sortBy: "id",
-              sortDir: "asc",
-            }),
-            getNurses(accessToken, {
-              page: 0,
-              size: 50,
-              sortBy: "id",
-              sortDir: "asc",
-            }),
-            getReceptionists({
-              page: 0,
-              size: 50,
-              sortBy: "createdAt",
-              sortDir: "desc",
-            }),
-          ]);
+      const [profileRes, doctorsRes, nursesRes, receptionistsRes] =
+        await Promise.allSettled([
+          getHospitalProfile(),
+          getDoctors({ page: 0, size: 50, sortBy: "id", sortDir: "asc" }),
+          getNurses({ page: 0, size: 50, sortBy: "id", sortDir: "asc" }),
+          getReceptionists({
+            page: 0,
+            size: 50,
+            sortBy: "createdAt",
+            sortDir: "desc",
+          }),
+        ]);
 
-        setHospital(profileRes.data);
-        setStaff({
-          doctors: doctorsRes.data?.items || [],
-          nurses: nursesRes.data?.items || nursesRes.data || [],
-          receptionists: receptionistsRes.data?.items || [],
-        });
-      } catch (err) {
-        setError(err.message || "Failed to load dashboard");
-      } finally {
+      if (cancelled) return;
+
+      if (profileRes.status === "fulfilled") {
+        setHospital(profileRes.value?.data ?? null);
+      } else {
+        console.error("hospital profile failed:", profileRes.reason);
+        setError(
+          profileRes.reason?.message || "Failed to load hospital profile"
+        );
         setLoading(false);
+        return;
       }
+
+      setStaff({
+        doctors:
+          doctorsRes.status === "fulfilled"
+            ? doctorsRes.value?.data?.items ||
+              doctorsRes.value?.data?.content ||
+              doctorsRes.value?.data ||
+              []
+            : [],
+        nurses:
+          nursesRes.status === "fulfilled"
+            ? nursesRes.value?.data?.items ||
+              nursesRes.value?.data?.content ||
+              nursesRes.value?.data ||
+              []
+            : [],
+        receptionists:
+          receptionistsRes.status === "fulfilled"
+            ? receptionistsRes.value?.data?.items ||
+              receptionistsRes.value?.data?.content ||
+              receptionistsRes.value?.data ||
+              []
+            : [],
+      });
+
+      setLoading(false);
     }
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [accessToken]);
 
   if (loading) return <DashboardSkeleton />;
@@ -133,16 +177,31 @@ export default function AdminDashboard() {
   const nurseStats = countByStatus(staff.nurses);
   const receptionistStats = countByStatus(staff.receptionists);
 
-  const s = HOSPITAL_STATS;
-  const maxRevenue = Math.max(...REVENUE_LAST_7_DAYS.map((item) => item.value));
-  const totalRevenue = REVENUE_LAST_7_DAYS.reduce(
-    (sum, item) => sum + item.value,
-    0
-  );
+  const invitationStaff = [
+    ...staff.doctors.map((u) => ({ ...u, staffRole: "Doctor" })),
+    ...staff.nurses.map((u) => ({ ...u, staffRole: "Nurse" })),
+    ...staff.receptionists.map((u) => ({
+      ...u,
+      staffRole: "Receptionist",
+    })),
+  ];
+
+  const s = {
+    ...FALLBACK_STATS,
+    totalNurses: nurseStats.total,
+    totalReceptionists: receptionistStats.total,
+  };
+
+  const maxRevenue = Math.max(...REVENUE_LAST_7_DAYS.map((i) => i.value));
+  const totalRevenue = REVENUE_LAST_7_DAYS.reduce((sum, i) => sum + i.value, 0);
 
   const hour = new Date().getHours();
   const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    hour < 12
+      ? "Good morning"
+      : hour < 17
+      ? "Good afternoon"
+      : "Good evening";
 
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -159,6 +218,10 @@ export default function AdminDashboard() {
         today={today}
         stats={s}
       />
+
+      <div className="mt-6">
+        <InvitationCenter staff={invitationStaff} />
+      </div>
 
       {doctorStats.suspended > 0 && (
         <div className="mt-6">
@@ -193,7 +256,7 @@ export default function AdminDashboard() {
       />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <RecentActivity items={RECENT_ACTIVITY} />
+        <RecentActivity />
         <QuickActions />
       </div>
     </div>
@@ -206,14 +269,17 @@ function countByStatus(list) {
     active: list.filter((x) => x.status === "ACTIVE").length,
     inactive: list.filter((x) => x.status === "INACTIVE").length,
     suspended: list.filter((x) => x.status === "SUSPENDED").length,
+    pending: list.filter((x) => x.status === "PENDING_VERIFICATION").length,
+    expired: list.filter((x) => x.status === "INVITATION_EXPIRED").length,
   };
 }
 
-/* ══════════ HERO ══════════ */
-
 function Hero({ hospital, user, greeting, today, stats }) {
-  const pendingAppointments =
-    stats.appointmentsToday - stats.appointmentsCompleted;
+  const pendingAppointments = Math.max(
+    stats.appointmentsToday - stats.appointmentsCompleted,
+    0
+  );
+
   const firstName = user?.fullName?.split(" ")[0] || "Admin";
 
   return (
@@ -309,7 +375,211 @@ function Hero({ hospital, user, greeting, today, stats }) {
   );
 }
 
-/* ══════════ ALERTS ══════════ */
+function InvitationCenter({ staff }) {
+  const [resendingId, setResendingId] = useState(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const pending = staff.filter((u) => u.status === "PENDING_VERIFICATION");
+  const expired = staff.filter((u) => u.status === "INVITATION_EXPIRED");
+  const active = staff.filter((u) => u.status === "ACTIVE");
+
+  async function handleResend(user) {
+    try {
+      setResendingId(user.id || user.userId);
+      setMessage("");
+      setError("");
+
+      const userId = user.id || user.userId;
+      const result = await resendStaffInvitation(userId);
+
+      setMessage(result.message || "Invitation email queued successfully.");
+    } catch (err) {
+      setError(err.message || "Failed to resend invitation.");
+    } finally {
+      setResendingId(null);
+    }
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="border-b border-border bg-muted/20 px-5 py-5 sm:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-soft text-brand-soft-foreground">
+              <Mail className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">
+                Staff invitation center
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Monitor staff onboarding and email invitations
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <MiniStatus label="Active" value={active.length} type="active" />
+            <MiniStatus label="Pending" value={pending.length} type="pending" />
+            <MiniStatus label="Expired" value={expired.length} type="expired" />
+          </div>
+        </div>
+      </div>
+
+      {(message || error) && (
+        <div className="space-y-3 px-5 pt-4 sm:px-6">
+          {message && (
+            <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-xs text-brand">
+              {message}
+            </div>
+          )}
+          {error && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
+
+      {pending.length > 0 || expired.length > 0 ? (
+        <div className="grid gap-3 p-4 sm:p-5 lg:grid-cols-2">
+          {pending.map((u) => (
+            <InvitationRow
+              key={u.id || u.userId}
+              user={u}
+              status="pending"
+              resending={resendingId === (u.id || u.userId)}
+              onResend={() => handleResend(u)}
+            />
+          ))}
+          {expired.map((u) => (
+            <InvitationRow
+              key={u.id || u.userId}
+              user={u}
+              status="expired"
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="px-5 py-10 text-center sm:px-6">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft">
+            <CheckCircle2 className="h-5 w-5 text-brand" />
+          </div>
+          <p className="mt-3 text-sm font-semibold">
+            All staff invitations are clear
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            There are no pending or expired invitations requiring attention.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MiniStatus({ label, value, type }) {
+  const styles = {
+    active: "bg-brand-soft text-brand-soft-foreground",
+    pending:
+      "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
+    expired: "bg-destructive/10 text-destructive",
+  };
+
+  return (
+    <div className={cn("min-w-[72px] rounded-xl px-3 py-2 text-center", styles[type])}>
+      <p className="text-sm font-bold">{value}</p>
+      <p className="text-[9px] font-semibold uppercase tracking-wider">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function InvitationRow({ user, status, resending, onResend }) {
+  const isPending = status === "pending";
+  const userId = user.id || user.userId;
+
+  return (
+    <div className="group rounded-xl border border-border bg-background p-4 transition-all hover:border-brand/30 hover:shadow-sm">
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+            isPending
+              ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+              : "bg-destructive/10 text-destructive"
+          )}
+        >
+          {isPending ? (
+            <Clock3 className="h-4 w-4" />
+          ) : (
+            <AlertTriangle className="h-4 w-4" />
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-semibold">
+                {user.fullName || "Unknown staff"}
+              </h3>
+              <p className="mt-0.5 text-[11px] font-medium text-brand">
+                {user.staffRole}
+              </p>
+            </div>
+
+            <span
+              className={cn(
+                "shrink-0 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-wider",
+                isPending
+                  ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                  : "bg-destructive/10 text-destructive"
+              )}
+            >
+              {isPending ? "Resend needed" : "Expired"}
+            </span>
+          </div>
+
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Mail className="h-3 w-3 shrink-0" />
+              <span className="truncate">{user.email || "—"}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="font-medium">User ID:</span>
+              <span className="font-semibold text-foreground">
+                {userId || "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {isPending && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-4 w-full"
+          onClick={onResend}
+          disabled={resending}
+        >
+          <RefreshCw
+            className={cn("mr-1.5 h-3.5 w-3.5", resending && "animate-spin")}
+          />
+          {resending ? "Resending..." : "Resend invitation"}
+        </Button>
+      )}
+
+      {!isPending && (
+        <div className="mt-4 rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+          This invitation has expired. Create a new staff invitation to
+          continue onboarding.
+        </div>
+      )}
+    </div>
+  );
+}
 
 function AlertCard({ tone, icon: Icon, title, description, href, cta }) {
   const styles =
@@ -326,33 +596,21 @@ function AlertCard({ tone, icon: Icon, title, description, href, cta }) {
         };
 
   return (
-    <div
-      className={cn(
-        "flex items-start gap-3 rounded-xl border p-4",
-        styles.wrapper
-      )}
-    >
+    <div className={cn("flex items-start gap-3 rounded-xl border p-4", styles.wrapper)}>
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", styles.icon)} />
-
       <div className="min-w-0 flex-1">
         <p className={cn("text-sm font-semibold", styles.title)}>{title}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
       </div>
-
       <Link
         href={href}
-        className={cn(
-          "shrink-0 text-xs font-medium hover:underline",
-          styles.title
-        )}
+        className={cn("shrink-0 text-xs font-medium hover:underline", styles.title)}
       >
         {cta}
       </Link>
     </div>
   );
 }
-
-/* ══════════ TOP STATS ══════════ */
 
 function TopStats({ stats, doctorStats }) {
   return (
@@ -365,15 +623,13 @@ function TopStats({ stats, doctorStats }) {
         href="/portal/admin/doctors"
         accent
       />
-
       <StatCard
         icon={HeartPulse}
         label="Nurses"
         value={stats.totalNurses}
-        sub={`${stats.totalNurses - 3} active`}
+        sub={`${stats.totalNurses} active`}
         href="/portal/admin/nurses"
       />
-
       <StatCard
         icon={ClipboardList}
         label="Receptionists"
@@ -381,7 +637,6 @@ function TopStats({ stats, doctorStats }) {
         sub="Front desk staff"
         href="/portal/admin/receptionists"
       />
-
       <StatCard
         icon={Users}
         label="Patients"
@@ -411,10 +666,8 @@ function StatCard({ icon: Icon, label, value, sub, href, accent, trend }) {
         >
           <Icon className="h-5 w-5" />
         </span>
-
         <ArrowUpRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand" />
       </div>
-
       <p className="mt-4 text-2xl font-bold tracking-tight">{value}</p>
       <p className="mt-1 text-xs font-medium text-foreground">{label}</p>
       <p
@@ -430,8 +683,6 @@ function StatCard({ icon: Icon, label, value, sub, href, accent, trend }) {
   );
 }
 
-/* ══════════ REVENUE CHART ══════════ */
-
 function RevenueChart({ data, maxRevenue, totalRevenue }) {
   const todayLabel = new Date().toLocaleString("en-IN", { weekday: "short" });
 
@@ -444,7 +695,6 @@ function RevenueChart({ data, maxRevenue, totalRevenue }) {
           </h2>
           <DemoBadge />
         </div>
-
         <Link
           href="/portal/admin/billing"
           className="flex items-center gap-1 text-xs font-medium text-brand hover:underline"
@@ -527,8 +777,6 @@ function Metric({ label, value, tone }) {
   );
 }
 
-/* ══════════ HOSPITAL SNAPSHOT ══════════ */
-
 function HospitalSnapshot({ hospital }) {
   return (
     <div className="rounded-2xl border border-border bg-card">
@@ -543,7 +791,11 @@ function HospitalSnapshot({ hospital }) {
 
       <ul className="divide-y divide-border">
         <SnapshotRow icon={Building2} label="Name" value={hospital.name} />
-        <SnapshotRow icon={MapPin} label="City" value={hospital.city || "—"} />
+        <SnapshotRow
+          icon={MapPin}
+          label="City"
+          value={hospital.city || "—"}
+        />
         <SnapshotRow
           icon={MapPin}
           label="State"
@@ -554,14 +806,17 @@ function HospitalSnapshot({ hospital }) {
           label="Phone"
           value={hospital.phone || "—"}
         />
-        <SnapshotRow icon={Mail} label="Email" value={hospital.email || "—"} />
+        <SnapshotRow
+          icon={Mail}
+          label="Email"
+          value={hospital.email || "—"}
+        />
       </ul>
 
       <div className="border-t border-border p-5">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Website
         </p>
-
         {hospital.website ? (
           <a
             href={hospital.website}
@@ -573,9 +828,7 @@ function HospitalSnapshot({ hospital }) {
             {hospital.website.replace(/^https?:\/\//, "")}
           </a>
         ) : (
-          <p className="mt-2 text-sm text-muted-foreground">
-            No website added
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">No website added</p>
         )}
       </div>
     </div>
@@ -596,34 +849,26 @@ function SnapshotRow({ icon: Icon, label, value }) {
   );
 }
 
-/* ══════════ STAFF OVERVIEW ══════════ */
-
 function StaffOverview({ doctors, nurses, receptionists }) {
   return (
     <div className="mt-6 grid gap-6 lg:grid-cols-3">
       <StaffCard
         icon={Stethoscope}
         label="Doctors"
-        total={doctors.total}
-        active={doctors.active}
-        inactive={doctors.inactive}
+        {...doctors}
         href="/portal/admin/doctors"
         accent
       />
       <StaffCard
         icon={HeartPulse}
         label="Nurses"
-        total={nurses.total}
-        active={nurses.active}
-        inactive={nurses.inactive}
+        {...nurses}
         href="/portal/admin/nurses"
       />
       <StaffCard
         icon={ClipboardList}
         label="Receptionists"
-        total={receptionists.total}
-        active={receptionists.active}
-        inactive={receptionists.inactive}
+        {...receptionists}
         href="/portal/admin/receptionists"
       />
     </div>
@@ -636,6 +881,8 @@ function StaffCard({
   total,
   active,
   inactive,
+  pending,
+  expired,
   href,
   accent,
 }) {
@@ -655,7 +902,6 @@ function StaffCard({
         >
           <Icon className="h-5 w-5" />
         </span>
-
         <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
       </div>
 
@@ -664,12 +910,23 @@ function StaffCard({
         <p className="text-sm text-muted-foreground">{label.toLowerCase()}</p>
       </div>
 
-      <div className="mt-3 flex items-center gap-4 text-xs">
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
         <span className="flex items-center gap-1.5 text-brand">
           <span className="h-1.5 w-1.5 rounded-full bg-brand" />
           {active} active
         </span>
-
+        {pending > 0 && (
+          <span className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
+            {pending} pending
+          </span>
+        )}
+        {expired > 0 && (
+          <span className="flex items-center gap-1.5 text-destructive">
+            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+            {expired} expired
+          </span>
+        )}
         {inactive > 0 && (
           <span className="flex items-center gap-1.5 text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
@@ -681,9 +938,7 @@ function StaffCard({
   );
 }
 
-/* ══════════ RECENT ACTIVITY ══════════ */
-
-function RecentActivity({ items }) {
+function RecentActivity() {
   return (
     <div className="rounded-2xl border border-border bg-card lg:col-span-2">
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -692,72 +947,21 @@ function RecentActivity({ items }) {
           <h2 className="text-base font-semibold tracking-tight">
             Recent activity
           </h2>
-          <DemoBadge />
         </div>
       </div>
 
-      <ul className="divide-y divide-border">
-        {items.map((item) => (
-          <ActivityRow key={item.id} item={item} />
-        ))}
-      </ul>
+      <div className="px-5 py-12 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <Activity className="h-5 w-5 text-muted-foreground" />
+        </div>
+        <p className="mt-3 text-sm font-medium">No recent activity yet</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Activity from your hospital will appear here as it happens.
+        </p>
+      </div>
     </div>
   );
 }
-
-function ActivityRow({ item }) {
-  const config = {
-    doctor_added: {
-      icon: UserPlus,
-      class: "bg-brand-soft text-brand-soft-foreground",
-    },
-    patient_registered: {
-      icon: Users,
-      class: "bg-brand-soft text-brand-soft-foreground",
-    },
-    bill_paid: {
-      icon: Wallet,
-      class: "bg-brand-soft text-brand-soft-foreground",
-    },
-    doctor_status: {
-      icon: AlertCircle,
-      class: "bg-highlight-soft text-highlight-soft-foreground",
-    },
-    department: {
-      icon: Building2,
-      class: "bg-muted text-muted-foreground",
-    },
-  }[item.type] || {
-    icon: Activity,
-    class: "bg-muted text-muted-foreground",
-  };
-
-  const Icon = config.icon;
-
-  return (
-    <li className="flex items-start gap-3 p-4 transition-colors hover:bg-hover/40 sm:p-5">
-      <span
-        className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-          config.class
-        )}
-      >
-        <Icon className="h-4 w-4" />
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold">{item.title}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {item.description}
-        </p>
-      </div>
-
-      <p className="shrink-0 text-[11px] text-muted-foreground">{item.time}</p>
-    </li>
-  );
-}
-
-/* ══════════ QUICK ACTIONS ══════════ */
 
 function QuickActions() {
   const actions = [
@@ -822,56 +1026,38 @@ function ActionItem({ icon: Icon, label, desc, href, accent }) {
       >
         <Icon className="h-4 w-4" />
       </span>
-
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{label}</p>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{desc}</p>
       </div>
-
       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
     </Link>
   );
 }
 
-/* ══════════ DEMO BADGE ══════════ */
-
 function DemoBadge() {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-highlight-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-highlight-soft-foreground">
       <Info className="h-2.5 w-2.5" />
-      Demo data
+      Sample
     </span>
   );
 }
-
-/* ══════════ SKELETON ══════════ */
 
 function DashboardSkeleton() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <div className="animate-pulse space-y-6">
         <div className="h-64 rounded-3xl bg-muted" />
-
+        <div className="h-48 rounded-2xl bg-muted" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="h-36 rounded-2xl bg-muted" />
           ))}
         </div>
-
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="h-80 rounded-2xl bg-muted lg:col-span-2" />
           <div className="h-80 rounded-2xl bg-muted" />
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-32 rounded-2xl bg-muted" />
-          ))}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="h-72 rounded-2xl bg-muted lg:col-span-2" />
-          <div className="h-72 rounded-2xl bg-muted" />
         </div>
       </div>
     </div>

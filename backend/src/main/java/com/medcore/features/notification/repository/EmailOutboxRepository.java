@@ -2,6 +2,7 @@ package com.medcore.features.notification.repository;
 
 import com.medcore.features.notification.entity.EmailOutbox;
 import com.medcore.features.notification.enums.EmailOutboxStatus;
+import com.medcore.features.notification.enums.EmailType;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -45,5 +46,18 @@ public interface EmailOutboxRepository
     int recoverStaleEmails(
             @Param("threshold") LocalDateTime threshold,
             @Param("now") LocalDateTime now
+    );
+    
+    @Query("""
+            SELECT COUNT(e)
+            FROM EmailOutbox e
+            WHERE e.user.id = :userId
+              AND e.type = :type
+              AND e.status =
+                  com.medcore.features.notification.enums.EmailOutboxStatus.EXHAUSTED
+            """)
+    long countExhaustedAttempts(
+            @Param("userId") Long userId,
+            @Param("type") EmailType type
     );
 }
