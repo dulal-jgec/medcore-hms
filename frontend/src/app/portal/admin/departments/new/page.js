@@ -95,20 +95,19 @@ export default function CreateDepartmentPage() {
       setSubmitting(true);
       setError("");
 
-      const result = await createDepartment(accessToken, {
-        name: form.name.trim(),
-        code: form.code.trim().toUpperCase(),
-        description: form.description.trim() || null,
-      });
+     const result = await createDepartment({
+  name: form.name.trim(),
+  code: form.code.trim().toUpperCase(),
+  description: form.description.trim() || null,
+});
 
       const department = result.data;
 
       if (imageFile && department?.id) {
-        await uploadDepartmentImage(
-          department.id,
-          imageFile,
-          accessToken
-        );
+       await uploadDepartmentImage(
+  department.id,
+  imageFile
+);
       }
 
       setSuccess("Department created successfully.");
