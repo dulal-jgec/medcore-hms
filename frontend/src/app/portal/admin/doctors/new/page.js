@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
+  Clock,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const INITIAL_FORM = {
   specialization: "",
   experienceYears: "",
   consultationFee: "",
+  consultationDurationMinutes: "",
   qualification: "",
 };
 
@@ -105,6 +107,13 @@ export default function CreateDoctorPage() {
       return;
     }
 
+    const duration = Number(form.consultationDurationMinutes);
+
+    if (!duration || duration < 5 || duration > 240) {
+      setError("Consultation duration must be between 5 and 240 minutes");
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError("");
@@ -117,6 +126,7 @@ export default function CreateDoctorPage() {
         specialization: form.specialization.trim(),
         experienceYears: Number(form.experienceYears),
         consultationFee: Number(form.consultationFee),
+        consultationDurationMinutes: duration,
         qualification: form.qualification.trim(),
       });
 
@@ -333,6 +343,31 @@ export default function CreateDoctorPage() {
                 min={0}
                 step="0.01"
               />
+            </Field>
+
+            <Field
+              id="consultationDurationMinutes"
+              label="Consultation duration (minutes)"
+              icon={Clock}
+              required
+            >
+              <Input
+                id="consultationDurationMinutes"
+                type="number"
+                name="consultationDurationMinutes"
+                value={form.consultationDurationMinutes}
+                onChange={handleChange}
+                placeholder="e.g. 30"
+                className="h-11 pl-10"
+                required
+                min={5}
+                max={240}
+                step={5}
+              />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Time per appointment slot. Used to generate bookable time
+                slots. Typical: 15, 20, 30, or 45 minutes.
+              </p>
             </Field>
 
             <Field
