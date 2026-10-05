@@ -62,9 +62,7 @@ public class SuperAdminServiceImpl implements SuperAdminService {
      
      private final IdempotencyService idempotencyService;
 
-    SuperAdminServiceImpl(LabOrderController labOrderController) {
-        this.labOrderController = labOrderController;
-    }
+    
      
     @Override
     public ApiResponse<SuperAdminResponse> getCurrentSuperAdmin() {
