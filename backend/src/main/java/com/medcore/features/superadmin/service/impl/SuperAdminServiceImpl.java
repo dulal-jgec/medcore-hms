@@ -402,7 +402,8 @@ public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
             .build();
 }
 			
-
+@Transactional
+@Override
 public ApiResponse<String> resendHospitalAdminInvitation(
         Long userId,
         String idempotencyKey
