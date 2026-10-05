@@ -26,9 +26,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    // =========================
-    // REGISTER
-    // =========================
+     
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<String>> register(
@@ -42,9 +40,7 @@ public class AuthController {
                 .body(response);
     }
 
-    // =========================
-    // LOGIN
-    // =========================
+    
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
@@ -72,10 +68,7 @@ public class AuthController {
 
         return ResponseEntity.ok(result);
     }
-
-    // =========================
-    // CURRENT USER
-    // =========================
+ 
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>>
@@ -86,9 +79,7 @@ public class AuthController {
         );
     }
 
-    // =========================
-    // REFRESH TOKEN
-    // =========================
+    
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>>
@@ -127,9 +118,7 @@ public class AuthController {
         return ResponseEntity.ok(result);
     }
 
-    // =========================
-    // LOGOUT
-    // =========================
+     
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<String>> logout(
@@ -144,8 +133,8 @@ public class AuthController {
                         ""
                 )
                 .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
+                .secure(true)
+                .sameSite("None")
                 .path("/api/v1/auth")
                 .maxAge(0)
                 .build();
@@ -167,11 +156,11 @@ public class AuthController {
                 "refresh_token",
                 refreshToken
         )
-                .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
-                .path("/api/v1/auth")
-                .maxAge(7 * 24 * 60 * 60)
-                .build();
+        .httpOnly(true)
+        .secure(true)
+        .sameSite("None")
+        .path("/api/v1/auth")
+        .maxAge(7 * 24 * 60 * 60)
+        .build();
     }
 }
