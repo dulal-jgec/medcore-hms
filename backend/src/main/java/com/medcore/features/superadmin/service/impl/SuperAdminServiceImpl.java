@@ -11,6 +11,8 @@ import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.hospital.service.HospitalService;
 import com.medcore.features.lab.controller.LabOrderController;
+import com.medcore.features.notification.entity.EmailOutbox;
+import com.medcore.features.notification.enums.EmailOutboxStatus;
 import com.medcore.features.notification.enums.EmailType;
 import com.medcore.features.notification.repository.EmailOutboxRepository;
 import com.medcore.features.notification.service.EmailOutboxService;
@@ -58,7 +60,7 @@ public class SuperAdminServiceImpl implements SuperAdminService {
     private final RoleRepository roleRepository;
      private final PasswordEncoder passwordEncoder;
       private final EmailOutboxService emailOutboxService;
-     private final EmailOutboxRepository emailOutboxRepository;
+      private final EmailOutboxRepository emailOutboxRepository;
      
      private final IdempotencyService idempotencyService;
 
@@ -408,13 +410,7 @@ public ApiResponse<String> resendHospitalAdminInvitation(
 
     validateSuperAdmin();
 
-    if (idempotencyService.exists(idempotencyKey)) {
-        return ApiResponse.<String>builder()
-                .success(true)
-                .message("Request already processed")
-                .data("Invitation request already accepted")
-                .build();
-    }
+     
 
     boolean created =
             idempotencyService.create(
@@ -459,22 +455,34 @@ public ApiResponse<String> resendHospitalAdminInvitation(
     EmailType emailType =
             EmailType.HOSPITAL_ADMIN_CREDENTIALS;
 
-    long exhaustedAttempts =
-            emailOutboxRepository.countExhaustedAttempts(
-                    hospitalAdmin.getId(),
-                    emailType
-            );
+    EmailOutbox latestInvitation =
+            emailOutboxRepository
+                    .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
+                            userId,
+                            emailType
+                    )
+                    .orElseThrow(() ->
+                            new BusinessException(
+                                    "Invitation record not found"
+                            )
+                    );
 
-    if (exhaustedAttempts >= 3) {
+    if (latestInvitation.getStatus()
+            != EmailOutboxStatus.EXHAUSTED) {
 
         throw new BusinessException(
-                "Maximum invitation attempts reached. " +
-                "Please cancel this invitation and create a new one."
+                "Current invitation is still being processed. Please wait."
         );
     }
 
     int invitationAttempt =
-            (int) exhaustedAttempts + 1;
+            latestInvitation.getInvitationAttempt() + 1;
+
+    if (invitationAttempt > 3) {
+        throw new BusinessException(
+                "Maximum invitation attempts reached"
+        );
+    }
 
     String temporaryPassword =
             generateTemporaryPassword();
@@ -555,21 +563,35 @@ public ApiResponse<String> resendHospitalAdminInvitation(
                 );
 
         Page<CreateHospitalAdminResponse> response =
-                admins.map(user ->
-                        CreateHospitalAdminResponse.builder()
-                                .userId(user.getId())
-                                .fullName(user.getFullName())
-                                .email(user.getEmail())
-                                .phone(user.getPhone())
-                                .hospitalId(
-                                        user.getHospital().getId()
-                                )
-                                .hospitalName(
-                                        user.getHospital().getName()
-                                )
-                                .status(user.getStatus())
-                                .build()
-                );
+                admins.map(user -> {
+
+                    EmailOutbox latestInvitation =
+                            emailOutboxRepository
+                                    .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
+                                            user.getId(),
+                                            EmailType.HOSPITAL_ADMIN_CREDENTIALS
+                                    )
+                                    .orElse(null);
+
+                    return CreateHospitalAdminResponse.builder()
+                            .userId(user.getId())
+                            .fullName(user.getFullName())
+                            .email(user.getEmail())
+                            .phone(user.getPhone())
+                            .hospitalId(
+                                    user.getHospital().getId()
+                            )
+                            .hospitalName(
+                                    user.getHospital().getName()
+                            )
+                            .status(user.getStatus())
+                            .invitationStatus(
+                                    latestInvitation != null
+                                            ? latestInvitation.getStatus()
+                                            : null
+                            )
+                            .build();
+                });
 
         return ApiResponse
                 .<Page<CreateHospitalAdminResponse>>builder()

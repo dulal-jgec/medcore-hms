@@ -1,5 +1,6 @@
 package com.medcore.features.superadmin.dto.response;
 
+import com.medcore.features.notification.enums.EmailOutboxStatus;
 import com.medcore.features.user.enums.UserStatus;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,4 +22,6 @@ public class CreateHospitalAdminResponse {
     private String hospitalName;
 
     private UserStatus status;
+
+    private EmailOutboxStatus invitationStatus;
 }

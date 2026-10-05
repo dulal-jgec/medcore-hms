@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface EmailOutboxRepository
         extends JpaRepository<EmailOutbox, Long> {
@@ -59,5 +60,10 @@ public interface EmailOutboxRepository
     long countExhaustedAttempts(
             @Param("userId") Long userId,
             @Param("type") EmailType type
+    );
+    
+    Optional<EmailOutbox> findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
+            Long userId,
+            EmailType type
     );
 }

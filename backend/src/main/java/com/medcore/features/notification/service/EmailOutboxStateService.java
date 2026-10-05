@@ -1,6 +1,7 @@
 package com.medcore.features.notification.service;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,7 +91,7 @@ public void markAsFailed(Long emailId, Exception ex) {
         email.setStatus(EmailOutboxStatus.PENDING);
 
         email.setNextAttemptAt(
-                LocalDateTime.now().plusMinutes(5)
+                calculateNextAttemptTime(retryCount)
         );
     }
 
@@ -105,5 +106,14 @@ public void markAsFailed(Long emailId, Exception ex) {
 
         return emailOutboxRepository
                 .recoverStaleEmails(threshold, now);
+    }
+    
+    private LocalDateTime calculateNextAttemptTime(int retryCount) {
+        long baseDelayMinutes = 1L << (retryCount - 1);
+        long jitterSeconds = ThreadLocalRandom.current().nextLong(30);
+
+        return LocalDateTime.now()
+                .plusMinutes(baseDelayMinutes)
+                .plusSeconds(jitterSeconds);
     }
 }

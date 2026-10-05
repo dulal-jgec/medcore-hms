@@ -225,9 +225,10 @@ export default function SuperAdminPage() {
       : 0;
 
   const pendingAdmins = recentAdmins.filter(
-    (admin) =>
-      admin.status === "PENDING_VERIFICATION"
-  );
+  (admin) =>
+    admin.status === "PENDING_VERIFICATION" &&
+    admin.invitationStatus === "EXHAUSTED"
+);
 
   const expiredAdmins = recentAdmins.filter(
     (admin) =>
@@ -529,26 +530,26 @@ export default function SuperAdminPage() {
                   </div>
                 </div>
 
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    handleResendInvitation(admin.userId)
-                  }
-                  disabled={resendingId === admin.userId}
-                  className="shrink-0"
-                >
-                  {resendingId === admin.userId ? (
-                    <>
-                      <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="mr-1.5 h-4 w-4" />
-                      Resend invitation
-                    </>
-                  )}
-                </Button>
+               {admin.invitationStatus === "EXHAUSTED" && (
+  <Button
+    size="sm"
+    onClick={() => handleResendInvitation(admin.userId)}
+    disabled={resendingId === admin.userId}
+    className="shrink-0"
+  >
+    {resendingId === admin.userId ? (
+      <>
+        <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+        Sending...
+      </>
+    ) : (
+      <>
+        <Mail className="mr-1.5 h-4 w-4" />
+        Resend invitation
+      </>
+    )}
+  </Button>
+)}
               </div>
             ))}
 
