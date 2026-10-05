@@ -70,6 +70,8 @@ export default function SuperAdminPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const [idempotencyKeys, setIdempotencyKeys] = useState({});
+
   useEffect(() => {
     if (!accessToken) return;
 
@@ -143,36 +145,53 @@ export default function SuperAdminPage() {
   }, [accessToken]);
 
   async function handleResendInvitation(userId) {
-    try {
-      setResendingId(userId);
-      setError("");
-      setSuccess("");
+  try {
+    setResendingId(userId);
+    setError("");
+    setSuccess("");
 
-      const response =
-        await resendHospitalAdminInvitation(userId);
+    const key =
+      idempotencyKeys[userId] ||
+      crypto.randomUUID();
 
-      setSuccess(
-        response?.message ||
-          "Invitation email queued successfully."
-      );
-
-      const adminsResponse =
-        await getAllHospitalAdmins(0, 10);
-
-      setRecentAdmins(
-        adminsResponse?.data?.content ?? []
-      );
-    } catch (err) {
-      console.error("resend invitation failed:", err);
-
-      setError(
-        err?.message ||
-          "Failed to resend invitation."
-      );
-    } finally {
-      setResendingId(null);
+    if (!idempotencyKeys[userId]) {
+      setIdempotencyKeys((prev) => ({
+        ...prev,
+        [userId]: key,
+      }));
     }
+
+    const response =
+      await resendHospitalAdminInvitation(
+        userId,
+        key
+      );
+
+    setSuccess(
+      response?.message ||
+        "Invitation email queued successfully."
+    );
+
+    const adminsResponse =
+      await getAllHospitalAdmins(0, 10);
+
+    setRecentAdmins(
+      adminsResponse?.data?.content ?? []
+    );
+  } catch (err) {
+    console.error(
+      "resend invitation failed:",
+      err
+    );
+
+    setError(
+      err?.message ||
+        "Failed to resend invitation."
+    );
+  } finally {
+    setResendingId(null);
   }
+}
 
   const hour = new Date().getHours();
 

@@ -65,5 +65,8 @@ public interface SuperAdminService {
             int size
     );
     
-    ApiResponse<String> resendHospitalAdminInvitation(Long userId);
+    ApiResponse<String>resendHospitalAdminInvitation(
+    	    Long userId,
+    	    String idempotencyKey
+    	);
 }

@@ -140,8 +140,12 @@ public class SuperAdminController {
     
     @PostMapping("/admins/{userId}/resend-invitation")
     public ApiResponse<String> resendHospitalAdminInvitation(
-            @PathVariable Long userId) {
+            @PathVariable Long userId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey) {
 
-        return superAdminService.resendHospitalAdminInvitation(userId);
+        return superAdminService.resendHospitalAdminInvitation(
+                userId,
+                idempotencyKey
+        );
     }
 }

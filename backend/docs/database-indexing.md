@@ -1,5 +1,3 @@
-Database Indexing
-
 Why I added indexes
 
 While working on MedCore HMS, I noticed that some repository queries are frequently using columns like hospital_id, doctor_id, patient_id, and other foreign-key columns.
@@ -58,84 +56,7 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
   AND tc.table_schema = 'public'
 ORDER BY tc.table_name, kcu.column_name;
 
-Indexes added
 
-After checking the existing indexes and repository queries, I added the following indexes.
-
-Accountant
-
-Accountant queries frequently use hospital_id to find staff belonging to a hospital.
-
-CREATE INDEX idx_accountants_hospital_active
-ON accountants(hospital_id)
-WHERE deleted_at IS NULL;
-
-Appointments
-
-Appointments are frequently searched by patient.
-
-CREATE INDEX idx_appointments_patient_active
-ON appointments(patient_id)
-WHERE deleted_at IS NULL;
-
-There were already indexes for common doctor and hospital appointment queries, so I did not create duplicate indexes for those queries.
-
-Doctors
-
-Doctors are queried using both hospital and status.
-
-CREATE INDEX idx_doctors_hospital_status_active
-ON doctors(hospital_id, status)
-WHERE deleted_at IS NULL;
-
-This is a composite index.
-
-The column order is intentional because the common query pattern starts with hospital_id and then checks status.
-
-Hospitals
-
-Hospital lists and dashboard operations can filter hospitals by status.
-
-CREATE INDEX idx_hospitals_status_active
-ON hospitals(status)
-WHERE deleted_at IS NULL;
-
-Refresh Tokens
-
-Refresh tokens are also queried by user.
-
-CREATE INDEX idx_refresh_tokens_user_id
-ON refresh_tokens(user_id);
-
-The token column already had a unique index, so I did not create another index for it.
-
-Users
-
-Users are frequently accessed using their hospital.
-
-CREATE INDEX idx_users_hospital_active
-ON users(hospital_id)
-WHERE deleted_at IS NULL;
-
-Users are also queried by role.
-
-CREATE INDEX idx_users_role_active
-ON users(role_id)
-WHERE deleted_at IS NULL;
-
-Email and phone already had partial unique indexes, so I did not create duplicate indexes for them.
-
-Why partial indexes?
-
-Some MedCore tables use soft delete with deleted_at.
-
-For these queries, deleted records are normally not needed.
-
-So instead of indexing every row, I used partial indexes like:
-
-WHERE deleted_at IS NULL
-
-This keeps the index focused on active records.
 
 EXPLAIN
 

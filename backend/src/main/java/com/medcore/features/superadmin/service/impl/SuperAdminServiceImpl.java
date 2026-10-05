@@ -10,10 +10,11 @@ import com.medcore.features.hospital.dto.response.CreateHospitalResponse;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.hospital.service.HospitalService;
+import com.medcore.features.lab.controller.LabOrderController;
 import com.medcore.features.notification.enums.EmailType;
 import com.medcore.features.notification.repository.EmailOutboxRepository;
 import com.medcore.features.notification.service.EmailOutboxService;
-import com.medcore.features.notification.service.EmailService;
+import com.medcore.features.notification.service.IdempotencyService;
 import com.medcore.features.superadmin.dto.response.SuperAdminDashboardResponse;
 import com.medcore.features.superadmin.dto.response.SuperAdminResponse;
 import com.medcore.features.superadmin.entity.SuperAdmin;
@@ -47,6 +48,8 @@ import org.springframework.data.domain.Pageable;
 @RequiredArgsConstructor
 public class SuperAdminServiceImpl implements SuperAdminService {
 
+    private final LabOrderController labOrderController;
+
     private final SuperAdminRepository superAdminRepository;
     private final SuperAdminMapper superAdminMapper;
     private final UserRepository userRepository;
@@ -54,9 +57,14 @@ public class SuperAdminServiceImpl implements SuperAdminService {
     private final HospitalRepository hospitalRepository;
     private final RoleRepository roleRepository;
      private final PasswordEncoder passwordEncoder;
-     private final EmailService emailService;
-     private final EmailOutboxService emailOutboxService;
+      private final EmailOutboxService emailOutboxService;
      private final EmailOutboxRepository emailOutboxRepository;
+     
+     private final IdempotencyService idempotencyService;
+
+    SuperAdminServiceImpl(LabOrderController labOrderController) {
+        this.labOrderController = labOrderController;
+    }
      
     @Override
     public ApiResponse<SuperAdminResponse> getCurrentSuperAdmin() {
@@ -395,11 +403,35 @@ public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
 }
 			
 
-@Transactional
-@Override
-public ApiResponse<String> resendHospitalAdminInvitation(Long userId) {
+public ApiResponse<String> resendHospitalAdminInvitation(
+        Long userId,
+        String idempotencyKey
+) {
 
     validateSuperAdmin();
+
+    if (idempotencyService.exists(idempotencyKey)) {
+        return ApiResponse.<String>builder()
+                .success(true)
+                .message("Request already processed")
+                .data("Invitation request already accepted")
+                .build();
+    }
+
+    boolean created =
+            idempotencyService.create(
+                    idempotencyKey,
+                    "RESEND_HOSPITAL_ADMIN_INVITATION"
+            );
+
+    if (!created) {
+        return ApiResponse.<String>builder()
+                .success(true)
+                .message("Request already processed")
+                .data("Invitation request already accepted")
+                .build();
+    }
+    		
 
     User hospitalAdmin =
             userRepository.findById(userId)

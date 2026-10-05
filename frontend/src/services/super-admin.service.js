@@ -68,11 +68,18 @@ export async function createHospitalAdmin(data) {
   return handleResponse(response);
 }
 
-export async function resendHospitalAdminInvitation(userId) {
+
+export async function resendHospitalAdminInvitation(
+  userId,
+  idempotencyKey
+) {
   const response = await apiFetch(
     `/super-admin/admins/${userId}/resend-invitation`,
     {
       method: "POST",
+      headers: {
+        "Idempotency-Key": idempotencyKey,
+      },
     }
   );
 
