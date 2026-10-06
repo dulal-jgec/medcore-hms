@@ -37,7 +37,7 @@ const INITIAL_FORM = {
   qualification: "",
 };
 
-const REDIRECT_DELAY_MS = 1500;
+const REDIRECT_DELAY_MS = 2000;
 
 export default function CreateDoctorPage() {
   const router = useRouter();
@@ -131,7 +131,7 @@ export default function CreateDoctorPage() {
       });
 
       setSuccess(
-        "Doctor created successfully. Login credentials have been emailed."
+        "Doctor created. Login credentials have been queued to the doctor's email. If email delivery fails, you can resend from the doctors list."
       );
 
       setTimeout(() => {
@@ -404,10 +404,7 @@ export default function CreateDoctorPage() {
           <Button type="button" variant="outline" asChild>
             <Link href="/portal/admin/doctors">Cancel</Link>
           </Button>
-          <Button
-            type="submit"
-            disabled={submitting || loadingDepartments}
-          >
+          <Button type="submit" disabled={submitting || loadingDepartments}>
             <Stethoscope className="mr-1.5 h-4 w-4" />
             {submitting ? "Creating..." : "Create doctor"}
           </Button>

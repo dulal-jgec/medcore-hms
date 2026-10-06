@@ -12,13 +12,10 @@ public interface HospitalAdminService {
     ApiResponse<HospitalProfileResponse> updateMyHospitalProfile(
             UpdateHospitalProfileRequest request
     );
-    
-    ApiResponse<HospitalProfileResponse> uploadLogo(
-            MultipartFile file
-    );
-    
-    ApiResponse<HospitalProfileResponse> uploadBanner(
-            MultipartFile file
-    );
-    ApiResponse<String> resendInvitation(Long userId);
+
+    ApiResponse<HospitalProfileResponse> uploadLogo(MultipartFile file);
+
+    ApiResponse<HospitalProfileResponse> uploadBanner(MultipartFile file);
+
+    ApiResponse<String> resendInvitation(Long userId, String idempotencyKey);
 }

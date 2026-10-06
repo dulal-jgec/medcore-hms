@@ -51,10 +51,16 @@ public class HospitalController {
         return hospitalAdminService.uploadBanner(file);
     }
     
+    
+    
     @PostMapping("/staff/{userId}/resend-invitation")
     public ApiResponse<String> resendInvitation(
-            @PathVariable Long userId) {
+            @PathVariable Long userId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey) {
 
-        return hospitalAdminService.resendInvitation(userId);
+        return hospitalAdminService.resendInvitation(
+                userId,
+                idempotencyKey
+        );
     }
 }

@@ -13,9 +13,12 @@ import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.mapper.HospitalMapper;
 import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.hospital.service.HospitalAdminService;
+import com.medcore.features.notification.entity.EmailOutbox;
+import com.medcore.features.notification.enums.EmailOutboxStatus;
 import com.medcore.features.notification.enums.EmailType;
 import com.medcore.features.notification.repository.EmailOutboxRepository;
 import com.medcore.features.notification.service.EmailOutboxService;
+import com.medcore.features.notification.service.IdempotencyService;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.UserStatus;
 import com.medcore.features.user.repository.UserRepository;
@@ -32,6 +35,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Transactional
 public class HospitalAdminServiceImpl implements HospitalAdminService {
 
+    private static final int MAX_INVITATION_ATTEMPTS = 3;
+
     private final HospitalRepository hospitalRepository;
     private final HospitalMapper hospitalMapper;
     private final TenantContextService tenantContextService;
@@ -41,14 +46,14 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
     private final UserRepository userRepository;
     private final EmailOutboxService emailOutboxService;
     private final EmailOutboxRepository emailOutboxRepository;
+    private final IdempotencyService idempotencyService;
     private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<HospitalProfileResponse> getMyHospitalProfile() {
 
-        Hospital hospital =
-                tenantContextService.getCurrentHospital();
+        Hospital hospital = tenantContextService.getCurrentHospital();
 
         HospitalProfileResponse response =
                 hospitalMapper.toProfileResponse(hospital);
@@ -65,8 +70,7 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
     public ApiResponse<HospitalProfileResponse> updateMyHospitalProfile(
             UpdateHospitalProfileRequest request) {
 
-        Hospital hospital =
-                tenantContextService.getCurrentHospital();
+        Hospital hospital = tenantContextService.getCurrentHospital();
 
         hospital.setState(request.getState());
         hospital.setAddress(request.getAddress());
@@ -74,8 +78,7 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
         hospital.setEmergencyPhone(request.getEmergencyPhone());
         hospital.setDescription(request.getDescription());
 
-        Hospital updatedHospital =
-                hospitalRepository.save(hospital);
+        Hospital updatedHospital = hospitalRepository.save(hospital);
 
         HospitalProfileResponse response =
                 hospitalMapper.toProfileResponse(updatedHospital);
@@ -89,26 +92,20 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
     }
 
     @Override
-    public ApiResponse<HospitalProfileResponse> uploadLogo(
-            MultipartFile file) {
+    public ApiResponse<HospitalProfileResponse> uploadLogo(MultipartFile file) {
 
-        Hospital hospital =
-                tenantContextService.getCurrentHospital();
+        Hospital hospital = tenantContextService.getCurrentHospital();
 
         fileValidationService.validateImage(file);
 
-        String logoUrl =
-                fileStorageService.upload(
-                        file,
-                        "medcore/hospitals/"
-                                + hospital.getId()
-                                + "/logo"
-                );
+        String logoUrl = fileStorageService.upload(
+                file,
+                "medcore/hospitals/" + hospital.getId() + "/logo"
+        );
 
         hospital.setLogoUrl(logoUrl);
 
-        Hospital updatedHospital =
-                hospitalRepository.save(hospital);
+        Hospital updatedHospital = hospitalRepository.save(hospital);
 
         HospitalProfileResponse response =
                 hospitalMapper.toProfileResponse(updatedHospital);
@@ -122,26 +119,20 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
     }
 
     @Override
-    public ApiResponse<HospitalProfileResponse> uploadBanner(
-            MultipartFile file) {
+    public ApiResponse<HospitalProfileResponse> uploadBanner(MultipartFile file) {
 
-        Hospital hospital =
-                tenantContextService.getCurrentHospital();
+        Hospital hospital = tenantContextService.getCurrentHospital();
 
         fileValidationService.validateImage(file);
 
-        String bannerUrl =
-                fileStorageService.upload(
-                        file,
-                        "medcore/hospitals/"
-                                + hospital.getId()
-                                + "/banner"
-                );
+        String bannerUrl = fileStorageService.upload(
+                file,
+                "medcore/hospitals/" + hospital.getId() + "/banner"
+        );
 
         hospital.setBannerUrl(bannerUrl);
 
-        Hospital updatedHospital =
-                hospitalRepository.save(hospital);
+        Hospital updatedHospital = hospitalRepository.save(hospital);
 
         HospitalProfileResponse response =
                 hospitalMapper.toProfileResponse(updatedHospital);
@@ -155,18 +146,29 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
     }
 
     @Override
-    public ApiResponse<String> resendInvitation(Long userId) {
+    public ApiResponse<String> resendInvitation(
+            Long userId,
+            String idempotencyKey) {
 
-        Hospital hospital =
-                tenantContextService.getCurrentHospital();
+        Hospital hospital = tenantContextService.getCurrentHospital();
 
-        User user =
-                userRepository.findById(userId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "User not found"
-                                )
-                        );
+        boolean created = idempotencyService.create(
+                idempotencyKey,
+                "RESEND_STAFF_INVITATION"
+        );
+
+        if (!created) {
+            return ApiResponse.<String>builder()
+                    .success(true)
+                    .message("Request already processed")
+                    .data("Invitation request already accepted")
+                    .build();
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found"
+                ));
 
         if (user.getHospital() == null
                 || !user.getHospital().getId().equals(hospital.getId())) {
@@ -177,58 +179,40 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
         }
 
         if (user.getStatus() != UserStatus.PENDING_VERIFICATION) {
-
             throw new BusinessException(
                     "User invitation is not pending"
             );
         }
 
-        EmailType emailType;
+        EmailType emailType = resolveEmailType(user);
 
-        switch (user.getRole().getName()) {
-
-            case DOCTOR ->
-                    emailType = EmailType.DOCTOR_CREDENTIALS;
-
-            case NURSE ->
-                    emailType = EmailType.NURSE_CREDENTIALS;
-
-            case RECEPTIONIST ->
-                    emailType = EmailType.RECEPTIONIST_CREDENTIALS;
-
-            case ACCOUNTANT ->
-                    emailType = EmailType.ACCOUNTANT_CREDENTIALS;
-
-            default ->
-                    throw new BusinessException(
-                            "Invitation resend is not supported for this role"
-                    );
-        }
-
-        long exhaustedAttempts =
-                emailOutboxRepository.countExhaustedAttempts(
+        EmailOutbox latestInvitation = emailOutboxRepository
+                .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
                         user.getId(),
                         emailType
-                );
+                )
+                .orElseThrow(() -> new BusinessException(
+                        "Invitation record not found"
+                ));
 
-        if (exhaustedAttempts >= 3) {
-
+        if (latestInvitation.getStatus() != EmailOutboxStatus.EXHAUSTED) {
             throw new BusinessException(
-                    "Maximum invitation attempts reached. "
-                            + "Please cancel this invitation and create a new one."
+                    "Current invitation is still being processed. Please wait."
             );
         }
 
         int invitationAttempt =
-                (int) exhaustedAttempts + 1;
+                latestInvitation.getInvitationAttempt() + 1;
 
-        String temporaryPassword =
-                PasswordGenerator.generate();
+        if (invitationAttempt > MAX_INVITATION_ATTEMPTS) {
+            throw new BusinessException(
+                    "Maximum invitation attempts reached"
+            );
+        }
 
-        user.setPassword(
-                passwordEncoder.encode(temporaryPassword)
-        );
+        String temporaryPassword = PasswordGenerator.generate();
 
+        user.setPassword(passwordEncoder.encode(temporaryPassword));
         userRepository.save(user);
 
         String emailBody = """
@@ -259,18 +243,38 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
                 user,
                 emailType,
                 user.getEmail(),
-                "Your MedCore "
-                        + user.getRole().getName()
-                        + " Account",
+                "Your MedCore " + user.getRole().getName() + " Account",
                 emailBody,
                 invitationAttempt
         );
 
-        return ApiResponse
-                .<String>builder()
+        return ApiResponse.<String>builder()
                 .success(true)
                 .message("Invitation resent successfully")
                 .data("Invitation email queued")
                 .build();
+    }
+
+    private EmailType resolveEmailType(User user) {
+
+        switch (user.getRole().getName()) {
+
+            case DOCTOR:
+                return EmailType.DOCTOR_CREDENTIALS;
+
+            case NURSE:
+                return EmailType.NURSE_CREDENTIALS;
+
+            case RECEPTIONIST:
+                return EmailType.RECEPTIONIST_CREDENTIALS;
+
+            case ACCOUNTANT:
+                return EmailType.ACCOUNTANT_CREDENTIALS;
+
+            default:
+                throw new BusinessException(
+                        "Invitation resend is not supported for this role"
+                );
+        }
     }
 }

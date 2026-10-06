@@ -19,6 +19,9 @@ import {
   FileText,
   ShieldCheck,
   Loader2,
+  Clock3,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +33,7 @@ import {
   searchDoctors,
   updateDoctorStatus,
 } from "@/services/doctor.service";
+import { resendStaffInvitation } from "@/services/hospital-admin.service";
 
 const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 400;
@@ -37,6 +41,8 @@ const SEARCH_DEBOUNCE_MS = 400;
 const STATUS_TABS = [
   { id: "all", label: "All" },
   { id: "ACTIVE", label: "Active" },
+  { id: "PENDING_VERIFICATION", label: "Pending" },
+  { id: "INVITATION_EXPIRED", label: "Expired" },
   { id: "INACTIVE", label: "Inactive" },
   { id: "SUSPENDED", label: "Suspended" },
 ];
@@ -51,6 +57,9 @@ export default function AdminDoctorsPage() {
   const [error, setError] = useState("");
   const [viewDoctor, setViewDoctor] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [resendingId, setResendingId] = useState(null);
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const debounceRef = useRef(null);
   const requestIdRef = useRef(0);
@@ -167,6 +176,47 @@ export default function AdminDoctorsPage() {
     }
   }
 
+  async function handleResendInvitation(doctor) {
+    try {
+      setResendingId(doctor.id);
+      setActionMessage("");
+      setActionError("");
+
+      const result = await resendStaffInvitation(doctor.id);
+
+      setActionMessage(
+        result?.message || "Invitation email queued successfully."
+      );
+
+      setDoctors((prev) =>
+        prev.map((d) =>
+          d.id === doctor.id
+            ? {
+                ...d,
+                status: "PENDING_VERIFICATION",
+              }
+            : d
+        )
+      );
+
+      setViewDoctor((prev) =>
+        prev && prev.id === doctor.id
+          ? { ...prev, status: "PENDING_VERIFICATION" }
+          : prev
+      );
+
+      setTimeout(() => {
+        loadDoctors();
+      }, 800);
+    } catch (err) {
+      setActionError(
+        err.message || "Failed to resend invitation."
+      );
+    } finally {
+      setResendingId(null);
+    }
+  }
+
   const filtered = useMemo(() => {
     if (status === "all") return doctors;
     return doctors.filter((d) => d.status === status);
@@ -176,6 +226,12 @@ export default function AdminDoctorsPage() {
     () => ({
       all: doctors.length,
       ACTIVE: doctors.filter((d) => d.status === "ACTIVE").length,
+      PENDING_VERIFICATION: doctors.filter(
+        (d) => d.status === "PENDING_VERIFICATION"
+      ).length,
+      INVITATION_EXPIRED: doctors.filter(
+        (d) => d.status === "INVITATION_EXPIRED"
+      ).length,
       INACTIVE: doctors.filter((d) => d.status === "INACTIVE").length,
       SUSPENDED: doctors.filter((d) => d.status === "SUSPENDED").length,
     }),
@@ -184,9 +240,12 @@ export default function AdminDoctorsPage() {
 
   const hasFilters = query.trim() !== "" || status !== "all";
 
+  const attentionCount =
+    counts.PENDING_VERIFICATION + counts.INVITATION_EXPIRED;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-      {/* ══════════ Header ══════════ */}
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-brand">
@@ -208,7 +267,68 @@ export default function AdminDoctorsPage() {
         </Button>
       </div>
 
-      {/* ══════════ Search bar ══════════ */}
+      {/* Invitation attention banner */}
+      {attentionCount > 0 && (
+        <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-brand/20 bg-brand-soft/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground">
+              <Mail className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">
+                Invitations need attention
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {counts.PENDING_VERIFICATION > 0 &&
+                  `${counts.PENDING_VERIFICATION} pending`}
+                {counts.PENDING_VERIFICATION > 0 &&
+                  counts.INVITATION_EXPIRED > 0 &&
+                  " · "}
+                {counts.INVITATION_EXPIRED > 0 &&
+                  `${counts.INVITATION_EXPIRED} expired`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {counts.PENDING_VERIFICATION > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setStatus("PENDING_VERIFICATION")}
+              >
+                View pending
+              </Button>
+            )}
+            {counts.INVITATION_EXPIRED > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setStatus("INVITATION_EXPIRED")}
+              >
+                View expired
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Action feedback */}
+      {actionMessage && (
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-brand/20 bg-brand/5 p-4 text-sm text-brand">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{actionMessage}</span>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
+
+      {/* Search bar */}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -228,9 +348,12 @@ export default function AdminDoctorsPage() {
         )}
       </div>
 
-      {/* ══════════ Status tabs ══════════ */}
+      {/* Status tabs */}
       <div className="mt-6 border-b border-border">
-        <nav className="flex gap-6 overflow-x-auto" aria-label="Doctor status">
+        <nav
+          className="flex gap-6 overflow-x-auto"
+          aria-label="Doctor status"
+        >
           {STATUS_TABS.map(({ id, label }) => {
             const isActive = status === id;
 
@@ -264,7 +387,7 @@ export default function AdminDoctorsPage() {
         </nav>
       </div>
 
-      {/* ══════════ Error ══════════ */}
+      {/* Error */}
       {error && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
           <Ban className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
@@ -286,7 +409,7 @@ export default function AdminDoctorsPage() {
         </p>
       )}
 
-      {/* ══════════ Content ══════════ */}
+      {/* Content */}
       {loading ? (
         <DoctorGridSkeleton />
       ) : filtered.length > 0 ? (
@@ -296,20 +419,28 @@ export default function AdminDoctorsPage() {
               key={doctor.id}
               doctor={doctor}
               onView={() => setViewDoctor(doctor)}
+              onResend={() => handleResendInvitation(doctor)}
+              resending={resendingId === doctor.id}
             />
           ))}
         </div>
       ) : (
-        <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
+        <EmptyState
+          hasFilters={hasFilters}
+          status={status}
+          onClear={clearFilters}
+        />
       )}
 
-      {/* ══════════ Modal ══════════ */}
+      {/* Modal */}
       {viewDoctor && (
         <DoctorModal
           doctor={viewDoctor}
           onClose={() => setViewDoctor(null)}
           onToggleStatus={handleToggleStatus}
+          onResend={() => handleResendInvitation(viewDoctor)}
           updating={updatingId === viewDoctor.id}
+          resending={resendingId === viewDoctor.id}
         />
       )}
     </div>
@@ -318,9 +449,11 @@ export default function AdminDoctorsPage() {
 
 /* ══════════ Doctor Card ══════════ */
 
-function DoctorCard({ doctor, onView }) {
+function DoctorCard({ doctor, onView, onResend, resending }) {
   const isActive = doctor.status === "ACTIVE";
   const isSuspended = doctor.status === "SUSPENDED";
+  const isPending = doctor.status === "PENDING_VERIFICATION";
+  const isExpired = doctor.status === "INVITATION_EXPIRED";
 
   return (
     <div
@@ -328,6 +461,10 @@ function DoctorCard({ doctor, onView }) {
         "group flex flex-col overflow-hidden rounded-2xl border bg-card transition-all hover:shadow-md",
         isSuspended
           ? "border-destructive/30"
+          : isExpired
+          ? "border-destructive/30"
+          : isPending
+          ? "border-yellow-500/30"
           : "border-border hover:border-brand/40"
       )}
     >
@@ -339,8 +476,10 @@ function DoctorCard({ doctor, onView }) {
         <div
           className={cn(
             "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold",
-            isSuspended
+            isSuspended || isExpired
               ? "bg-destructive/10 text-destructive"
+              : isPending
+              ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
               : !isActive
               ? "bg-muted text-muted-foreground"
               : "bg-brand-soft text-brand-soft-foreground"
@@ -369,6 +508,13 @@ function DoctorCard({ doctor, onView }) {
             <span>·</span>
             <span>{doctor.experienceYears} yrs</span>
           </div>
+
+          {doctor.email && (
+            <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Mail className="h-3 w-3 shrink-0" />
+              <span className="truncate">{doctor.email}</span>
+            </div>
+          )}
         </div>
       </button>
 
@@ -393,14 +539,39 @@ function DoctorCard({ doctor, onView }) {
       </div>
 
       <div className="mt-auto flex gap-2 border-t border-border p-3">
-        <Button
-          size="sm"
-          variant="outline"
-          className="flex-1"
-          onClick={onView}
-        >
-          View
-        </Button>
+        {isPending ? (
+          <Button
+            size="sm"
+            className="flex-1"
+            onClick={onResend}
+            disabled={resending}
+          >
+            <RefreshCw
+              className={cn(
+                "mr-1.5 h-3.5 w-3.5",
+                resending && "animate-spin"
+              )}
+            />
+            {resending ? "Sending..." : "Resend"}
+          </Button>
+        ) : isExpired ? (
+          <Button size="sm" className="flex-1" asChild>
+            <Link href="/portal/admin/doctors/new">
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Create new
+            </Link>
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            onClick={onView}
+          >
+            View
+          </Button>
+        )}
+
         <Button size="sm" className="flex-1" asChild>
           <Link href={`/portal/admin/doctors/${doctor.id}/edit`}>Edit</Link>
         </Button>
@@ -416,12 +587,17 @@ function StatusBadge({ status }) {
     ACTIVE: "bg-brand-soft text-brand-soft-foreground",
     INACTIVE: "bg-muted text-muted-foreground",
     SUSPENDED: "bg-destructive/10 text-destructive",
+    PENDING_VERIFICATION:
+      "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
+    INVITATION_EXPIRED: "bg-destructive/10 text-destructive",
   };
 
   const label = {
     ACTIVE: "Active",
     INACTIVE: "Inactive",
     SUSPENDED: "Suspended",
+    PENDING_VERIFICATION: "Pending",
+    INVITATION_EXPIRED: "Expired",
   };
 
   return (
@@ -438,8 +614,19 @@ function StatusBadge({ status }) {
 
 /* ══════════ Doctor Modal ══════════ */
 
-function DoctorModal({ doctor, onClose, onToggleStatus, updating }) {
+function DoctorModal({
+  doctor,
+  onClose,
+  onToggleStatus,
+  onResend,
+  updating,
+  resending,
+}) {
   const isActive = doctor.status === "ACTIVE";
+  const isPending = doctor.status === "PENDING_VERIFICATION";
+  const isExpired = doctor.status === "INVITATION_EXPIRED";
+  const canToggle =
+    doctor.status === "ACTIVE" || doctor.status === "SUSPENDED";
 
   return (
     <div
@@ -482,6 +669,44 @@ function DoctorModal({ doctor, onClose, onToggleStatus, updating }) {
         </div>
 
         <div className="p-6">
+          {(isPending || isExpired) && (
+            <div
+              className={cn(
+                "mb-6 flex items-start gap-3 rounded-xl border p-4",
+                isPending
+                  ? "border-yellow-500/20 bg-yellow-500/5"
+                  : "border-destructive/20 bg-destructive/5"
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                  isPending
+                    ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                    : "bg-destructive/10 text-destructive"
+                )}
+              >
+                {isPending ? (
+                  <Clock3 className="h-4 w-4" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4" />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">
+                  {isPending
+                    ? "Invitation pending"
+                    : "Invitation expired"}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {isPending
+                    ? "This doctor has not logged in yet. You can resend the invitation email."
+                    : "The invitation expired after 3 failed attempts. Create a new doctor account."}
+                </p>
+              </div>
+            </div>
+          )}
+
           <SectionTitle>Contact</SectionTitle>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <InfoBox icon={Mail} label="Email" value={doctor.email} />
@@ -538,34 +763,62 @@ function DoctorModal({ doctor, onClose, onToggleStatus, updating }) {
             </Link>
           </Button>
 
-          {isActive ? (
+          {isPending && (
             <Button
-              variant="outline"
-              onClick={() => onToggleStatus(doctor)}
-              disabled={updating}
-              className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive sm:flex-none"
-            >
-              {updating ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              ) : (
-                <Ban className="mr-1.5 h-4 w-4" />
-              )}
-              Suspend
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => onToggleStatus(doctor)}
-              disabled={updating}
+              onClick={onResend}
+              disabled={resending}
               className="flex-1 sm:flex-none"
             >
-              {updating ? (
+              {resending ? (
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
               ) : (
-                <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                <RefreshCw className="mr-1.5 h-4 w-4" />
               )}
-              Reactivate
+              {resending ? "Resending..." : "Resend invitation"}
             </Button>
+          )}
+
+          {isExpired && (
+            <Button asChild className="flex-1 sm:flex-none">
+              <Link href="/portal/admin/doctors/new">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Create new
+              </Link>
+            </Button>
+          )}
+
+          {canToggle && (
+            <>
+              {isActive ? (
+                <Button
+                  variant="outline"
+                  onClick={() => onToggleStatus(doctor)}
+                  disabled={updating}
+                  className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive sm:flex-none"
+                >
+                  {updating ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Ban className="mr-1.5 h-4 w-4" />
+                  )}
+                  Suspend
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => onToggleStatus(doctor)}
+                  disabled={updating}
+                  className="flex-1 sm:flex-none"
+                >
+                  {updating ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                  )}
+                  Reactivate
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -600,25 +853,43 @@ function InfoBox({ icon: Icon, label, value }) {
   );
 }
 
-function EmptyState({ hasFilters, onClear }) {
+function EmptyState({ hasFilters, status, onClear }) {
+  const isPendingTab = status === "PENDING_VERIFICATION";
+  const isExpiredTab = status === "INVITATION_EXPIRED";
+
+  let title = "No doctors yet";
+  let desc = "Add your first doctor to get started.";
+
+  if (isPendingTab) {
+    title = "No pending invitations";
+    desc = "All doctor invitations have been accepted or are still being created.";
+  } else if (isExpiredTab) {
+    title = "No expired invitations";
+    desc = "All doctor invitations are in good standing.";
+  } else if (hasFilters) {
+    title = "No doctors found";
+    desc = "Try adjusting your filters.";
+  }
+
   return (
     <div className="mt-6 rounded-2xl border border-dashed border-border py-16 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-        <Stethoscope className="h-6 w-6 text-muted-foreground" />
+        {isPendingTab ? (
+          <Clock3 className="h-6 w-6 text-muted-foreground" />
+        ) : isExpiredTab ? (
+          <AlertTriangle className="h-6 w-6 text-muted-foreground" />
+        ) : (
+          <Stethoscope className="h-6 w-6 text-muted-foreground" />
+        )}
       </div>
-      <p className="mt-5 text-base font-semibold">
-        {hasFilters ? "No doctors found" : "No doctors yet"}
-      </p>
-      <p className="mt-1.5 text-sm text-muted-foreground">
-        {hasFilters
-          ? "Try adjusting your filters."
-          : "Add your first doctor to get started."}
-      </p>
-      {hasFilters ? (
+      <p className="mt-5 text-base font-semibold">{title}</p>
+      <p className="mt-1.5 text-sm text-muted-foreground">{desc}</p>
+      {hasFilters && !isPendingTab && !isExpiredTab && (
         <Button variant="outline" onClick={onClear} className="mt-5">
           Clear filters
         </Button>
-      ) : (
+      )}
+      {!hasFilters && !isPendingTab && !isExpiredTab && (
         <Button asChild className="mt-5">
           <Link href="/portal/admin/doctors/new">
             <Plus className="mr-1.5 h-4 w-4" />
