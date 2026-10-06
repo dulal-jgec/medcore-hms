@@ -8,21 +8,16 @@ import {
   X,
   HeartPulse,
   Mail,
-  Phone,
   Building2,
-  Briefcase,
   GraduationCap,
-  FileText,
   AlertCircle,
   ArrowUpRight,
   Users,
-  TrendingUp,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth-store";
 import { getNurses } from "@/services/nurse.service";
 
 const STATUS_TABS = [
@@ -32,8 +27,6 @@ const STATUS_TABS = [
 ];
 
 export default function AdminNursesPage() {
-  const accessToken = useAuthStore((s) => s.accessToken);
-
   const [nurses, setNurses] = useState([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -41,18 +34,18 @@ export default function AdminNursesPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!accessToken) return;
     load();
-  }, [accessToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function load() {
     try {
       setLoading(true);
       setError("");
 
-      const result = await getNurses(accessToken, {
+      const result = await getNurses({
         page: 0,
-       size: 50,
+        size: 50,
         sortBy: "id",
         sortDir: "asc",
       });
