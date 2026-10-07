@@ -66,8 +66,9 @@ const FALLBACK_STATS = {
 };
 
 export default function AdminDashboard() {
-  const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
+  const initialized = useAuthStore((s) => s.initialized);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const [hospital, setHospital] = useState(null);
   const [staff, setStaff] = useState({
@@ -80,7 +81,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!accessToken) return;
+    if (!initialized || !isAuthenticated) return;
 
     let cancelled = false;
 
@@ -159,7 +160,7 @@ export default function AdminDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [initialized, isAuthenticated]);
 
   if (loading) return <DashboardSkeleton />;
 
@@ -187,7 +188,31 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!hospital) return null;
+  if (!hospital) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <div>
+              <h2 className="font-semibold text-destructive">
+                Hospital profile not found
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your account is not linked to a hospital. Contact support.
+              </p>
+              <Button
+                className="mt-4"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const doctorStats = countByStatus(staff.doctors);
   const nurseStats = countByStatus(staff.nurses);
@@ -405,12 +430,6 @@ function InvitationCenter({ staff }) {
 
   const active = staff.filter((u) => u.status === "ACTIVE");
 
-  const waiting = staff.filter(
-    (u) =>
-      u.status === "PENDING_VERIFICATION" &&
-      u.invitationStatus !== "EXHAUSTED"
-  );
-
   const exhausted = staff.filter(
     (u) =>
       u.status === "PENDING_VERIFICATION" &&
@@ -419,6 +438,12 @@ function InvitationCenter({ staff }) {
 
   const expired = staff.filter(
     (u) => u.status === "INVITATION_EXPIRED"
+  );
+
+  const waiting = staff.filter(
+    (u) =>
+      u.status === "PENDING_VERIFICATION" &&
+      u.invitationStatus !== "EXHAUSTED"
   );
 
   const needsAttention = exhausted.length + expired.length;
@@ -433,6 +458,10 @@ function InvitationCenter({ staff }) {
       const result = await resendStaffInvitation(userId);
 
       setMessage(result.message || "Invitation email queued successfully.");
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1200);
     } catch (err) {
       setError(err.message || "Failed to resend invitation.");
     } finally {
@@ -453,18 +482,13 @@ function InvitationCenter({ staff }) {
                 Staff invitation center
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Monitor staff onboarding and email invitations
+                Exhausted and expired invitations appear first
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-4 gap-2">
             <MiniStatus label="Active" value={active.length} type="active" />
-            <MiniStatus
-              label="Waiting"
-              value={waiting.length}
-              type="waiting"
-            />
             <MiniStatus
               label="Resend"
               value={exhausted.length}
@@ -474,6 +498,11 @@ function InvitationCenter({ staff }) {
               label="Expired"
               value={expired.length}
               type="expired"
+            />
+            <MiniStatus
+              label="Waiting"
+              value={waiting.length}
+              type="waiting"
             />
           </div>
         </div>
@@ -661,7 +690,7 @@ function InvitationRow({ user, status, resending, onResend }) {
                   ? "/portal/admin/nurses/new"
                   : user.staffRole === "Receptionist"
                   ? "/portal/admin/receptionists/new"
-                  : "/portal/admin/accounts"
+                  : "/portal/admin/accountants/new"
               }
             >
               <UserPlus className="mr-1.5 h-3.5 w-3.5" />
