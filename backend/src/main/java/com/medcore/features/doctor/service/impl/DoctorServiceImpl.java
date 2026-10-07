@@ -18,7 +18,6 @@ import com.medcore.features.doctor.dto.request.UpdateMyDoctorProfileRequest;
 import com.medcore.features.doctor.dto.response.DoctorProfileResponse;
 import com.medcore.features.doctor.dto.response.DoctorResponse;
 import com.medcore.features.doctor.entity.Doctor;
-import com.medcore.features.doctor.enums.DoctorStatus;
 import com.medcore.features.doctor.mapper.DoctorMapper;
 import com.medcore.features.doctor.repository.DoctorRepository;
 import com.medcore.features.doctor.service.DoctorService;
@@ -68,7 +67,8 @@ public class DoctorServiceImpl implements DoctorService {
     private final EmailOutboxService emailOutboxService;
     private final FileStorageService fileStorageService;
     private final FileValidationService fileValidationService;
-
+ 
+ 
     private static final Set<String> ALLOWED_SORT_FIELDS =
             Set.of(
                     "id",

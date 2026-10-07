@@ -9,95 +9,186 @@ import com.medcore.features.doctor.dto.response.PublicDoctorResponse;
 import com.medcore.features.doctor.entity.Doctor;
 import com.medcore.features.doctor.enums.DoctorStatus;
 import com.medcore.features.hospital.entity.Hospital;
+import com.medcore.features.notification.service.InvitationStatusService;
 import com.medcore.features.user.entity.User;
+
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class DoctorMapper {
 
-    public Doctor toEntity(CreateDoctorRequest request,
-                           User user,
-                           Hospital hospital,
-                           Department department) {
+    private final InvitationStatusService invitationStatusService;
+
+    public Doctor toEntity(
+            CreateDoctorRequest request,
+            User user,
+            Hospital hospital,
+            Department department) {
 
         return Doctor.builder()
                 .user(user)
                 .hospital(hospital)
                 .department(department)
-                .specialization(request.getSpecialization().trim())
-                .experienceYears(request.getExperienceYears())
-                .consultationFee(request.getConsultationFee())
+                .specialization(
+                        request.getSpecialization().trim()
+                )
+                .experienceYears(
+                        request.getExperienceYears()
+                )
+                .consultationFee(
+                        request.getConsultationFee()
+                )
                 .consultationDurationMinutes(
                         request.getConsultationDurationMinutes()
                 )
-                .qualification(request.getQualification().trim())
+                .qualification(
+                        request.getQualification().trim()
+                )
                 .status(DoctorStatus.ACTIVE)
                 .build();
     }
 
     public DoctorResponse toResponse(Doctor doctor) {
 
+        User user = doctor.getUser();
+
         return DoctorResponse.builder()
                 .id(doctor.getId())
-                .userId(doctor.getUser().getId())
-                .doctorName(doctor.getUser().getFullName())
-                .email(doctor.getUser().getEmail())
-                .hospitalId(doctor.getHospital().getId())
-                .hospitalName(doctor.getHospital().getName())
-                .departmentId(doctor.getDepartment().getId())
-                .departmentName(doctor.getDepartment().getName())
-                .specialization(doctor.getSpecialization())
-                .experienceYears(doctor.getExperienceYears())
-                .consultationFee(doctor.getConsultationFee())
-                .qualification(doctor.getQualification())
-                .status(doctor.getStatus())
-                .createdAt(doctor.getCreatedAt())
+                .userId(user.getId())
+                .doctorName(user.getFullName())
+                .email(user.getEmail())
+                .hospitalId(
+                        doctor.getHospital() != null
+                                ? doctor.getHospital().getId()
+                                : null
+                )
+                .departmentId(
+                        doctor.getDepartment() != null
+                                ? doctor.getDepartment().getId()
+                                : null
+                )
+                .departmentName(
+                        doctor.getDepartment() != null
+                                ? doctor.getDepartment().getName()
+                                : null
+                )
+                .specialization(
+                        doctor.getSpecialization()
+                )
+                .experienceYears(
+                        doctor.getExperienceYears()
+                )
+                .consultationFee(
+                        doctor.getConsultationFee()
+                )
+                .status(
+                        doctor.getStatus()
+                )
+                .userStatus(
+                        user.getStatus()
+                )
+                .invitationStatus(
+                        invitationStatusService
+                                .getInvitationStatus(user)
+                )
                 .build();
     }
-    
-    public DoctorProfileResponse toProfileResponse(Doctor doctor) {
+
+    public DoctorProfileResponse toProfileResponse(
+            Doctor doctor) {
 
         return DoctorProfileResponse.builder()
                 .id(doctor.getId())
-                .userId(doctor.getUser().getId())
-                .doctorName(doctor.getUser().getFullName())
-                .email(doctor.getUser().getEmail())
-                .phone(doctor.getUser().getPhone())
-                .profileImageUrl(doctor.getProfileImageUrl())
-                .bio(doctor.getBio())
-                .languages(doctor.getLanguages())
-                .hospitalId(doctor.getHospital().getId())
-                .hospitalName(doctor.getHospital().getName())
-                .departmentId(doctor.getDepartment().getId())
-                .departmentName(doctor.getDepartment().getName())
-                .specialization(doctor.getSpecialization())
-                .experienceYears(doctor.getExperienceYears())
-                .consultationFee(doctor.getConsultationFee())
-                .qualification(doctor.getQualification())
-                .status(doctor.getStatus())
-                .createdAt(doctor.getCreatedAt())
+                .userId(
+                        doctor.getUser().getId()
+                )
+                .doctorName(
+                        doctor.getUser().getFullName()
+                )
+                .email(
+                        doctor.getUser().getEmail()
+                )
+                .phone(
+                        doctor.getUser().getPhone()
+                )
+                .profileImageUrl(
+                        doctor.getProfileImageUrl()
+                )
+                .bio(
+                        doctor.getBio()
+                )
+                .languages(
+                        doctor.getLanguages()
+                )
+                .hospitalId(
+                        doctor.getHospital().getId()
+                )
+                .hospitalName(
+                        doctor.getHospital().getName()
+                )
+                .departmentId(
+                        doctor.getDepartment().getId()
+                )
+                .departmentName(
+                        doctor.getDepartment().getName()
+                )
+                .specialization(
+                        doctor.getSpecialization()
+                )
+                .experienceYears(
+                        doctor.getExperienceYears()
+                )
+                .consultationFee(
+                        doctor.getConsultationFee()
+                )
+                .qualification(
+                        doctor.getQualification()
+                )
+                .status(
+                        doctor.getStatus()
+                )
+                .createdAt(
+                        doctor.getCreatedAt()
+                )
                 .build();
     }
-    
+
     public void updateEntity(
             Doctor doctor,
             UpdateDoctorRequest request) {
 
-        doctor.setSpecialization(request.getSpecialization().trim());
-        doctor.setExperienceYears(request.getExperienceYears());
-        doctor.setConsultationFee(request.getConsultationFee());
-        doctor.setQualification(request.getQualification().trim());
+        doctor.setSpecialization(
+                request.getSpecialization().trim()
+        );
+
+        doctor.setExperienceYears(
+                request.getExperienceYears()
+        );
+
+        doctor.setConsultationFee(
+                request.getConsultationFee()
+        );
+
+        doctor.setQualification(
+                request.getQualification().trim()
+        );
+
         doctor.setConsultationDurationMinutes(
                 request.getConsultationDurationMinutes()
         );
     }
-    
+
     public PublicDoctorResponse toPublicResponse(
             Doctor doctor) {
 
         return PublicDoctorResponse
                 .builder()
-                .id(doctor.getId())
+                .id(
+                        doctor.getId()
+                )
                 .doctorName(
                         doctor.getUser().getFullName()
                 )

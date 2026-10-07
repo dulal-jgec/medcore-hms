@@ -6,11 +6,18 @@ import com.medcore.features.nurse.dto.request.UpdateNurseRequest;
 import com.medcore.features.nurse.dto.response.NurseProfileResponse;
 import com.medcore.features.nurse.dto.response.NurseResponse;
 import com.medcore.features.nurse.entity.Nurse;
+import com.medcore.features.notification.service.InvitationStatusService;
 import com.medcore.features.user.entity.User;
+
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class NurseMapper {
+
+    private final InvitationStatusService invitationStatusService;
 
     public Nurse toEntity(
             CreateNurseRequest request,
@@ -58,9 +65,14 @@ public class NurseMapper {
                 .qualification(nurse.getQualification())
                 .licenseNumber(nurse.getLicenseNumber())
                 .status(nurse.getStatus())
+                .userStatus(user.getStatus())
+                .invitationStatus(
+                        invitationStatusService
+                                .getInvitationStatus(user)
+                )
                 .build();
     }
-    
+
     public NurseProfileResponse toProfileResponse(
             Nurse nurse) {
 
@@ -93,7 +105,7 @@ public class NurseMapper {
                 .createdAt(nurse.getCreatedAt())
                 .build();
     }
-    
+
     public void updateMyProfile(
             Nurse nurse,
             UpdateMyNurseProfileRequest request) {

@@ -42,6 +42,7 @@ import {
 import { getDoctors } from "@/services/doctor.service";
 import { getNurses } from "@/services/nurse.service";
 import { getReceptionists } from "@/services/receptionist.service";
+import { getAccountants } from "@/services/accountant.service";
 
 const REVENUE_LAST_7_DAYS = [
   { day: "Mon", value: 42000 },
@@ -61,6 +62,7 @@ const FALLBACK_STATS = {
   newPatientsThisMonth: 0,
   totalNurses: 0,
   totalReceptionists: 0,
+  totalAccountants: 0,
 };
 
 export default function AdminDashboard() {
@@ -72,6 +74,7 @@ export default function AdminDashboard() {
     doctors: [],
     nurses: [],
     receptionists: [],
+    accountants: [],
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -85,18 +88,24 @@ export default function AdminDashboard() {
       setLoading(true);
       setError("");
 
-      const [profileRes, doctorsRes, nursesRes, receptionistsRes] =
-        await Promise.allSettled([
-          getHospitalProfile(),
-          getDoctors({ page: 0, size: 50, sortBy: "id", sortDir: "asc" }),
-          getNurses({ page: 0, size: 50, sortBy: "id", sortDir: "asc" }),
-          getReceptionists({
-            page: 0,
-            size: 50,
-            sortBy: "createdAt",
-            sortDir: "desc",
-          }),
-        ]);
+      const [
+        profileRes,
+        doctorsRes,
+        nursesRes,
+        receptionistsRes,
+        accountantsRes,
+      ] = await Promise.allSettled([
+        getHospitalProfile(),
+        getDoctors({ page: 0, size: 50, sortBy: "id", sortDir: "asc" }),
+        getNurses({ page: 0, size: 50, sortBy: "id", sortDir: "asc" }),
+        getReceptionists({
+          page: 0,
+          size: 50,
+          sortBy: "createdAt",
+          sortDir: "desc",
+        }),
+        getAccountants(),
+      ]);
 
       if (cancelled) return;
 
@@ -131,6 +140,13 @@ export default function AdminDashboard() {
             ? receptionistsRes.value?.data?.items ||
               receptionistsRes.value?.data?.content ||
               receptionistsRes.value?.data ||
+              []
+            : [],
+        accountants:
+          accountantsRes.status === "fulfilled"
+            ? accountantsRes.value?.data?.items ||
+              accountantsRes.value?.data?.content ||
+              accountantsRes.value?.data ||
               []
             : [],
       });
@@ -176,6 +192,7 @@ export default function AdminDashboard() {
   const doctorStats = countByStatus(staff.doctors);
   const nurseStats = countByStatus(staff.nurses);
   const receptionistStats = countByStatus(staff.receptionists);
+  const accountantStats = countByStatus(staff.accountants);
 
   const invitationStaff = [
     ...staff.doctors.map((u) => ({ ...u, staffRole: "Doctor" })),
@@ -184,12 +201,17 @@ export default function AdminDashboard() {
       ...u,
       staffRole: "Receptionist",
     })),
+    ...staff.accountants.map((u) => ({
+      ...u,
+      staffRole: "Accountant",
+    })),
   ];
 
   const s = {
     ...FALLBACK_STATS,
     totalNurses: nurseStats.total,
     totalReceptionists: receptionistStats.total,
+    totalAccountants: accountantStats.total,
   };
 
   const maxRevenue = Math.max(...REVENUE_LAST_7_DAYS.map((i) => i.value));
@@ -253,6 +275,7 @@ export default function AdminDashboard() {
         doctors={doctorStats}
         nurses={nurseStats}
         receptionists={receptionistStats}
+        accountants={accountantStats}
       />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -380,9 +403,25 @@ function InvitationCenter({ staff }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const pending = staff.filter((u) => u.status === "PENDING_VERIFICATION");
-  const expired = staff.filter((u) => u.status === "INVITATION_EXPIRED");
   const active = staff.filter((u) => u.status === "ACTIVE");
+
+  const waiting = staff.filter(
+    (u) =>
+      u.status === "PENDING_VERIFICATION" &&
+      u.invitationStatus !== "EXHAUSTED"
+  );
+
+  const exhausted = staff.filter(
+    (u) =>
+      u.status === "PENDING_VERIFICATION" &&
+      u.invitationStatus === "EXHAUSTED"
+  );
+
+  const expired = staff.filter(
+    (u) => u.status === "INVITATION_EXPIRED"
+  );
+
+  const needsAttention = exhausted.length + expired.length;
 
   async function handleResend(user) {
     try {
@@ -419,10 +458,23 @@ function InvitationCenter({ staff }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             <MiniStatus label="Active" value={active.length} type="active" />
-            <MiniStatus label="Pending" value={pending.length} type="pending" />
-            <MiniStatus label="Expired" value={expired.length} type="expired" />
+            <MiniStatus
+              label="Waiting"
+              value={waiting.length}
+              type="waiting"
+            />
+            <MiniStatus
+              label="Resend"
+              value={exhausted.length}
+              type="exhausted"
+            />
+            <MiniStatus
+              label="Expired"
+              value={expired.length}
+              type="expired"
+            />
           </div>
         </div>
       </div>
@@ -442,20 +494,21 @@ function InvitationCenter({ staff }) {
         </div>
       )}
 
-      {pending.length > 0 || expired.length > 0 ? (
+      {needsAttention > 0 ? (
         <div className="grid gap-3 p-4 sm:p-5 lg:grid-cols-2">
-          {pending.map((u) => (
+          {exhausted.map((u) => (
             <InvitationRow
-              key={u.id || u.userId}
+              key={`exh-${u.id || u.userId}`}
               user={u}
-              status="pending"
+              status="exhausted"
               resending={resendingId === (u.id || u.userId)}
               onResend={() => handleResend(u)}
             />
           ))}
+
           {expired.map((u) => (
             <InvitationRow
-              key={u.id || u.userId}
+              key={`exp-${u.id || u.userId}`}
               user={u}
               status="expired"
             />
@@ -470,7 +523,9 @@ function InvitationCenter({ staff }) {
             All staff invitations are clear
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            There are no pending or expired invitations requiring attention.
+            No invitations need attention right now.
+            {waiting.length > 0 &&
+              ` ${waiting.length} still waiting for staff to sign in.`}
           </p>
         </div>
       )}
@@ -481,13 +536,19 @@ function InvitationCenter({ staff }) {
 function MiniStatus({ label, value, type }) {
   const styles = {
     active: "bg-brand-soft text-brand-soft-foreground",
-    pending:
+    waiting: "bg-muted text-muted-foreground",
+    exhausted:
       "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
     expired: "bg-destructive/10 text-destructive",
   };
 
   return (
-    <div className={cn("min-w-[72px] rounded-xl px-3 py-2 text-center", styles[type])}>
+    <div
+      className={cn(
+        "min-w-[72px] rounded-xl px-3 py-2 text-center",
+        styles[type]
+      )}
+    >
       <p className="text-sm font-bold">{value}</p>
       <p className="text-[9px] font-semibold uppercase tracking-wider">
         {label}
@@ -497,8 +558,31 @@ function MiniStatus({ label, value, type }) {
 }
 
 function InvitationRow({ user, status, resending, onResend }) {
-  const isPending = status === "pending";
+  const isExhausted = status === "exhausted";
+  const isExpired = status === "expired";
   const userId = user.id || user.userId;
+
+  const config = {
+    exhausted: {
+      icon: Clock3,
+      iconClass: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
+      badgeClass:
+        "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
+      badgeLabel: "Resend needed",
+      helper:
+        "All previous attempts to deliver this invitation failed. Resend to try again.",
+    },
+    expired: {
+      icon: AlertTriangle,
+      iconClass: "bg-destructive/10 text-destructive",
+      badgeClass: "bg-destructive/10 text-destructive",
+      badgeLabel: "Expired",
+      helper:
+        "This invitation expired after multiple failed attempts. Create a new staff account.",
+    },
+  }[status];
+
+  const Icon = config.icon;
 
   return (
     <div className="group rounded-xl border border-border bg-background p-4 transition-all hover:border-brand/30 hover:shadow-sm">
@@ -506,23 +590,17 @@ function InvitationRow({ user, status, resending, onResend }) {
         <div
           className={cn(
             "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-            isPending
-              ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-              : "bg-destructive/10 text-destructive"
+            config.iconClass
           )}
         >
-          {isPending ? (
-            <Clock3 className="h-4 w-4" />
-          ) : (
-            <AlertTriangle className="h-4 w-4" />
-          )}
+          <Icon className="h-4 w-4" />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h3 className="truncate text-sm font-semibold">
-                {user.fullName || "Unknown staff"}
+                {user.fullName || user.name || "Unknown staff"}
               </h3>
               <p className="mt-0.5 text-[11px] font-medium text-brand">
                 {user.staffRole}
@@ -532,12 +610,10 @@ function InvitationRow({ user, status, resending, onResend }) {
             <span
               className={cn(
                 "shrink-0 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-wider",
-                isPending
-                  ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                  : "bg-destructive/10 text-destructive"
+                config.badgeClass
               )}
             >
-              {isPending ? "Resend needed" : "Expired"}
+              {config.badgeLabel}
             </span>
           </div>
 
@@ -556,7 +632,7 @@ function InvitationRow({ user, status, resending, onResend }) {
         </div>
       </div>
 
-      {isPending && (
+      {isExhausted && (
         <Button
           size="sm"
           variant="outline"
@@ -571,10 +647,27 @@ function InvitationRow({ user, status, resending, onResend }) {
         </Button>
       )}
 
-      {!isPending && (
-        <div className="mt-4 rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
-          This invitation has expired. Create a new staff invitation to
-          continue onboarding.
+      {isExpired && (
+        <div className="mt-4 flex flex-col gap-3">
+          <div className="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+            {config.helper}
+          </div>
+          <Button asChild size="sm" variant="outline" className="w-full">
+            <Link
+              href={
+                user.staffRole === "Doctor"
+                  ? "/portal/admin/doctors/new"
+                  : user.staffRole === "Nurse"
+                  ? "/portal/admin/nurses/new"
+                  : user.staffRole === "Receptionist"
+                  ? "/portal/admin/receptionists/new"
+                  : "/portal/admin/accounts"
+              }
+            >
+              <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+              Create new {user.staffRole.toLowerCase()}
+            </Link>
+          </Button>
         </div>
       )}
     </div>
@@ -596,7 +689,12 @@ function AlertCard({ tone, icon: Icon, title, description, href, cta }) {
         };
 
   return (
-    <div className={cn("flex items-start gap-3 rounded-xl border p-4", styles.wrapper)}>
+    <div
+      className={cn(
+        "flex items-start gap-3 rounded-xl border p-4",
+        styles.wrapper
+      )}
+    >
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", styles.icon)} />
       <div className="min-w-0 flex-1">
         <p className={cn("text-sm font-semibold", styles.title)}>{title}</p>
@@ -604,7 +702,10 @@ function AlertCard({ tone, icon: Icon, title, description, href, cta }) {
       </div>
       <Link
         href={href}
-        className={cn("shrink-0 text-xs font-medium hover:underline", styles.title)}
+        className={cn(
+          "shrink-0 text-xs font-medium hover:underline",
+          styles.title
+        )}
       >
         {cta}
       </Link>
@@ -849,9 +950,9 @@ function SnapshotRow({ icon: Icon, label, value }) {
   );
 }
 
-function StaffOverview({ doctors, nurses, receptionists }) {
+function StaffOverview({ doctors, nurses, receptionists, accountants }) {
   return (
-    <div className="mt-6 grid gap-6 lg:grid-cols-3">
+    <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       <StaffCard
         icon={Stethoscope}
         label="Doctors"
@@ -870,6 +971,12 @@ function StaffOverview({ doctors, nurses, receptionists }) {
         label="Receptionists"
         {...receptionists}
         href="/portal/admin/receptionists"
+      />
+      <StaffCard
+        icon={Wallet}
+        label="Accountants"
+        {...accountants}
+        href="/portal/admin/accountants"
       />
     </div>
   );
@@ -973,7 +1080,7 @@ function QuickActions() {
       accent: true,
     },
     {
-      icon: Users,
+      icon: HeartPulse,
       label: "Add nurse",
       desc: "Add nursing staff",
       href: "/portal/admin/nurses/new",

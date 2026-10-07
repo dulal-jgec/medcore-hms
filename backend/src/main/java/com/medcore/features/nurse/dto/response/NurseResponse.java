@@ -1,6 +1,9 @@
 package com.medcore.features.nurse.dto.response;
 
+import com.medcore.features.notification.enums.EmailOutboxStatus;
 import com.medcore.features.nurse.enums.NurseStatus;
+import com.medcore.features.user.enums.UserStatus;
+
 import lombok.Builder;
 import lombok.Getter;
 
@@ -29,4 +32,8 @@ public class NurseResponse {
     private String licenseNumber;
 
     private NurseStatus status;
+
+    private UserStatus userStatus;
+
+    private EmailOutboxStatus invitationStatus;
 }

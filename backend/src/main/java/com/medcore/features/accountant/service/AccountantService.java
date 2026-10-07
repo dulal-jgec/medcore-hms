@@ -89,4 +89,9 @@ public interface AccountantService {
     ApiResponse<AccountantProfileResponse> uploadMyProfileImage(
             MultipartFile file
     );
+    
+    ApiResponse<String> resendInvitation(
+            Long userId,
+            String idempotencyKey
+    );
 }

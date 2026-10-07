@@ -33,8 +33,12 @@ import com.medcore.features.billing.enums.PaymentMethod;
 import com.medcore.features.billing.repository.BillRepository;
 import com.medcore.features.billing.service.BillingService;
 
+import com.medcore.features.notification.entity.EmailOutbox;
+import com.medcore.features.notification.enums.EmailOutboxStatus;
 import com.medcore.features.notification.enums.EmailType;
+import com.medcore.features.notification.repository.EmailOutboxRepository;
 import com.medcore.features.notification.service.EmailOutboxService;
+import com.medcore.features.notification.service.IdempotencyService;
 
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
@@ -64,6 +68,8 @@ public class AccountantServiceImpl
     private static final Logger log =
             LoggerFactory.getLogger(AccountantServiceImpl.class);
 
+    private static final int MAX_INVITATION_ATTEMPTS = 3;
+
     private final AccountantRepository accountantRepository;
     private final UserRepository userRepository;
     private final AccountantMapper accountantMapper;
@@ -72,6 +78,8 @@ public class AccountantServiceImpl
     private final TenantContextService tenantContextService;
     private final RoleRepository roleRepository;
     private final EmailOutboxService emailOutboxService;
+    private final EmailOutboxRepository emailOutboxRepository;
+    private final IdempotencyService idempotencyService;
     private final FileStorageService fileStorageService;
     private final PasswordEncoder passwordEncoder;
 
@@ -95,8 +103,14 @@ public class AccountantServiceImpl
 
         Long hospitalId = getCurrentHospitalId();
 
-        String email = request.getEmail().trim().toLowerCase();
-        String phone = request.getPhone().trim();
+        String email =
+                request.getEmail()
+                        .trim()
+                        .toLowerCase();
+
+        String phone =
+                request.getPhone()
+                        .trim();
 
         if (userRepository.existsActiveEmail(email)) {
             throw new DuplicateResourceException(
@@ -122,7 +136,10 @@ public class AccountantServiceImpl
                 PasswordGenerator.generate();
 
         User user = User.builder()
-                .fullName(request.getFullName().trim())
+                .fullName(
+                        request.getFullName()
+                                .trim()
+                )
                 .email(email)
                 .phone(phone)
                 .password(
@@ -132,11 +149,14 @@ public class AccountantServiceImpl
                 )
                 .role(accountantRole)
                 .hospital(
-                        tenantContextService.getCurrentHospital()
+                        tenantContextService
+                                .getCurrentHospital()
                 )
                 .emailVerified(false)
                 .phoneVerified(false)
-                .status(UserStatus.PENDING_VERIFICATION)
+                .status(
+                        UserStatus.PENDING_VERIFICATION
+                )
                 .build();
 
         user = userRepository.save(user);
@@ -199,11 +219,166 @@ public class AccountantServiceImpl
 
         return ApiResponse.<AccountantResponse>builder()
                 .success(true)
-                .message("Accountant created successfully")
+                .message(
+                        "Accountant created successfully"
+                )
                 .data(
                         accountantMapper.toResponse(
                                 savedAccountant
                         )
+                )
+                .build();
+    }
+
+    @Override
+    public ApiResponse<String> resendInvitation(
+            Long userId,
+            String idempotencyKey) {
+
+        Long hospitalId =
+                getCurrentHospitalId();
+
+        boolean created =
+                idempotencyService.create(
+                        idempotencyKey,
+                        "RESEND_ACCOUNTANT_INVITATION"
+                );
+
+        if (!created) {
+            return ApiResponse.<String>builder()
+                    .success(true)
+                    .message("Request already processed")
+                    .data(
+                            "Invitation request already accepted"
+                    )
+                    .build();
+        }
+
+        User user =
+                userRepository.findById(userId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "User not found"
+                                )
+                        );
+
+        if (user.getHospital() == null
+                || !user.getHospital()
+                .getId()
+                .equals(hospitalId)) {
+
+            throw new BusinessException(
+                    "User does not belong to your hospital"
+            );
+        }
+
+        if (user.getRole() == null
+                || user.getRole().getName()
+                != RoleName.ACCOUNTANT) {
+
+            throw new BusinessException(
+                    "User is not an accountant"
+            );
+        }
+
+        if (user.getStatus()
+                != UserStatus.PENDING_VERIFICATION) {
+
+            throw new BusinessException(
+                    "User invitation is not pending"
+            );
+        }
+
+        EmailOutbox latestInvitation =
+                emailOutboxRepository
+                        .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
+                                user.getId(),
+                                EmailType.ACCOUNTANT_CREDENTIALS
+                        )
+                        .orElseThrow(() ->
+                                new BusinessException(
+                                        "Invitation record not found"
+                                )
+                        );
+
+        if (latestInvitation.getStatus()
+                != EmailOutboxStatus.EXHAUSTED) {
+
+            throw new BusinessException(
+                    "Current invitation is still being processed. Please wait."
+            );
+        }
+
+        int invitationAttempt =
+                latestInvitation.getInvitationAttempt() + 1;
+
+        if (invitationAttempt >
+                MAX_INVITATION_ATTEMPTS) {
+
+            throw new BusinessException(
+                    "Maximum invitation attempts reached"
+            );
+        }
+
+        String temporaryPassword =
+                PasswordGenerator.generate();
+
+        user.setPassword(
+                passwordEncoder.encode(
+                        temporaryPassword
+                )
+        );
+
+        userRepository.save(user);
+
+        String emailBody = """
+                Welcome to MedCore
+
+                Hello %s,
+
+                You have been appointed as an Accountant
+                for %s.
+
+                Your login credentials are:
+
+                Email: %s
+                Temporary Password: %s
+
+                Please log in to MedCore and change your password
+                after your first login.
+
+                Regards,
+                MedCore Team
+                """.formatted(
+                user.getFullName(),
+                user.getHospital().getName(),
+                user.getEmail(),
+                temporaryPassword
+        );
+
+        emailOutboxService.createEmail(
+                user,
+                EmailType.ACCOUNTANT_CREDENTIALS,
+                user.getEmail(),
+                "Your MedCore Accountant Account",
+                emailBody,
+                invitationAttempt
+        );
+
+        log.info(
+                "Accountant invitation resent: userId={}, hospitalId={}, attempt={}",
+                user.getId(),
+                hospitalId,
+                invitationAttempt
+        );
+
+        return ApiResponse.<String>builder()
+                .success(true)
+                .message(
+                        "Invitation resent successfully"
+                )
+                .data(
+                        "Invitation email queued"
                 )
                 .build();
     }
@@ -802,7 +977,8 @@ public class AccountantServiceImpl
     }
 
     @Override
-    public ApiResponse<AccountantProfileResponse> getMyProfile() {
+    public ApiResponse<AccountantProfileResponse>
+    getMyProfile() {
 
         Accountant accountant =
                 getActiveAccountant();
@@ -821,7 +997,8 @@ public class AccountantServiceImpl
     }
 
     @Override
-    public ApiResponse<AccountantProfileResponse> updateMyProfile(
+    public ApiResponse<AccountantProfileResponse>
+    updateMyProfile(
             UpdateMyAccountantProfileRequest request) {
 
         Accountant accountant =

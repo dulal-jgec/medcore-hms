@@ -1,6 +1,9 @@
 package com.medcore.features.accountant.dto.response;
 
 import com.medcore.features.accountant.enums.AccountantStatus;
+import com.medcore.features.notification.enums.EmailOutboxStatus;
+import com.medcore.features.user.enums.UserStatus;
+
 import lombok.Builder;
 import lombok.Getter;
 
@@ -21,4 +24,8 @@ public class AccountantResponse {
     private String designation;
 
     private AccountantStatus status;
+    
+    private UserStatus userStatus;
+
+    private EmailOutboxStatus invitationStatus;
 }

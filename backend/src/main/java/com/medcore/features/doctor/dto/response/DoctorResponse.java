@@ -1,6 +1,9 @@
 package com.medcore.features.doctor.dto.response;
 
 import com.medcore.features.doctor.enums.DoctorStatus;
+import com.medcore.features.notification.enums.EmailOutboxStatus;
+import com.medcore.features.user.enums.UserStatus;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -42,6 +45,11 @@ public class DoctorResponse {
     private String qualification;
 
     private DoctorStatus status;
+    private UserStatus userStatus;
+    private EmailOutboxStatus invitationStatus;
+
+
+    
 
     private LocalDateTime createdAt;
 }

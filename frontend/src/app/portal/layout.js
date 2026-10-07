@@ -8,45 +8,40 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuthStore } from "@/store/auth-store";
 
 export default function PortalLayout({ children }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
-  const initializeAuth = useAuthStore((s) => s.initializeAuth);
-  const initialized = useAuthStore((s) => s.initialized);
+    const initializeAuth = useAuthStore((s) => s.initializeAuth);
+    const initialized = useAuthStore((s) => s.initialized);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const user = useAuthStore((s) => s.user);
 
-  useEffect(() => {
+    useEffect(() => {
+        if (!initialized) {
+            initializeAuth();
+        }
+    }, [initializeAuth, initialized]);
+
     if (!initialized) {
-      initializeAuth();
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <p className="text-sm text-muted-foreground">
+                    Checking access...
+                </p>
+            </div>
+        );
     }
-  }, [initializeAuth, initialized]);
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-muted/20">
-      {/* Sidebar — desktop. Fixed height, own scroll. */}
-      <aside className="hidden w-64 shrink-0 border-r border-border bg-card lg:block">
-        <div className="h-full overflow-y-auto">
-          <PortalSidebar />
+    if (!isAuthenticated || !user) {
+        return null;
+    }
+
+    if (user.role !== "HOSPITAL_ADMIN") {
+        return null;
+    }
+
+    return (
+        <div className="flex h-screen overflow-hidden bg-muted/20">
+            ...
         </div>
-      </aside>
-
-      {/* Sidebar — mobile */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-72 p-0">
-          <PortalSidebar onNavigate={() => setMobileOpen(false)} />
-        </SheetContent>
-      </Sheet>
-
-      {/* Main column — only this scrolls */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-         
-
-        <div className="flex-1 overflow-y-auto">
-          <PortalTopbar onOpenSidebar={() => setMobileOpen(true)} />
-          <main>{children}</main>
-        </div>
-      </div>
-
-      <DemoNavigator />
-    
-    </div>
-  );
+    );
 }

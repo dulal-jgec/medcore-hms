@@ -23,6 +23,7 @@ import com.medcore.features.nurse.mapper.NurseMapper;
 import com.medcore.features.nurse.repository.NurseRepository;
 import com.medcore.features.nurse.service.NurseService;
 import com.medcore.features.notification.enums.EmailType;
+import com.medcore.features.notification.repository.EmailOutboxRepository;
 import com.medcore.features.notification.service.EmailOutboxService;
 import com.medcore.features.notification.service.EmailService;
 import com.medcore.features.user.entity.Role;
@@ -54,6 +55,7 @@ public class NurseServiceImpl implements NurseService {
     private final EmailOutboxService emailOutboxService;
     private final FileStorageService fileStorageService;
     private final FileValidationService fileValidationService;
+    private final EmailOutboxRepository emailOutboxRepository;
 
     @Override
 @Transactional
@@ -216,31 +218,31 @@ public ApiResponse<NurseResponse> createNurse(
                 .build();
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<List<NurseResponse>> getAllNurses() {
+   @Override
+@Transactional(readOnly = true)
+public ApiResponse<List<NurseResponse>> getAllNurses() {
 
-        Long hospitalId =
-                tenantContextService.getCurrentHospitalId();
+    Long hospitalId =
+            tenantContextService.getCurrentHospitalId();
 
-        List<Nurse> nurses =
-                nurseRepository
-                        .findByHospitalIdAndDeletedAtIsNull(
-                                hospitalId
-                        );
+    List<Nurse> nurses =
+            nurseRepository
+                    .findByHospitalIdAndDeletedAtIsNull(
+                            hospitalId
+                    );
 
-        List<NurseResponse> responses =
-                nurses.stream()
-                        .map(nurseMapper::toResponse)
-                        .toList();
+    List<NurseResponse> responses =
+            nurses.stream()
+                    .map(nurseMapper::toResponse)
+                    .toList();
 
-        return ApiResponse
-                .<List<NurseResponse>>builder()
-                .success(true)
-                .message("Nurses fetched successfully")
-                .data(responses)
-                .build();
-    }
+    return ApiResponse
+            .<List<NurseResponse>>builder()
+            .success(true)
+            .message("Nurses fetched successfully")
+            .data(responses)
+            .build();
+}
 
     @Override
     @Transactional

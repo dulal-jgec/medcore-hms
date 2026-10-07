@@ -6,11 +6,18 @@ import com.medcore.features.accountant.dto.request.UpdateMyAccountantProfileRequ
 import com.medcore.features.accountant.dto.response.AccountantProfileResponse;
 import com.medcore.features.accountant.dto.response.AccountantResponse;
 import com.medcore.features.accountant.entity.Accountant;
+import com.medcore.features.notification.service.InvitationStatusService;
 import com.medcore.features.user.entity.User;
+
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class AccountantMapper {
+
+    private final InvitationStatusService invitationStatusService;
 
     public Accountant toEntity(
             CreateAccountantRequest request,
@@ -47,8 +54,19 @@ public class AccountantMapper {
                                 ? accountant.getHospital().getId()
                                 : null
                 )
-                .designation(accountant.getDesignation())
-                .status(accountant.getStatus())
+                .designation(
+                        accountant.getDesignation()
+                )
+                .status(
+                        accountant.getStatus()
+                )
+                .userStatus(
+                        user.getStatus()
+                )
+                .invitationStatus(
+                        invitationStatusService
+                                .getInvitationStatus(user)
+                )
                 .build();
     }
 
@@ -63,15 +81,31 @@ public class AccountantMapper {
                 .name(user.getFullName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
-                .profileImageUrl(accountant.getProfileImageUrl())
-                .bio(accountant.getBio())
-                .languages(accountant.getLanguages())
-                .emergencyContact(accountant.getEmergencyContact())
-                .hospitalId(accountant.getHospital().getId())
-                .hospitalName(accountant.getHospital().getName())
-                .designation(accountant.getDesignation())
-                .status(accountant.getStatus())
-                .createdAt(accountant.getCreatedAt())
+                .profileImageUrl(
+                        accountant.getProfileImageUrl()
+                )
+                .bio(
+                        accountant.getBio()
+                )
+                .hospitalId(
+                        accountant.getHospital() != null
+                                ? accountant.getHospital().getId()
+                                : null
+                )
+                .hospitalName(
+                        accountant.getHospital() != null
+                                ? accountant.getHospital().getName()
+                                : null
+                )
+                .designation(
+                        accountant.getDesignation()
+                )
+                .status(
+                        accountant.getStatus()
+                )
+                .createdAt(
+                        accountant.getCreatedAt()
+                )
                 .build();
     }
 
@@ -80,18 +114,8 @@ public class AccountantMapper {
             UpdateMyAccountantProfileRequest request) {
 
         if (request.getBio() != null) {
-            accountant.setBio(request.getBio().trim());
-        }
-
-        if (request.getLanguages() != null) {
-            accountant.setLanguages(
-                    request.getLanguages().trim()
-            );
-        }
-
-        if (request.getEmergencyContact() != null) {
-            accountant.setEmergencyContact(
-                    request.getEmergencyContact().trim()
+            accountant.setBio(
+                    request.getBio().trim()
             );
         }
     }

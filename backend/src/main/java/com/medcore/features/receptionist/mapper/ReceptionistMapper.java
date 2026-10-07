@@ -1,27 +1,34 @@
 package com.medcore.features.receptionist.mapper;
 
 import com.medcore.features.receptionist.dto.request.CreateReceptionistRequest;
+import com.medcore.features.receptionist.dto.request.UpdateMyReceptionistProfileRequest;
 import com.medcore.features.receptionist.dto.request.UpdateReceptionistRequest;
+import com.medcore.features.receptionist.dto.response.ReceptionistProfileResponse;
 import com.medcore.features.receptionist.dto.response.ReceptionistResponse;
 import com.medcore.features.receptionist.entity.Receptionist;
+import com.medcore.features.notification.service.InvitationStatusService;
 import com.medcore.features.user.entity.User;
+
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Component;
-import com.medcore.features.receptionist.dto.request.UpdateMyReceptionistProfileRequest;
-import com.medcore.features.receptionist.dto.response.ReceptionistProfileResponse;
 
 @Component
+@RequiredArgsConstructor
 public class ReceptionistMapper {
 
-	public Receptionist toEntity(
-	        CreateReceptionistRequest request,
-	        User user) {
+    private final InvitationStatusService invitationStatusService;
 
-	    return Receptionist.builder()
-	            .user(user)
-	            .hospital(user.getHospital())
-	            .designation(request.getDesignation())
-	            .build();
-	}
+    public Receptionist toEntity(
+            CreateReceptionistRequest request,
+            User user) {
+
+        return Receptionist.builder()
+                .user(user)
+                .hospital(user.getHospital())
+                .designation(request.getDesignation())
+                .build();
+    }
 
     public void updateEntity(
             Receptionist receptionist,
@@ -47,11 +54,22 @@ public class ReceptionistMapper {
                                 ? receptionist.getHospital().getId()
                                 : null
                 )
-                .designation(receptionist.getDesignation())
-                .status(receptionist.getStatus())
+                .designation(
+                        receptionist.getDesignation()
+                )
+                .status(
+                        receptionist.getStatus()
+                )
+                .userStatus(
+                        user.getStatus()
+                )
+                .invitationStatus(
+                        invitationStatusService
+                                .getInvitationStatus(user)
+                )
                 .build();
     }
-    
+
     public ReceptionistProfileResponse toProfileResponse(
             Receptionist receptionist) {
 
@@ -88,7 +106,7 @@ public class ReceptionistMapper {
                 )
                 .build();
     }
-    
+
     public void updateMyProfile(
             Receptionist receptionist,
             UpdateMyReceptionistProfileRequest request) {

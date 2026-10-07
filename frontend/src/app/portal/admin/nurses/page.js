@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+
 import { useEffect, useMemo, useState } from "react";
+
 import {
   Search,
   Plus,
@@ -13,17 +15,21 @@ import {
   AlertCircle,
   ArrowUpRight,
   Users,
+  RefreshCw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+
 import { getNurses } from "@/services/nurse.service";
+import { resendStaffInvitation } from "@/services/hospital-admin.service";
 
 const STATUS_TABS = [
   { id: "all", label: "All" },
   { id: "ACTIVE", label: "Active" },
   { id: "INACTIVE", label: "Inactive" },
+  { id: "EXHAUSTED", label: "Invitation expired" },
 ];
 
 export default function AdminNursesPage() {
@@ -32,9 +38,11 @@ export default function AdminNursesPage() {
   const [status, setStatus] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [resendingId, setResendingId] = useState(null);
 
   useEffect(() => {
     load();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -58,6 +66,32 @@ export default function AdminNursesPage() {
     }
   }
 
+  async function handleResendInvitation(nurse) {
+    try {
+      setResendingId(nurse.id);
+      setError("");
+
+      await resendStaffInvitation(nurse.userId);
+
+      setNurses((prev) =>
+        prev.map((item) =>
+          item.id === nurse.id
+            ? {
+                ...item,
+                invitationStatus: "PENDING",
+              }
+            : item
+        )
+      );
+    } catch (err) {
+      setError(
+        err.message || "Failed to resend invitation"
+      );
+    } finally {
+      setResendingId(null);
+    }
+  }
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
 
@@ -69,7 +103,17 @@ export default function AdminNursesPage() {
         nurse.department?.toLowerCase().includes(q) ||
         nurse.designation?.toLowerCase().includes(q);
 
-      const matchStatus = status === "all" || nurse.status === status;
+      if (status === "EXHAUSTED") {
+        return (
+          matchQuery &&
+          nurse.invitationStatus === "EXHAUSTED"
+        );
+      }
+
+      const matchStatus =
+        nurse.userStatus === "ACTIVE" &&
+        (status === "all" ||
+          nurse.status === status);
 
       return matchQuery && matchStatus;
     });
@@ -77,19 +121,46 @@ export default function AdminNursesPage() {
 
   const counts = useMemo(
     () => ({
-      all: nurses.length,
-      ACTIVE: nurses.filter((n) => n.status === "ACTIVE").length,
-      INACTIVE: nurses.filter((n) => n.status === "INACTIVE").length,
+      all: nurses.filter(
+        (nurse) => nurse.userStatus === "ACTIVE"
+      ).length,
+
+      ACTIVE: nurses.filter(
+        (nurse) =>
+          nurse.userStatus === "ACTIVE" &&
+          nurse.status === "ACTIVE"
+      ).length,
+
+      INACTIVE: nurses.filter(
+        (nurse) =>
+          nurse.userStatus === "ACTIVE" &&
+          nurse.status === "INACTIVE"
+      ).length,
+
+      EXHAUSTED: nurses.filter(
+        (nurse) =>
+          nurse.invitationStatus === "EXHAUSTED"
+      ).length,
     }),
     [nurses]
   );
 
   const departmentsCovered = useMemo(
-    () => new Set(nurses.map((n) => n.department).filter(Boolean)).size,
+    () =>
+      new Set(
+        nurses
+          .filter(
+            (nurse) =>
+              nurse.userStatus === "ACTIVE"
+          )
+          .map((nurse) => nurse.department)
+          .filter(Boolean)
+      ).size,
     [nurses]
   );
 
-  const hasFilters = query.trim() !== "" || status !== "all";
+  const hasFilters =
+    query.trim() !== "" || status !== "all";
 
   function clearFilters() {
     setQuery("");
@@ -152,7 +223,7 @@ export default function AdminNursesPage() {
 
       {error && (
         <ErrorBanner
-          title="Unable to load nurses"
+          title="Unable to process request"
           message={error}
           onRetry={load}
         />
@@ -162,7 +233,11 @@ export default function AdminNursesPage() {
         <ResultCount
           count={filtered.length}
           noun="nurse"
-          suffix="across your hospital"
+          suffix={
+            status === "EXHAUSTED"
+              ? "requiring invitation resend"
+              : "across your hospital"
+          }
         />
       )}
 
@@ -171,18 +246,42 @@ export default function AdminNursesPage() {
       ) : filtered.length > 0 ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((nurse) => (
-            <NurseCard key={nurse.id} nurse={nurse} />
+            <NurseCard
+              key={nurse.id}
+              nurse={nurse}
+              onResend={() =>
+                handleResendInvitation(nurse)
+              }
+              resending={
+                resendingId === nurse.id
+              }
+            />
           ))}
         </div>
       ) : (
-        <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
+        <EmptyState
+          hasFilters={hasFilters}
+          invitationExpired={
+            status === "EXHAUSTED"
+          }
+          onClear={clearFilters}
+        />
       )}
     </div>
   );
 }
 
-function NurseCard({ nurse }) {
-  const isActive = nurse.status === "ACTIVE";
+function NurseCard({
+  nurse,
+  onResend,
+  resending,
+}) {
+  const isActive =
+    nurse.userStatus === "ACTIVE" &&
+    nurse.status === "ACTIVE";
+
+  const isExhausted =
+    nurse.invitationStatus === "EXHAUSTED";
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/40 hover:shadow-lg">
@@ -190,7 +289,11 @@ function NurseCard({ nurse }) {
         aria-hidden
         className={cn(
           "absolute inset-x-0 top-0 h-1",
-          isActive ? "bg-brand" : "bg-muted-foreground/30"
+          isExhausted
+            ? "bg-destructive"
+            : isActive
+            ? "bg-brand"
+            : "bg-muted-foreground/30"
         )}
       />
 
@@ -200,10 +303,14 @@ function NurseCard({ nurse }) {
             "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold shadow-sm",
             isActive
               ? "bg-gradient-to-br from-brand to-brand/85 text-brand-foreground"
+              : isExhausted
+              ? "bg-destructive/10 text-destructive"
               : "bg-muted text-muted-foreground"
           )}
         >
-          {nurse.name?.charAt(0)?.toUpperCase() || "N"}
+          {nurse.name
+            ?.charAt(0)
+            ?.toUpperCase() || "N"}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -211,7 +318,14 @@ function NurseCard({ nurse }) {
             <h3 className="truncate text-base font-semibold tracking-tight">
               {nurse.name}
             </h3>
-            <StatusBadge status={nurse.status} />
+
+            {isExhausted ? (
+              <InvitationStatusBadge />
+            ) : (
+              <StatusBadge
+                status={nurse.status}
+              />
+            )}
           </div>
 
           <p className="mt-0.5 truncate text-sm font-medium text-brand">
@@ -220,7 +334,9 @@ function NurseCard({ nurse }) {
 
           <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
             <Mail className="h-3 w-3 shrink-0" />
-            <span className="truncate">{nurse.email || "—"}</span>
+            <span className="truncate">
+              {nurse.email || "—"}
+            </span>
           </div>
         </div>
       </div>
@@ -231,6 +347,7 @@ function NurseCard({ nurse }) {
           label="Department"
           value={nurse.department || "—"}
         />
+
         <MetaCell
           icon={HeartPulse}
           label="Ward"
@@ -239,32 +356,64 @@ function NurseCard({ nurse }) {
       </div>
 
       <div className="mt-auto flex items-center justify-between border-t border-border bg-muted/10 px-5 py-3">
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <GraduationCap className="h-3 w-3" />
+        <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+          <GraduationCap className="h-3 w-3 shrink-0" />
+
           <span className="truncate">
-            {nurse.qualification || "Qualification not set"}
+            {nurse.qualification ||
+              "Qualification not set"}
           </span>
         </div>
-        <Link
-          href={`/portal/admin/nurses/${nurse.id}`}
-          className="flex items-center gap-1 text-xs font-medium text-brand transition-transform hover:gap-1.5"
-        >
-          View
-          <ArrowUpRight className="h-3 w-3" />
-        </Link>
+
+        {isExhausted ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onResend}
+            disabled={resending}
+            className="ml-3 shrink-0"
+          >
+            <RefreshCw
+              className={cn(
+                "mr-1.5 h-3.5 w-3.5",
+                resending &&
+                  "animate-spin"
+              )}
+            />
+
+            {resending
+              ? "Sending..."
+              : "Resend invitation"}
+          </Button>
+        ) : (
+          <Link
+            href={`/portal/admin/nurses/${nurse.id}`}
+            className="ml-3 flex shrink-0 items-center gap-1 text-xs font-medium text-brand transition-transform hover:gap-1.5"
+          >
+            View
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        )}
       </div>
     </div>
   );
 }
 
-function MetaCell({ icon: Icon, label, value }) {
+function MetaCell({
+  icon: Icon,
+  label,
+  value,
+}) {
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         <Icon className="h-2.5 w-2.5" />
         {label}
       </div>
-      <p className="mt-1 truncate text-xs font-medium">{value}</p>
+
+      <p className="mt-1 truncate text-xs font-medium">
+        {value}
+      </p>
     </div>
   );
 }
@@ -284,31 +433,55 @@ function StatusBadge({ status }) {
       <span
         className={cn(
           "h-1.5 w-1.5 rounded-full",
-          isActive ? "bg-brand" : "bg-muted-foreground"
+          isActive
+            ? "bg-brand"
+            : "bg-muted-foreground"
         )}
       />
+
       {isActive ? "Active" : "Inactive"}
     </span>
   );
 }
 
-function PageHeader({ eyebrow, title, desc, action }) {
+function InvitationStatusBadge() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+      <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+      Invitation expired
+    </span>
+  );
+}
+
+function PageHeader({
+  eyebrow,
+  title,
+  desc,
+  action,
+}) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-brand">
           {eyebrow}
         </p>
+
         <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
           {title}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
+
+        <p className="mt-1 text-sm text-muted-foreground">
+          {desc}
+        </p>
       </div>
 
       {action && (
         <Button asChild>
           <Link href={action.href}>
-            {action.icon && <action.icon className="mr-1.5 h-4 w-4" />}
+            {action.icon && (
+              <action.icon className="mr-1.5 h-4 w-4" />
+            )}
+
             {action.label}
           </Link>
         </Button>
@@ -322,6 +495,7 @@ function SummaryBar({ items }) {
     <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {items.map((item) => {
         const Icon = item.icon;
+
         return (
           <div
             key={item.label}
@@ -337,9 +511,11 @@ function SummaryBar({ items }) {
             >
               <Icon className="h-4 w-4" />
             </span>
+
             <p className="mt-3 text-2xl font-bold tracking-tight">
               {item.value}
             </p>
+
             <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
               {item.label}
             </p>
@@ -350,21 +526,34 @@ function SummaryBar({ items }) {
   );
 }
 
-function Toolbar({ query, onQuery, placeholder, hasFilters, onClear }) {
+function Toolbar({
+  query,
+  onQuery,
+  placeholder,
+  hasFilters,
+  onClear,
+}) {
   return (
     <div className="mt-6 flex flex-col gap-3 sm:flex-row">
       <div className="relative flex-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
         <Input
           value={query}
-          onChange={(e) => onQuery(e.target.value)}
+          onChange={(e) =>
+            onQuery(e.target.value)
+          }
           placeholder={placeholder}
           className="h-11 pl-10"
         />
       </div>
 
       {hasFilters && (
-        <Button variant="ghost" onClick={onClear} className="h-11">
+        <Button
+          variant="ghost"
+          onClick={onClear}
+          className="h-11"
+        >
           <X className="mr-1.5 h-4 w-4" />
           Clear
         </Button>
@@ -373,12 +562,21 @@ function Toolbar({ query, onQuery, placeholder, hasFilters, onClear }) {
   );
 }
 
-function StatusTabs({ tabs, counts, active, onChange }) {
+function StatusTabs({
+  tabs,
+  counts,
+  active,
+  onChange,
+}) {
   return (
     <div className="mt-6 border-b border-border">
-      <nav className="flex gap-6 overflow-x-auto" aria-label="Status filter">
+      <nav
+        className="flex gap-6 overflow-x-auto"
+        aria-label="Status filter"
+      >
         {tabs.map(({ id, label }) => {
           const isActive = active === id;
+
           return (
             <button
               key={id}
@@ -393,6 +591,7 @@ function StatusTabs({ tabs, counts, active, onChange }) {
               )}
             >
               {label}
+
               <span
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
@@ -411,25 +610,47 @@ function StatusTabs({ tabs, counts, active, onChange }) {
   );
 }
 
-function ResultCount({ count, noun, suffix }) {
+function ResultCount({
+  count,
+  noun,
+  suffix,
+}) {
   return (
     <p className="mt-4 text-xs text-muted-foreground">
-      <span className="font-semibold text-foreground">{count}</span> {noun}
+      <span className="font-semibold text-foreground">
+        {count}
+      </span>{" "}
+      {noun}
       {count !== 1 ? "s" : ""} {suffix}
     </p>
   );
 }
 
-function ErrorBanner({ title, message, onRetry }) {
+function ErrorBanner({
+  title,
+  message,
+  onRetry,
+}) {
   return (
     <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+
       <div className="flex-1">
-        <p className="text-sm font-semibold text-destructive">{title}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{message}</p>
+        <p className="text-sm font-semibold text-destructive">
+          {title}
+        </p>
+
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {message}
+        </p>
       </div>
+
       {onRetry && (
-        <Button variant="outline" size="sm" onClick={onRetry}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRetry}
+        >
           Retry
         </Button>
       )}
@@ -437,32 +658,49 @@ function ErrorBanner({ title, message, onRetry }) {
   );
 }
 
-function EmptyState({ hasFilters, onClear }) {
+function EmptyState({
+  hasFilters,
+  invitationExpired,
+  onClear,
+}) {
   return (
     <div className="mt-6 rounded-2xl border border-dashed border-border py-16 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft">
         <HeartPulse className="h-6 w-6 text-brand-soft-foreground" />
       </div>
+
       <p className="mt-5 text-base font-semibold">
-        {hasFilters ? "No nurses match your filters" : "No nurses yet"}
+        {invitationExpired
+          ? "No expired invitations"
+          : hasFilters
+          ? "No nurses match your filters"
+          : "No nurses yet"}
       </p>
+
       <p className="mt-1.5 text-sm text-muted-foreground">
-        {hasFilters
+        {invitationExpired
+          ? "All nurse invitations are currently being processed or completed."
+          : hasFilters
           ? "Try a different search or clear the filters."
           : "Add your first nurse to get started."}
       </p>
-      {hasFilters ? (
-        <Button variant="outline" onClick={onClear} className="mt-5">
+
+      {hasFilters && !invitationExpired ? (
+        <Button
+          variant="outline"
+          onClick={onClear}
+          className="mt-5"
+        >
           Clear filters
         </Button>
-      ) : (
+      ) : !invitationExpired ? (
         <Button asChild className="mt-5">
           <Link href="/portal/admin/nurses/new">
             <Plus className="mr-1.5 h-4 w-4" />
             Add nurse
           </Link>
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

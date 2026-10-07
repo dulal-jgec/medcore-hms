@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
+
 import {
   getReceptionists,
   activateReceptionist,
@@ -29,10 +30,13 @@ import {
   getReceptionistById,
 } from "@/services/receptionist.service";
 
+import { resendStaffInvitation } from "@/services/hospital-admin.service";
+
 const STATUS_TABS = [
   { id: "all", label: "All" },
   { id: "ACTIVE", label: "Active" },
   { id: "INACTIVE", label: "Inactive" },
+  { id: "EXHAUSTED", label: "Invitation expired" },
 ];
 
 export default function AdminReceptionistsPage() {
@@ -44,10 +48,12 @@ export default function AdminReceptionistsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionId, setActionId] = useState(null);
+  const [resendingId, setResendingId] = useState(null);
   const [viewStaff, setViewStaff] = useState(null);
 
   useEffect(() => {
     if (!accessToken) return;
+
     loadReceptionists();
   }, [accessToken]);
 
@@ -74,7 +80,9 @@ export default function AdminReceptionistsPage() {
   async function handleView(receptionist) {
     try {
       setError("");
+
       const result = await getReceptionistById(receptionist.id);
+
       setViewStaff(result.data);
     } catch (err) {
       setError(err.message || "Failed to load receptionist");
@@ -105,6 +113,45 @@ export default function AdminReceptionistsPage() {
     }
   }
 
+  async function handleResendInvitation(receptionist) {
+    try {
+      setResendingId(receptionist.id);
+      setError("");
+
+      await resendStaffInvitation(receptionist.userId);
+
+      setReceptionists((prev) =>
+        prev.map((item) =>
+          item.id === receptionist.id
+            ? {
+                ...item,
+                invitationStatus: "PENDING",
+              }
+            : item
+        )
+      );
+
+      if (viewStaff?.id === receptionist.id) {
+        setViewStaff((prev) =>
+          prev
+            ? {
+                ...prev,
+                invitationStatus: "PENDING",
+              }
+            : prev
+        );
+      }
+
+      setStatus("EXHAUSTED");
+    } catch (err) {
+      setError(
+        err.message || "Failed to resend invitation"
+      );
+    } finally {
+      setResendingId(null);
+    }
+  }
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
 
@@ -115,7 +162,16 @@ export default function AdminReceptionistsPage() {
         r.email?.toLowerCase().includes(q) ||
         r.designation?.toLowerCase().includes(q);
 
-      const matchStatus = status === "all" || r.status === status;
+      let matchStatus;
+
+      if (status === "EXHAUSTED") {
+        matchStatus =
+          r.invitationStatus === "EXHAUSTED";
+      } else {
+        matchStatus =
+          r.userStatus === "ACTIVE" &&
+          (status === "all" || r.status === status);
+      }
 
       return matchQuery && matchStatus;
     });
@@ -123,14 +179,32 @@ export default function AdminReceptionistsPage() {
 
   const counts = useMemo(
     () => ({
-      all: receptionists.length,
-      ACTIVE: receptionists.filter((r) => r.status === "ACTIVE").length,
-      INACTIVE: receptionists.filter((r) => r.status === "INACTIVE").length,
+      all: receptionists.filter(
+        (r) => r.userStatus === "ACTIVE"
+      ).length,
+
+      ACTIVE: receptionists.filter(
+        (r) =>
+          r.userStatus === "ACTIVE" &&
+          r.status === "ACTIVE"
+      ).length,
+
+      INACTIVE: receptionists.filter(
+        (r) =>
+          r.userStatus === "ACTIVE" &&
+          r.status === "INACTIVE"
+      ).length,
+
+      EXHAUSTED: receptionists.filter(
+        (r) =>
+          r.invitationStatus === "EXHAUSTED"
+      ).length,
     }),
     [receptionists]
   );
 
-  const hasFilters = query.trim() !== "" || status !== "all";
+  const hasFilters =
+    query.trim() !== "" || status !== "all";
 
   function clearFilters() {
     setQuery("");
@@ -144,9 +218,11 @@ export default function AdminReceptionistsPage() {
           <p className="text-xs font-semibold uppercase tracking-wider text-brand">
             Staff Management
           </p>
+
           <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
             Receptionists
           </h1>
+
           <p className="mt-1 text-sm text-muted-foreground">
             Manage front desk staff and receptionist accounts.
           </p>
@@ -163,6 +239,7 @@ export default function AdminReceptionistsPage() {
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -172,7 +249,11 @@ export default function AdminReceptionistsPage() {
         </div>
 
         {hasFilters && (
-          <Button variant="ghost" onClick={clearFilters} className="h-11">
+          <Button
+            variant="ghost"
+            onClick={clearFilters}
+            className="h-11"
+          >
             <X className="mr-1.5 h-4 w-4" />
             Clear
           </Button>
@@ -180,7 +261,10 @@ export default function AdminReceptionistsPage() {
       </div>
 
       <div className="mt-6 border-b border-border">
-        <nav className="flex gap-6 overflow-x-auto" aria-label="Staff status">
+        <nav
+          className="flex gap-6 overflow-x-auto"
+          aria-label="Staff status"
+        >
           {STATUS_TABS.map(({ id, label }) => {
             const isActive = status === id;
 
@@ -198,6 +282,7 @@ export default function AdminReceptionistsPage() {
                 )}
               >
                 {label}
+
                 <span
                   className={cn(
                     "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
@@ -217,13 +302,22 @@ export default function AdminReceptionistsPage() {
       {error && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+
           <div className="flex-1">
             <p className="text-sm font-semibold text-destructive">
               Unable to load receptionists
             </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{error}</p>
+
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {error}
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={loadReceptionists}>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadReceptionists}
+          >
             Retry
           </Button>
         </div>
@@ -231,7 +325,8 @@ export default function AdminReceptionistsPage() {
 
       {!loading && !error && (
         <p className="mt-4 text-xs text-muted-foreground">
-          {filtered.length} receptionist{filtered.length !== 1 ? "s" : ""} found
+          {filtered.length} receptionist
+          {filtered.length !== 1 ? "s" : ""} found
         </p>
       )}
 
@@ -244,28 +339,56 @@ export default function AdminReceptionistsPage() {
               key={staff.id}
               staff={staff}
               onView={() => handleView(staff)}
+              onResend={() =>
+                handleResendInvitation(staff)
+              }
               loading={actionId === staff.id}
+              resending={
+                resendingId === staff.id
+              }
             />
           ))}
         </div>
       ) : (
-        <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
+        <EmptyState
+          hasFilters={hasFilters}
+          onClear={clearFilters}
+          exhausted={status === "EXHAUSTED"}
+        />
       )}
 
       {viewStaff && (
         <StaffModal
           staff={viewStaff}
           onClose={() => setViewStaff(null)}
-          onStatusChange={() => handleStatusChange(viewStaff)}
+          onStatusChange={() =>
+            handleStatusChange(viewStaff)
+          }
+          onResend={() =>
+            handleResendInvitation(viewStaff)
+          }
           loading={actionId === viewStaff.id}
+          resending={
+            resendingId === viewStaff.id
+          }
         />
       )}
     </div>
   );
 }
 
-function StaffCard({ staff, onView }) {
-  const isActive = staff.status === "ACTIVE";
+function StaffCard({
+  staff,
+  onView,
+  onResend,
+  loading,
+  resending,
+}) {
+  const isActive =
+    staff.status === "ACTIVE";
+
+  const isExhausted =
+    staff.invitationStatus === "EXHAUSTED";
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/40 hover:shadow-md">
@@ -282,7 +405,8 @@ function StaffCard({ staff, onView }) {
               : "bg-muted text-muted-foreground"
           )}
         >
-          {staff.name?.charAt(0)?.toUpperCase() || "R"}
+          {staff.name?.charAt(0)?.toUpperCase() ||
+            "R"}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -290,7 +414,13 @@ function StaffCard({ staff, onView }) {
             <h3 className="truncate text-base font-semibold tracking-tight">
               {staff.name}
             </h3>
-            <StatusBadge status={staff.status} />
+
+            <StatusBadge
+              status={staff.status}
+              invitationStatus={
+                staff.invitationStatus
+              }
+            />
           </div>
 
           <p className="mt-0.5 truncate text-sm font-medium text-brand">
@@ -299,7 +429,10 @@ function StaffCard({ staff, onView }) {
 
           <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
             <Mail className="h-3 w-3 shrink-0" />
-            <span className="truncate">{staff.email}</span>
+
+            <span className="truncate">
+              {staff.email}
+            </span>
           </div>
         </div>
       </button>
@@ -310,12 +443,17 @@ function StaffCard({ staff, onView }) {
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               Employee ID
             </p>
-            <p className="mt-0.5 text-xs font-semibold">#{staff.id}</p>
+
+            <p className="mt-0.5 text-xs font-semibold">
+              #{staff.id}
+            </p>
           </div>
+
           <div className="text-right">
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               Hospital
             </p>
+
             <p className="mt-0.5 text-xs font-semibold">
               #{staff.hospitalId}
             </p>
@@ -324,20 +462,59 @@ function StaffCard({ staff, onView }) {
       </div>
 
       <div className="mt-auto flex gap-2 border-t border-border p-3">
-        <Button size="sm" variant="outline" className="flex-1" onClick={onView}>
-          View
-        </Button>
-        <Button size="sm" className="flex-1" asChild>
-          <Link href={`/portal/admin/receptionists/${staff.id}/edit`}>
-            Edit
-          </Link>
-        </Button>
+        {isExhausted ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            onClick={onResend}
+            disabled={resending}
+          >
+            {resending
+              ? "Sending..."
+              : "Resend invitation"}
+          </Button>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              onClick={onView}
+            >
+              View
+            </Button>
+
+            <Button
+              size="sm"
+              className="flex-1"
+              asChild
+            >
+              <Link
+                href={`/portal/admin/receptionists/${staff.id}/edit`}
+              >
+                Edit
+              </Link>
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({
+  status,
+  invitationStatus,
+}) {
+  if (invitationStatus === "EXHAUSTED") {
+    return (
+      <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+        Invitation expired
+      </span>
+    );
+  }
+
   const isActive = status === "ACTIVE";
 
   return (
@@ -354,8 +531,19 @@ function StatusBadge({ status }) {
   );
 }
 
-function StaffModal({ staff, onClose, onStatusChange, loading }) {
-  const isActive = staff.status === "ACTIVE";
+function StaffModal({
+  staff,
+  onClose,
+  onStatusChange,
+  onResend,
+  loading,
+  resending,
+}) {
+  const isActive =
+    staff.status === "ACTIVE";
+
+  const isExhausted =
+    staff.invitationStatus === "EXHAUSTED";
 
   return (
     <div
@@ -364,7 +552,9 @@ function StaffModal({ staff, onClose, onStatusChange, loading }) {
     >
       <div
         className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) =>
+          e.stopPropagation()
+        }
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card px-6 py-5">
           <div className="flex items-start gap-4">
@@ -376,17 +566,28 @@ function StaffModal({ staff, onClose, onStatusChange, loading }) {
                   : "bg-muted text-muted-foreground"
               )}
             >
-              {staff.name?.charAt(0)?.toUpperCase() || "R"}
+              {staff.name
+                ?.charAt(0)
+                ?.toUpperCase() || "R"}
             </div>
+
             <div className="min-w-0">
               <h2 className="truncate text-lg font-bold tracking-tight">
                 {staff.name}
               </h2>
+
               <p className="mt-0.5 text-sm font-medium text-brand">
-                {staff.designation || "Receptionist"}
+                {staff.designation ||
+                  "Receptionist"}
               </p>
+
               <div className="mt-1.5">
-                <StatusBadge status={staff.status} />
+                <StatusBadge
+                  status={staff.status}
+                  invitationStatus={
+                    staff.invitationStatus
+                  }
+                />
               </div>
             </div>
           </div>
@@ -402,28 +603,47 @@ function StaffModal({ staff, onClose, onStatusChange, loading }) {
         </div>
 
         <div className="p-6">
-          <SectionTitle>Contact</SectionTitle>
+          <SectionTitle>
+            Contact
+          </SectionTitle>
+
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <InfoBox icon={Mail} label="Email" value={staff.email} />
+            <InfoBox
+              icon={Mail}
+              label="Email"
+              value={staff.email}
+            />
+
             <InfoBox
               icon={Phone}
               label="Phone"
-              value={staff.phone || "Not available"}
+              value={
+                staff.phone ||
+                "Not available"
+              }
             />
           </div>
 
-          <SectionTitle className="mt-6">Employment</SectionTitle>
+          <SectionTitle className="mt-6">
+            Employment
+          </SectionTitle>
+
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <InfoBox
               icon={Briefcase}
               label="Designation"
-              value={staff.designation || "Not specified"}
+              value={
+                staff.designation ||
+                "Not specified"
+              }
             />
+
             <InfoBox
               icon={Building2}
               label="Hospital ID"
               value={`#${staff.hospitalId}`}
             />
+
             <InfoBox
               icon={ClipboardList}
               label="Employee ID"
@@ -431,47 +651,98 @@ function StaffModal({ staff, onClose, onStatusChange, loading }) {
             />
           </div>
 
+          {isExhausted && (
+            <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+
+                <div>
+                  <p className="text-sm font-semibold text-destructive">
+                    Invitation delivery failed
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    All automatic email retries
+                    have been exhausted. Resend the
+                    invitation to start the next
+                    invitation attempt.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+
             <p className="text-xs leading-5 text-muted-foreground">
-              Employment information and account status are managed by
-              hospital administration.
+              Employment information and account
+              status are managed by hospital
+              administration.
             </p>
           </div>
         </div>
 
         <div className="sticky bottom-0 flex flex-wrap gap-2 border-t border-border bg-card px-6 py-4">
-          <Button variant="outline" asChild className="flex-1 sm:flex-none">
-            <Link href={`/portal/admin/receptionists/${staff.id}/edit`}>
-              <Pencil className="mr-1.5 h-4 w-4" />
-              Edit details
-            </Link>
-          </Button>
+          {isExhausted ? (
+            <Button
+              onClick={onResend}
+              disabled={resending}
+              className="flex-1 sm:flex-none"
+            >
+              {resending
+                ? "Sending..."
+                : "Resend invitation"}
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                asChild
+                className="flex-1 sm:flex-none"
+              >
+                <Link
+                  href={`/portal/admin/receptionists/${staff.id}/edit`}
+                >
+                  <Pencil className="mr-1.5 h-4 w-4" />
+                  Edit details
+                </Link>
+              </Button>
 
-          <Button
-            variant="outline"
-            disabled={loading}
-            onClick={onStatusChange}
-            className={cn(
-              "flex-1 sm:flex-none",
-              isActive &&
-                "text-destructive hover:bg-destructive/10 hover:text-destructive"
-            )}
-          >
-            {isActive ? (
-              <Ban className="mr-1.5 h-4 w-4" />
-            ) : (
-              <CheckCircle2 className="mr-1.5 h-4 w-4" />
-            )}
-            {loading ? "Updating..." : isActive ? "Deactivate" : "Activate"}
-          </Button>
+              <Button
+                variant="outline"
+                disabled={loading}
+                onClick={onStatusChange}
+                className={cn(
+                  "flex-1 sm:flex-none",
+                  isActive &&
+                    "text-destructive hover:bg-destructive/10 hover:text-destructive"
+                )}
+              >
+                {isActive ? (
+                  <Ban className="mr-1.5 h-4 w-4" />
+                ) : (
+                  <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                )}
+
+                {loading
+                  ? "Updating..."
+                  : isActive
+                  ? "Deactivate"
+                  : "Activate"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function SectionTitle({ children, className }) {
+function SectionTitle({
+  children,
+  className,
+}) {
   return (
     <h3
       className={cn(
@@ -484,44 +755,68 @@ function SectionTitle({ children, className }) {
   );
 }
 
-function InfoBox({ icon: Icon, label, value }) {
+function InfoBox({
+  icon: Icon,
+  label,
+  value,
+}) {
   return (
     <div className="rounded-lg border border-border bg-background p-3">
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         <Icon className="h-3 w-3" />
         {label}
       </div>
-      <p className="mt-1 text-sm font-medium">{value || "—"}</p>
+
+      <p className="mt-1 text-sm font-medium">
+        {value || "—"}
+      </p>
     </div>
   );
 }
 
-function EmptyState({ hasFilters, onClear }) {
+function EmptyState({
+  hasFilters,
+  onClear,
+  exhausted,
+}) {
   return (
     <div className="mt-6 rounded-2xl border border-dashed border-border py-16 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
         <ClipboardList className="h-6 w-6 text-muted-foreground" />
       </div>
+
       <p className="mt-5 text-base font-semibold">
-        {hasFilters ? "No receptionists found" : "No receptionists yet"}
+        {exhausted
+          ? "No expired invitations"
+          : hasFilters
+          ? "No receptionists found"
+          : "No receptionists yet"}
       </p>
+
       <p className="mt-1.5 text-sm text-muted-foreground">
-        {hasFilters
+        {exhausted
+          ? "There are no receptionist invitations waiting for resend."
+          : hasFilters
           ? "Try adjusting your filters."
           : "Add your first receptionist to get started."}
       </p>
-      {hasFilters ? (
-        <Button variant="outline" onClick={onClear} className="mt-5">
+
+      {hasFilters && !exhausted ? (
+        <Button
+          variant="outline"
+          onClick={onClear}
+          className="mt-5"
+        >
           Clear filters
         </Button>
-      ) : (
+      ) : !hasFilters ? (
         <Button asChild className="mt-5">
           <Link href="/portal/admin/receptionists/new">
             <Plus className="mr-1.5 h-4 w-4" />
             Add receptionist
           </Link>
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }
