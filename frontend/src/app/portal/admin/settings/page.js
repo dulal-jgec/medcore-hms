@@ -16,12 +16,10 @@ import {
   Save,
   CheckCircle2,
   AlertCircle,
-  Image,
+  Image as ImageIcon,
   Upload,
   Lock,
   Smartphone,
-  Landmark,
-  Hash,
   Calendar,
   FileText,
 } from "lucide-react";
@@ -29,7 +27,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth-store";
 import {
   getHospitalProfile,
   updateHospitalProfile,
@@ -82,7 +79,6 @@ const TABS = [
 
 export default function AdminSettingsPage() {
   const [tab, setTab] = useState("general");
-  const activeTab = TABS.find((t) => t.id === tab);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
@@ -159,8 +155,6 @@ function GeneralSettings() {
   const [logoUrl, setLogoUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
 
-  const accessToken = useAuthStore((s) => s.accessToken);
-
   const {
     register,
     handleSubmit,
@@ -171,11 +165,15 @@ function GeneralSettings() {
   });
 
   useEffect(() => {
+    let mounted = true;
+
     async function load() {
       try {
         setServerError("");
-        const result = await getHospitalProfile(accessToken);
+        const result = await getHospitalProfile();
         const hospital = result.data;
+
+        if (!mounted) return;
 
         reset({
           name: hospital.name || "",
@@ -194,21 +192,26 @@ function GeneralSettings() {
         setLogoUrl(hospital.logoUrl || "");
         setBannerUrl(hospital.bannerUrl || "");
       } catch (err) {
+        if (!mounted) return;
         setServerError(err.message || "Failed to load hospital profile");
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
 
-    if (accessToken) load();
-  }, [accessToken, reset]);
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [reset]);
 
   async function onSubmit(data) {
     try {
       setServerError("");
       setSaved(false);
 
-      const result = await updateHospitalProfile(accessToken, {
+      const result = await updateHospitalProfile({
         website: data.website,
         description: data.description,
         address: data.address,
@@ -229,10 +232,22 @@ function GeneralSettings() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith("image/")) {
+      setServerError("Please select an image file.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setServerError("Image must be smaller than 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
     try {
       setServerError("");
       setLogoUploading(true);
-      const result = await uploadHospitalLogo(accessToken, file);
+      const result = await uploadHospitalLogo(file);
       setLogoUrl(result.data.logoUrl || "");
       flashSaved();
     } catch (err) {
@@ -247,10 +262,22 @@ function GeneralSettings() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith("image/")) {
+      setServerError("Please select an image file.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setServerError("Image must be smaller than 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
     try {
       setServerError("");
       setBannerUploading(true);
-      const result = await uploadHospitalBanner(accessToken, file);
+      const result = await uploadHospitalBanner(file);
       setBannerUrl(result.data.bannerUrl || "");
       flashSaved();
     } catch (err) {
@@ -273,7 +300,7 @@ function GeneralSettings() {
   return (
     <div className="space-y-6">
       <SettingsSection
-        icon={Image}
+        icon={ImageIcon}
         title="Branding"
         desc="Upload your hospital logo and banner. These appear on public pages."
       >
@@ -294,7 +321,7 @@ function GeneralSettings() {
             label="Hospital banner"
             hint="Wide image · JPG, PNG or WebP · Max 5 MB"
             image={bannerUrl}
-            placeholderIcon={Image}
+            placeholderIcon={ImageIcon}
             uploading={bannerUploading}
             onUpload={handleBannerUpload}
             aspect="banner"
@@ -308,12 +335,6 @@ function GeneralSettings() {
           title="Identity"
           desc="Core information registered with MedCore. Contact support to change locked fields."
         >
-          {serverError && !saved && (
-            <div className="mb-4">
-              <ErrorBanner message={serverError} />
-            </div>
-          )}
-
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
               label="Hospital name"
@@ -417,7 +438,26 @@ function GeneralSettings() {
         </SettingsSection>
 
         <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSubmitting}
+            onClick={() =>
+              reset({
+                name: "",
+                email: "",
+                phone: "",
+                licenseNumber: "",
+                city: "",
+                website: "",
+                description: "",
+                address: "",
+                state: "",
+                pincode: "",
+                emergencyPhone: "",
+              })
+            }
+          >
             Reset
           </Button>
           <Button type="submit" disabled={isSubmitting}>
@@ -447,7 +487,7 @@ function HoursSettings() {
     },
   });
 
-  async function onSubmit(data) {
+  async function onSubmit() {
     await new Promise((r) => setTimeout(r, 500));
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
@@ -463,7 +503,12 @@ function HoursSettings() {
         {saved && <SavedToast />}
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="OPD hours" icon={Clock} required error={errors.opd?.message}>
+          <Field
+            label="OPD hours"
+            icon={Clock}
+            required
+            error={errors.opd?.message}
+          >
             <Input {...register("opd")} className="h-11 pl-10" />
           </Field>
           <Field
@@ -741,7 +786,15 @@ function SettingsSection({ icon: Icon, title, desc, children }) {
   );
 }
 
-function Field({ label, icon: Icon, required, error, className, locked, children }) {
+function Field({
+  label,
+  icon: Icon,
+  required,
+  error,
+  className,
+  locked,
+  children,
+}) {
   return (
     <div className={className}>
       <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">
