@@ -1,183 +1,39 @@
-const API_BASE_URL = "http://localhost:8080/api/v1";
+import { apiFetch } from "@/lib/api-client";
 
-/**
- * Get hospital gallery
- */
-export async function getHospitalGallery(
-  accessToken,
-  page = 0,
-  size = 20
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/hospital/gallery?page=${page}&size=${size}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
+async function handleResponse(response) {
+  const text = await response.text();
+  const result = text ? JSON.parse(text) : {};
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch hospital gallery");
+  if (!response.ok || result.success === false) {
+    const err = new Error(result.message || `Request failed (${response.status})`);
+    err.status = response.status;
+    throw err;
   }
 
-  return response.json();
+  return result;
 }
 
-/**
- * Get single gallery image
- */
-export async function getGalleryImage(
-  galleryId,
-  accessToken
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/hospital/gallery/${galleryId}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch gallery image");
-  }
-
-  return response.json();
+export async function getHospitalGallery(page = 0, size = 20) {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+  const response = await apiFetch(`/hospital/gallery?${params.toString()}`);
+  return handleResponse(response);
 }
 
- 
-export async function createGalleryImage(
-  {
-    file,
-    title,
-    category,
-    description,
-    displayOrder,
-  },
-  accessToken
-) {
-  const formData = new FormData();
-
-  formData.append("file", file);
-  formData.append("title", title);
-  formData.append("category", category);
-
-  if (description) {
-    formData.append("description", description);
-  }
-
-  formData.append(
-    "displayOrder",
-    String(displayOrder ?? 0)
-  );
-
-  const response = await fetch(
-    `${API_BASE_URL}/hospital/gallery`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: formData,
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to upload gallery image");
-  }
-
-  return response.json();
+export async function createGalleryImage(formData) {
+  // Do NOT set Content-Type — browser will set multipart boundary
+  const response = await apiFetch("/hospital/gallery", {
+    method: "POST",
+    body: formData,
+  });
+  return handleResponse(response);
 }
 
-/**
- * Update gallery metadata
- */
-export async function updateGalleryImage(
-  galleryId,
-  {
-    title,
-    category,
-    description,
-    displayOrder,
-  },
-  accessToken
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/hospital/gallery/${galleryId}`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        title,
-        category,
-        description,
-        displayOrder: Number(displayOrder ?? 0),
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to update gallery image");
-  }
-
-  return response.json();
-}
-
-/**
- * Replace gallery image
- */
-export async function replaceGalleryImage(
-  galleryId,
-  file,
-  accessToken
-) {
-  const formData = new FormData();
-
-  formData.append("file", file);
-
-  const response = await fetch(
-    `${API_BASE_URL}/hospital/gallery/${galleryId}/image`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: formData,
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to replace gallery image");
-  }
-
-  return response.json();
-}
-
- 
-export async function deleteGalleryImage(
-  galleryId,
-  accessToken
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/hospital/gallery/${galleryId}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to delete gallery image");
-  }
-
-  return response.json();
+export async function deleteGalleryImage(id) {
+  const response = await apiFetch(`/hospital/gallery/${id}`, {
+    method: "DELETE",
+  });
+  return handleResponse(response);
 }

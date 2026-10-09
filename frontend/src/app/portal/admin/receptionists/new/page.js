@@ -17,7 +17,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuthStore } from "@/store/auth-store";
 import { createReceptionist } from "@/services/receptionist.service";
 
 const INITIAL_FORM = {
@@ -29,7 +28,6 @@ const INITIAL_FORM = {
 
 export default function CreateReceptionistPage() {
   const router = useRouter();
-  const accessToken = useAuthStore((s) => s.accessToken);
 
   const [form, setForm] = useState(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
@@ -46,8 +44,10 @@ export default function CreateReceptionistPage() {
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (!accessToken) {
-      setError("Authentication required");
+    if (submitting) return;
+
+    if (!/^[6-9][0-9]{9}$/.test(form.phone.trim())) {
+      setError("Enter a valid 10-digit mobile number");
       return;
     }
 
@@ -63,13 +63,13 @@ export default function CreateReceptionistPage() {
       });
 
       setSuccess(
-        "Receptionist created successfully. Login credentials have been emailed."
+        "Receptionist created. Login credentials have been queued to their email."
       );
 
       setForm(INITIAL_FORM);
 
       setTimeout(() => {
-        router.push("/portal/admin/receptionists");
+        router.replace("/portal/admin/receptionists");
       }, 1500);
     } catch (err) {
       setError(err.message || "Failed to create receptionist");
@@ -209,8 +209,8 @@ export default function CreateReceptionistPage() {
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <p className="text-xs leading-5 text-muted-foreground">
                 A temporary password will be generated automatically. Login
-                credentials will be sent to the receptionist's email address.
-                The receptionist will belong to your current hospital.
+                credentials will be sent to the receptionist&apos;s email
+                address. The receptionist will belong to your current hospital.
               </p>
             </div>
           </div>

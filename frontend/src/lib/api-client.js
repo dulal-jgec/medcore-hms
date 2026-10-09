@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/store/auth-store";
+import { refreshToken as refreshTokenApi } from "@/services/auth.service";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api/v1";
@@ -17,21 +18,13 @@ async function performRefresh() {
 
   refreshPromise = (async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-      });
+      // ── Uses the single-flight refresh from auth.service ──
+      // If initializeAuth() is already refreshing, this just
+      // awaits the same promise instead of firing a 2nd request.
+      const result = await refreshTokenApi();
+      const newToken = result?.data?.accessToken;
 
-      if (!response.ok) {
-        return null;
-      }
-
-      const data = await response.json();
-      const newToken = data?.data?.accessToken;
-
-      if (!newToken) {
-        return null;
-      }
+      if (!newToken) return null;
 
       useAuthStore.setState({
         accessToken: newToken,
@@ -40,7 +33,7 @@ async function performRefresh() {
       });
 
       return newToken;
-    } catch (err) {
+    } catch {
       return null;
     } finally {
       refreshPromise = null;
@@ -56,6 +49,7 @@ function forceLogout() {
     user: null,
     isAuthenticated: false,
     isLoading: false,
+    initialized: true,
   });
 
   if (typeof window !== "undefined") {

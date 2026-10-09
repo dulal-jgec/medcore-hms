@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   Building2,
@@ -25,18 +25,18 @@ import {
   createAppointment,
   getAvailableSlots,
 } from "@/services/appointment.service";
-import { clearBookingIntent } from "@/lib/booking-intent";
+import { getMyPatientProfile } from "@/services/patient.service";
 
 export default function AppointmentForm({ hospitalId, doctorId }) {
   const router = useRouter();
 
   const [hospital, setHospital] = useState(null);
   const [doctor, setDoctor] = useState(null);
+  const [patient, setPatient] = useState(null);
   const [metaLoading, setMetaLoading] = useState(true);
   const [metaError, setMetaError] = useState("");
 
   const [form, setForm] = useState({
-    patientName: "",
     appointmentDate: "",
     startTime: "",
     reason: "",
@@ -50,6 +50,7 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  /* Load hospital + doctor + patient profile */
   useEffect(() => {
     let mounted = true;
 
@@ -58,14 +59,17 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
         setMetaLoading(true);
         setMetaError("");
 
-        const [hospitalRes, doctorRes] = await Promise.all([
+        const [hospitalRes, doctorRes, patientRes] = await Promise.all([
           getPublicHospital(hospitalId),
           getPublicDoctor(hospitalId, doctorId),
+          getMyPatientProfile(),
         ]);
 
         if (!mounted) return;
+
         setHospital(hospitalRes.data);
         setDoctor(doctorRes.data);
+        setPatient(patientRes.data);
       } catch (err) {
         if (!mounted) return;
         setMetaError(err.message || "Unable to load booking details.");
@@ -75,11 +79,13 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
     }
 
     if (hospitalId && doctorId) load();
+
     return () => {
       mounted = false;
     };
   }, [hospitalId, doctorId]);
 
+  /* Load slots when date changes */
   useEffect(() => {
     let mounted = true;
 
@@ -108,6 +114,7 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
     }
 
     loadSlots();
+
     return () => {
       mounted = false;
     };
@@ -122,10 +129,6 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
     event.preventDefault();
     setSubmitError("");
 
-    if (!form.patientName.trim()) {
-      setSubmitError("Please enter the patient's name.");
-      return;
-    }
     if (!form.appointmentDate) {
       setSubmitError("Please choose an appointment date.");
       return;
@@ -135,9 +138,9 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
       return;
     }
 
-    setSubmitting(true);
-
     try {
+      setSubmitting(true);
+
       await createAppointment({
         hospitalId: Number(hospitalId),
         doctorId: Number(doctorId),
@@ -146,7 +149,6 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
         reason: form.reason.trim() || null,
       });
 
-      clearBookingIntent();
       setSuccess(true);
     } catch (err) {
       setSubmitError(err.message || "Unable to book the appointment.");
@@ -158,6 +160,9 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
   const today = toIsoDate(new Date());
 
   const hasAnySlot = useMemo(() => slots.some((s) => s.available), [slots]);
+
+  const patientName =
+    patient?.name || patient?.fullName || patient?.user?.fullName || "You";
 
   if (metaLoading) {
     return (
@@ -196,9 +201,8 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
           Appointment booked
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          <b>{form.patientName}</b>&apos;s appointment with{" "}
-          <b>{doctor.doctorName}</b> at <b>{hospital.name}</b> on{" "}
-          <b>{formatDate(form.appointmentDate)}</b> at{" "}
+          Your appointment with <b>{doctor.doctorName}</b> at{" "}
+          <b>{hospital.name}</b> on <b>{formatDate(form.appointmentDate)}</b> at{" "}
           <b>{formatTime(form.startTime)}</b> has been scheduled.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -218,18 +222,18 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
-        {/* ══════════ FORM COLUMN ══════════ */}
+        {/* FORM COLUMN */}
         <div className="lg:col-span-8">
           <header>
             <p className="text-xs font-semibold uppercase tracking-wider text-brand">
               Book appointment
             </p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-              Who is this appointment for?
+              Confirm your appointment
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Enter the patient&apos;s name. You can book on behalf of a family
-              member.
+              Booking for <b className="text-foreground">{patientName}</b>.
+              Change your profile if this isn&apos;t you.
             </p>
           </header>
 
@@ -240,7 +244,7 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
             </div>
           )}
 
-          {/* Patient section */}
+          {/* Patient (read-only) */}
           <section className="mt-6 rounded-2xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-5 py-4">
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
@@ -248,56 +252,33 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
               </span>
               <div>
                 <h2 className="text-base font-semibold tracking-tight">
-                  Patient details
+                  Patient
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Who is visiting the doctor?
+                  Booked on your account
                 </p>
               </div>
             </div>
 
-            <div className="space-y-5 p-5 sm:p-6">
-              <div>
-                <label
-                  htmlFor="patientName"
-                  className="mb-1.5 block text-sm font-medium"
-                >
-                  Patient name <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  id="patientName"
-                  value={form.patientName}
-                  onChange={(e) => update("patientName", e.target.value)}
-                  required
-                  placeholder="e.g. Aarav Sharma"
-                  className="h-11"
-                />
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  Booking for your son? Enter the son&apos;s name here.
-                </p>
+            <div className="flex items-center gap-4 p-5 sm:p-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand text-base font-bold text-brand-foreground">
+                {patientName.charAt(0).toUpperCase()}
               </div>
-
-              <div>
-                <label
-                  htmlFor="reason"
-                  className="mb-1.5 block text-sm font-medium"
-                >
-                  Reason for visit{" "}
-                  <span className="text-muted-foreground">(optional)</span>
-                </label>
-                <textarea
-                  id="reason"
-                  value={form.reason}
-                  onChange={(e) => update("reason", e.target.value)}
-                  rows={3}
-                  placeholder="Briefly describe the symptoms or reason"
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{patientName}</p>
+                {patient?.phone && (
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {patient.phone}
+                  </p>
+                )}
               </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/portal/patient/profile">Edit profile</Link>
+              </Button>
             </div>
           </section>
 
-          {/* Schedule section */}
+          {/* Schedule */}
           <section className="mt-6 rounded-2xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-5 py-4">
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
@@ -346,7 +327,7 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
                     </div>
                   ) : slotsError ? (
                     <p className="text-sm text-destructive">{slotsError}</p>
-                  ) : !hasAnySlot && slots.length === 0 ? (
+                  ) : slots.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center">
                       <p className="text-sm font-medium">
                         No slots on this day
@@ -405,6 +386,24 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
                   )}
                 </div>
               )}
+
+              <div>
+                <label
+                  htmlFor="reason"
+                  className="mb-1.5 block text-sm font-medium"
+                >
+                  Reason for visit{" "}
+                  <span className="text-muted-foreground">(optional)</span>
+                </label>
+                <textarea
+                  id="reason"
+                  value={form.reason}
+                  onChange={(e) => update("reason", e.target.value)}
+                  rows={3}
+                  placeholder="Briefly describe the symptoms or reason"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                />
+              </div>
             </div>
           </section>
 
@@ -430,7 +429,7 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
           </div>
         </div>
 
-        {/* ══════════ SUMMARY COLUMN ══════════ */}
+        {/* SUMMARY COLUMN */}
         <aside className="lg:col-span-4">
           <div className="sticky top-24 space-y-4">
             <div className="overflow-hidden rounded-2xl border border-brand/20 bg-brand-soft/40">

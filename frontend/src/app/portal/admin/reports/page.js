@@ -12,6 +12,8 @@ import {
   ArrowUpRight,
   Clock,
   Building2,
+  AlertCircle,
+  Sparkles,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,45 @@ export default function AdminReportsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      {/* ───── DEMO BANNER ───── */}
+      <div className="mb-6 relative overflow-hidden rounded-2xl border-2 border-brand bg-brand-soft/60 p-5 sm:p-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
+            backgroundSize: "20px 20px",
+          }}
+        />
+
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground">
+            <AlertCircle className="h-5 w-5" />
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-foreground">
+                <Sparkles className="h-3 w-3" />
+                Demo Preview
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Not yet complete
+              </span>
+            </div>
+
+            <p className="mt-2 text-sm font-semibold text-brand-soft-foreground">
+              This reports page is a work in progress.
+            </p>
+            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+              The charts below use sample data to illustrate layout. Live data
+              from your hospital will replace it in a future release.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -62,7 +103,7 @@ export default function AdminReportsPage() {
             Hospital-wide performance across revenue, patients, and staff.
           </p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" disabled>
           <Download className="mr-1.5 h-4 w-4" />
           Export report
         </Button>
@@ -121,7 +162,6 @@ export default function AdminReportsPage() {
 
       {/* Revenue by department + Appointment breakdown */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Revenue by department (2 cols) */}
         <div className="lg:col-span-2">
           <div className="rounded-2xl border border-border bg-card">
             <div className="border-b border-border px-5 py-4">
@@ -163,7 +203,6 @@ export default function AdminReportsPage() {
           </div>
         </div>
 
-        {/* Appointment breakdown (1 col) */}
         <div className="rounded-2xl border border-border bg-card">
           <div className="border-b border-border px-5 py-4">
             <h2 className="text-base font-semibold tracking-tight">
@@ -175,7 +214,6 @@ export default function AdminReportsPage() {
           </div>
 
           <div className="p-5">
-            {/* Bar breakdown */}
             <div className="space-y-3">
               {APPOINTMENT_STATUS_BREAKDOWN.map((item) => {
                 const pct = (item.value / totalAppointments) * 100;
@@ -200,7 +238,6 @@ export default function AdminReportsPage() {
               })}
             </div>
 
-            {/* Total circle visual */}
             <div className="mt-6 flex items-center justify-center">
               <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-8 border-brand-soft">
                 <div className="text-center">
@@ -248,7 +285,7 @@ export default function AdminReportsPage() {
           <div className="flex h-64 items-end gap-3 sm:gap-4">
             {PATIENT_TREND_6_MONTHS.map((m) => {
               const apptHeight = (m.appointments / maxAppointments) * 100;
-              const patHeight = (m.newPatients / maxAppointments) * 100 * 8; // scale up
+              const patHeight = (m.newPatients / maxAppointments) * 100 * 8;
               return (
                 <div key={m.month} className="flex flex-1 flex-col items-center gap-2">
                   <div className="flex h-full w-full items-end justify-center gap-1">
@@ -271,7 +308,6 @@ export default function AdminReportsPage() {
             })}
           </div>
 
-          {/* Footer stats */}
           <div className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-5">
             <FooterStat
               label="Total appointments"
@@ -314,7 +350,6 @@ export default function AdminReportsPage() {
           </p>
         </div>
 
-        {/* Desktop table */}
         <div className="hidden overflow-x-auto sm:block">
           <table className="w-full">
             <thead>
@@ -375,7 +410,6 @@ export default function AdminReportsPage() {
           </table>
         </div>
 
-        {/* Mobile cards */}
         <div className="divide-y divide-border sm:hidden">
           {TOP_DOCTORS.map((doc, i) => (
             <div key={doc.name} className="flex items-center gap-3 p-4">

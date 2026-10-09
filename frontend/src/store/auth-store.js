@@ -15,25 +15,22 @@ export const useAuthStore = create((set, get) => ({
   isLoading: true,
   initialized: false,
 
-  // Used by apiFetch to silently swap in a new token
+  // Internal flags
+  _initializing: false,
+  _refreshPromise: null,
+
   setAccessToken: (accessToken) => set({ accessToken }),
 
-  // Used by apiFetch on 401. Returns the new token or null.
-  // Single-flight: if two requests 401 at once, only one refresh fires.
   refreshAccessToken: async () => {
-    if (get()._refreshPromise) {
-      return get()._refreshPromise;
-    }
+    if (get()._refreshPromise) return get()._refreshPromise;
 
     const promise = (async () => {
       try {
         const result = await refreshTokenApi();
         const accessToken = result.data.accessToken;
-
         set({ accessToken });
         return accessToken;
       } catch {
-        // Refresh token itself expired → hard logout
         set({
           accessToken: null,
           user: null,
@@ -52,7 +49,6 @@ export const useAuthStore = create((set, get) => ({
   login: async (credentials) => {
     const result = await loginApi(credentials);
     const accessToken = result.data.accessToken;
-
     set({ accessToken });
 
     const userResult = await getCurrentUser();
@@ -62,16 +58,20 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: true,
       isLoading: false,
       initialized: true,
+      _initializing: false,
     });
 
     return userResult.data;
   },
 
   initializeAuth: async () => {
+    // ── Block duplicate / racing init calls ──
+    if (get()._initializing || get().initialized) return;
+    set({ _initializing: true });
+
     try {
       const result = await refreshTokenApi();
       const accessToken = result.data.accessToken;
-
       set({ accessToken });
 
       const userResult = await getCurrentUser();
@@ -81,6 +81,7 @@ export const useAuthStore = create((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
         initialized: true,
+        _initializing: false,
       });
     } catch {
       set({
@@ -89,6 +90,7 @@ export const useAuthStore = create((set, get) => ({
         isAuthenticated: false,
         isLoading: false,
         initialized: true,
+        _initializing: false,
       });
     }
   },
