@@ -1,10 +1,9 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,6 +12,7 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Loader2,
   Lock,
   Mail,
   ShieldCheck,
@@ -185,7 +185,10 @@ function LoginContent() {
               className="h-11 w-full bg-brand text-brand-foreground hover:bg-brand/90"
             >
               {isSubmitting ? (
-                "Signing in..."
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
               ) : (
                 <>
                   Sign in
@@ -195,6 +198,7 @@ function LoginContent() {
             </Button>
           </form>
 
+          {/* Demo accounts panel — shows only if NEXT_PUBLIC_DEMO_MODE is on */}
           <DemoAccountsPanel onUseAccount={handleUseAccount} />
 
           <div className="my-7 flex items-center gap-3">
@@ -215,7 +219,7 @@ function LoginContent() {
         </p>
       </div>
 
-      {/* RIGHT — visual */}
+      {/* RIGHT — visual (desktop only) */}
       <div className="relative hidden lg:block">
         <Image
           src="/images/auth-login.jpg"
