@@ -14,6 +14,7 @@ import {
   FileText,
   X,
   Clock,
+  Info,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -69,10 +70,23 @@ export default function DoctorPrescriptionsPage() {
         </div>
         <Button asChild>
           <Link href="/portal/doctor/prescriptions/new">
-            
             New prescription
           </Link>
         </Button>
+      </div>
+
+      {/* Sample data notice */}
+      <div className="mt-6 flex items-start gap-3 rounded-xl border border-highlight-soft-foreground/20 bg-highlight-soft/40 px-4 py-3">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-highlight-soft-foreground" />
+        <div className="text-sm">
+          <p className="font-semibold text-highlight-soft-foreground">
+            Sample data
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            These are demo prescriptions to show how the page works. Real
+            prescriptions will appear here once integrated with your backend.
+          </p>
+        </div>
       </div>
 
       {/* Summary */}

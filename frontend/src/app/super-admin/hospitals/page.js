@@ -214,11 +214,35 @@ export default function SuperAdminHospitalsPage() {
 /* ══════════ Hospital Card ══════════ */
 
 function HospitalCard({ hospital }) {
+  const logoUrl = getHospitalLogo(hospital);
+
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
       <div className="flex items-start gap-4 p-5">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand text-lg font-bold text-brand-foreground">
-          {hospital.name?.charAt(0)?.toUpperCase() || "H"}
+        {/* Logo / fallback avatar */}
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-brand text-lg font-bold text-brand-foreground">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={hospital.name || "Hospital logo"}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                // If the image fails, hide it and let the letter fallback show
+                e.currentTarget.style.display = "none";
+                const parent = e.currentTarget.parentElement;
+                if (parent && !parent.querySelector("[data-fallback]")) {
+                  const span = document.createElement("span");
+                  span.dataset.fallback = "true";
+                  span.textContent =
+                    hospital.name?.charAt(0)?.toUpperCase() || "H";
+                  parent.appendChild(span);
+                }
+              }}
+            />
+          ) : (
+            <span>{hospital.name?.charAt(0)?.toUpperCase() || "H"}</span>
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -337,5 +361,18 @@ function GridSkeleton() {
         />
       ))}
     </div>
+  );
+}
+
+/* ══════════ Helpers ══════════ */
+
+function getHospitalLogo(hospital) {
+  if (!hospital) return null;
+  return (
+    hospital.logoUrl ||
+    hospital.logo ||
+    hospital.logoURL ||
+    hospital.profileImageUrl ||
+    null
   );
 }

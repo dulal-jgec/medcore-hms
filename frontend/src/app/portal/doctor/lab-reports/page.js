@@ -16,6 +16,7 @@ import {
   TrendingDown,
   Minus,
   FileText,
+  Info,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -69,9 +70,23 @@ export default function DoctorLabReportsPage() {
         </p>
       </div>
 
+      {/* Sample data notice */}
+      <div className="mt-6 flex items-start gap-3 rounded-xl border border-highlight-soft-foreground/20 bg-highlight-soft/40 px-4 py-3">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-highlight-soft-foreground" />
+        <div className="text-sm">
+          <p className="font-semibold text-highlight-soft-foreground">
+            Sample data
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            These are demo reports to show how the page works. Real lab
+            reports will appear here once integrated with your backend.
+          </p>
+        </div>
+      </div>
+
       {/* Urgent alert */}
       {urgentCount > 0 && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
           <p className="text-sm">
             <span className="font-semibold text-destructive">
