@@ -9,6 +9,9 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.List;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.medcore.common.jackson.FlexibleStringListDeserializer;
+
 
 @Getter
 @Setter
@@ -36,7 +39,9 @@ public class CreatePatientRequest {
     )
     private String emergencyContactPhone;
 
+    @JsonDeserialize(using = FlexibleStringListDeserializer.class)
     private List<String> allergies;
 
+    @JsonDeserialize(using = FlexibleStringListDeserializer.class)
     private List<String> chronicConditions;
 }

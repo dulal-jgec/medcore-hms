@@ -1,31 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   AlertCircle,
-  ArrowLeft,
   Calendar,
   CheckCircle2,
-  Clock,
   Droplets,
   Heart,
-  Info,
+  HeartPulse,
   Loader2,
   Mail,
+  Pencil,
   Phone,
   Save,
   ShieldCheck,
   User,
+  X,
 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, toStringArray, toCsv } from "@/lib/utils";
+
 import {
   getMyPatientProfile,
   updateMyPatientProfile,
 } from "@/services/patient.service";
+
+/* ══════════ Constants ══════════ */
 
 const BLOOD_GROUPS = [
   { value: "A_POSITIVE", label: "A+" },
@@ -38,128 +43,138 @@ const BLOOD_GROUPS = [
   { value: "O_NEGATIVE", label: "O-" },
 ];
 
-export default function PatientProfilePage() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState("");
+/* ══════════ Validation ══════════ */
 
-  const [account, setAccount] = useState({
-    patientName: "",
-    phone: "",
-    email: "",
-    patientId: null,
-    status: "",
-    createdAt: "",
+const schema = z.object({
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  bloodGroup: z.string().min(1, "Blood group is required"),
+  emergencyContactName: z
+    .string()
+    .min(1, "Emergency contact name is required")
+    .max(100, "Too long"),
+  emergencyContactRelation: z
+    .string()
+    .min(1, "Relation is required")
+    .max(100, "Too long"),
+  emergencyContactPhone: z
+    .string()
+    .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
+  allergies: z.string().max(1000, "Too long").optional(),
+  chronicConditions: z.string().max(1000, "Too long").optional(),
+});
+
+/* ══════════ Helpers ══════════ */
+
+function formatBloodGroup(bg) {
+  if (!bg) return "—";
+  return bg.replace("_POSITIVE", "+").replace("_NEGATIVE", "-");
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
+}
 
-  const [form, setForm] = useState({
-    patientName: "",
-    phone: "",
-    dateOfBirth: "",
-    bloodGroup: "",
-    allergies: "",
-    chronicConditions: "",
-    emergencyContactName: "",
-    emergencyContactPhone: "",
-    emergencyContactRelation: "",
+/* ══════════ Page ══════════ */
+
+export default function PatientProfilePage() {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      dateOfBirth: "",
+      bloodGroup: "",
+      emergencyContactName: "",
+      emergencyContactRelation: "",
+      emergencyContactPhone: "",
+      allergies: "",
+      chronicConditions: "",
+    },
   });
 
   useEffect(() => {
-    let mounted = true;
-
-    async function load() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const res = await getMyPatientProfile();
-        const p = res.data;
-        if (!mounted) return;
-
-        const name =
-          p.patientName || p.fullName || p.user?.fullName || "";
-        const phone = p.phone || p.user?.phone || "";
-        const email = p.email || p.user?.email || "";
-
-        setAccount({
-          patientName: name,
-          phone,
-          email,
-          patientId: p.id,
-          status: p.status || "",
-          createdAt: p.createdAt || "",
-        });
-
-        setForm({
-          patientName: name,
-          phone,
-          dateOfBirth: p.dateOfBirth || "",
-          bloodGroup: p.bloodGroup || "",
-          allergies: normalizeList(p.allergies),
-          chronicConditions: normalizeList(p.chronicConditions),
-          emergencyContactName: p.emergencyContactName || "",
-          emergencyContactPhone: p.emergencyContactPhone || "",
-          emergencyContactRelation: p.emergencyContactRelation || "",
-        });
-      } catch (err) {
-        if (!mounted) return;
-        setError(err.message || "Unable to load your profile.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      mounted = false;
-    };
+    loadProfile();
   }, []);
 
-  function update(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (success) setSuccess("");
-    if (error) setError("");
+  async function loadProfile() {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await getMyPatientProfile();
+      const data = res.data;
+      setProfile(data);
+
+      reset({
+        dateOfBirth: data.dateOfBirth || "",
+        bloodGroup: data.bloodGroup || "",
+        emergencyContactName: data.emergencyContactName || "",
+        emergencyContactRelation: data.emergencyContactRelation || "",
+        emergencyContactPhone: data.emergencyContactPhone || "",
+        allergies: toCsv(data.allergies),
+        chronicConditions: toCsv(data.chronicConditions),
+      });
+    } catch (err) {
+      setError(err.message || "Failed to load your profile.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    if (saving) return;
-
-    if (!form.patientName.trim()) {
-      setError("Full name is required.");
-      return;
-    }
-
+  async function onSubmit(form) {
     try {
-      setSaving(true);
       setError("");
-      setSuccess("");
+      setSaved(false);
 
-      await updateMyPatientProfile({
-        fullName: form.patientName.trim(),
-        phone: form.phone.trim() || null,
-        dateOfBirth: form.dateOfBirth || null,
-        bloodGroup: form.bloodGroup || null,
-        allergies: form.allergies.trim() || null,
-        chronicConditions: form.chronicConditions.trim() || null,
+      const payload = {
+        dateOfBirth: form.dateOfBirth,
+        bloodGroup: form.bloodGroup,
         emergencyContactName: form.emergencyContactName.trim(),
-        emergencyContactPhone: form.emergencyContactPhone.trim(),
         emergencyContactRelation: form.emergencyContactRelation.trim(),
-      });
+        emergencyContactPhone: form.emergencyContactPhone.trim(),
+        // ✅ Always send arrays — never raw strings, never undefined
+        allergies: toStringArray(form.allergies),
+        chronicConditions: toStringArray(form.chronicConditions),
+      };
 
-      setAccount((prev) => ({
-        ...prev,
-        patientName: form.patientName.trim(),
-        phone: form.phone.trim(),
-      }));
+      const res = await updateMyPatientProfile(payload);
+      const data = res.data;
 
-      setSuccess("Profile updated successfully.");
+      setProfile(data);
+      setEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      setError(err.message || "Unable to save your profile.");
-    } finally {
-      setSaving(false);
+      setError(err.message || "Failed to update profile.");
     }
+  }
+
+  function cancelEdit() {
+    reset({
+      dateOfBirth: profile?.dateOfBirth || "",
+      bloodGroup: profile?.bloodGroup || "",
+      emergencyContactName: profile?.emergencyContactName || "",
+      emergencyContactRelation: profile?.emergencyContactRelation || "",
+      emergencyContactPhone: profile?.emergencyContactPhone || "",
+      allergies: toCsv(profile?.allergies),
+      chronicConditions: toCsv(profile?.chronicConditions),
+    });
+    setEditing(false);
   }
 
   if (loading) {
@@ -170,331 +185,335 @@ export default function PatientProfilePage() {
     );
   }
 
-  const initials = (account.patientName || "P")
-    .split(" ")
-    .map((w) => w.charAt(0))
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  if (!profile) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <h1 className="mt-5 text-xl font-semibold">Profile not found</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {error || "We couldn't find your patient profile."}
+        </p>
+      </div>
+    );
+  }
 
-  const bloodGroupLabel = form.bloodGroup
-    ? form.bloodGroup.replace("_POSITIVE", "+").replace("_NEGATIVE", "-")
-    : "—";
+  const initials = profile.patientName?.charAt(0)?.toUpperCase() || "P";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-      <Link
-        href="/portal/patient"
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Back to dashboard
-      </Link>
-
-      <div className="mt-6">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
-          <span className="h-px w-6 bg-brand" />
-          My Profile
+      {/* Header */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+          Profile
         </p>
-        <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-          Personal & medical details
+        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+          My health profile
         </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Keep your information up to date so hospitals and doctors can care
-          for you better.
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage your medical information.
         </p>
       </div>
 
-      {error && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
-
-      {success && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-brand/20 bg-brand-soft/40 p-4">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
-          <p className="text-sm font-medium text-brand-soft-foreground">
-            {success}
+      {/* Success banner */}
+      {saved && (
+        <div className="mt-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand-soft/50 px-4 py-3 text-sm">
+          <CheckCircle2 className="h-4 w-4 text-brand" />
+          <p className="font-medium text-brand-soft-foreground">
+            Profile updated successfully.
           </p>
         </div>
       )}
 
+      {/* Error banner */}
+      {error && (
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="mt-6 grid gap-6 lg:grid-cols-12">
+        {/* LEFT — identity card */}
         <aside className="lg:col-span-4">
-          <div className="sticky top-24 rounded-2xl border border-border bg-card p-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <div className="flex flex-col items-center text-center">
-              <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-brand text-3xl font-bold text-brand-foreground shadow-lg">
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-brand text-4xl font-bold text-brand-foreground">
                 {initials}
               </div>
 
               <h2 className="mt-4 text-lg font-bold tracking-tight">
-                {account.patientName || "—"}
+                {profile.patientName}
               </h2>
 
               <p className="mt-1 text-xs text-muted-foreground">
-                Patient #{account.patientId ?? "—"}
+                Patient #{profile.id}
               </p>
 
-              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-soft-foreground">
-                <ShieldCheck className="h-3 w-3" />
-                {account.status || "Active"}
-              </span>
+              {profile.status && (
+                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-brand-soft-foreground">
+                  <ShieldCheck className="h-3 w-3" />
+                  {profile.status}
+                </span>
+              )}
             </div>
 
             <dl className="mt-6 space-y-3 border-t border-border pt-5 text-sm">
-              <Row icon={Droplets} label="Blood group" value={bloodGroupLabel} />
+              <Row
+                icon={Droplets}
+                label="Blood group"
+                value={formatBloodGroup(profile.bloodGroup)}
+              />
+              <Row
+                icon={User}
+                label="Gender"
+                value={profile.gender || "—"}
+              />
               <Row
                 icon={Calendar}
                 label="Date of birth"
-                value={formatDate(form.dateOfBirth)}
+                value={formatDate(profile.dateOfBirth)}
               />
               <Row
-                icon={Clock}
-                label="Member since"
-                value={formatDate(account.createdAt)}
+                icon={Calendar}
+                label="Registered"
+                value={formatDate(profile.createdAt)}
               />
             </dl>
-
-            <div className="mt-6 rounded-xl border border-border bg-muted/30 p-4">
-              <div className="flex items-start gap-2">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <p className="text-[11px] leading-5 text-muted-foreground">
-                  Your email is tied to your account and cannot be changed
-                  here. Contact your hospital to update it.
-                </p>
-              </div>
-            </div>
           </div>
         </aside>
 
+        {/* RIGHT — info + edit */}
         <div className="space-y-6 lg:col-span-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <SectionCard
-              icon={User}
-              title="Personal information"
-              desc="How you appear across MedCore."
-            >
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field
-                  label="Full name"
-                  icon={User}
-                  required
-                  className="sm:col-span-2"
+          {/* Account info (read-only) */}
+          <SectionCard
+            title="Account information"
+            desc="Managed by the hospital."
+          >
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <InfoRow
+                icon={User}
+                label="Full name"
+                value={profile.patientName}
+              />
+              <InfoRow icon={Mail} label="Email" value={profile.email} />
+              <InfoRow icon={Phone} label="Phone" value={profile.phone} />
+              <InfoRow
+                icon={User}
+                label="Gender"
+                value={profile.gender || "—"}
+              />
+            </div>
+
+            <div className="mt-5 flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <p className="text-xs leading-5 text-muted-foreground">
+                Name, email, phone and gender are managed by hospital
+                administration. Contact the front desk to update these.
+              </p>
+            </div>
+          </SectionCard>
+
+          {/* Medical info (editable) */}
+          <SectionCard
+            title="Medical information"
+            desc="Used by doctors during consultation."
+            action={
+              !editing && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditing(true)}
                 >
-                  <Input
-                    value={form.patientName}
-                    onChange={(e) => update("patientName", e.target.value)}
-                    placeholder="Your full name"
-                    className="h-11 pl-10"
+                  <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              )
+            }
+          >
+            {editing ? (
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                className="mt-5 space-y-5"
+              >
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <Field
+                    label="Date of birth"
                     required
-                    minLength={2}
-                    maxLength={80}
-                  />
-                </Field>
-
-                <Field label="Phone" icon={Phone}>
-                  <Input
-                    value={form.phone}
-                    onChange={(e) => update("phone", e.target.value)}
-                    placeholder="9876543210"
-                    inputMode="numeric"
-                    maxLength={10}
-                    className="h-11 pl-10"
-                  />
-                </Field>
-
-                <Field label="Email" icon={Mail}>
-                  <Input
-                    value={account.email}
-                    disabled
-                    className="h-11 pl-10"
-                  />
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Contact your hospital to update your email.
-                  </p>
-                </Field>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              icon={Heart}
-              title="Medical information"
-              desc="Used by doctors to personalize your care."
-            >
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field label="Date of birth" icon={Calendar}>
-                  <Input
-                    type="date"
-                    max={new Date().toISOString().split("T")[0]}
-                    value={form.dateOfBirth}
-                    onChange={(e) => update("dateOfBirth", e.target.value)}
-                    className="h-11 pl-10"
-                  />
-                </Field>
-
-                <Field label="Blood group" icon={Droplets}>
-                  <select
-                    value={form.bloodGroup}
-                    onChange={(e) => update("bloodGroup", e.target.value)}
-                    className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                    error={errors.dateOfBirth?.message}
                   >
-                    <option value="">Select</option>
-                    {BLOOD_GROUPS.map((bg) => (
-                      <option key={bg.value} value={bg.value}>
-                        {bg.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                    <div className="relative">
+                      <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type="date"
+                        {...register("dateOfBirth")}
+                        className="h-11 pl-10"
+                      />
+                    </div>
+                  </Field>
+
+                  <Field
+                    label="Blood group"
+                    required
+                    error={errors.bloodGroup?.message}
+                  >
+                    <div className="relative">
+                      <Droplets className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <select
+                        {...register("bloodGroup")}
+                        className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                      >
+                        <option value="">Select</option>
+                        {BLOOD_GROUPS.map((bg) => (
+                          <option key={bg.value} value={bg.value}>
+                            {bg.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </Field>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-3">
+                  <Field
+                    label="Emergency contact name"
+                    required
+                    error={errors.emergencyContactName?.message}
+                  >
+                    <Input
+                      {...register("emergencyContactName")}
+                      placeholder="Full name"
+                      className="h-11"
+                    />
+                  </Field>
+
+                  <Field
+                    label="Relation"
+                    required
+                    error={errors.emergencyContactRelation?.message}
+                  >
+                    <Input
+                      {...register("emergencyContactRelation")}
+                      placeholder="e.g. Spouse"
+                      className="h-11"
+                    />
+                  </Field>
+
+                  <Field
+                    label="Phone"
+                    required
+                    error={errors.emergencyContactPhone?.message}
+                  >
+                    <Input
+                      {...register("emergencyContactPhone")}
+                      placeholder="10-digit number"
+                      className="h-11"
+                    />
+                  </Field>
+                </div>
 
                 <Field
                   label="Allergies"
-                  icon={AlertCircle}
-                  className="sm:col-span-2"
+                  hint="Separate with commas"
+                  error={errors.allergies?.message}
                 >
-                  <textarea
-                    value={form.allergies}
-                    onChange={(e) => update("allergies", e.target.value)}
-                    rows={3}
-                    placeholder="e.g. Penicillin, peanuts"
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  <Input
+                    {...register("allergies")}
+                    placeholder="Peanuts, Penicillin, Dust"
+                    className="h-11"
                   />
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Separate multiple with commas
-                  </p>
                 </Field>
 
                 <Field
                   label="Chronic conditions"
-                  icon={Heart}
-                  className="sm:col-span-2"
+                  hint="Separate with commas"
+                  error={errors.chronicConditions?.message}
                 >
-                  <textarea
-                    value={form.chronicConditions}
-                    onChange={(e) =>
-                      update("chronicConditions", e.target.value)
-                    }
-                    rows={3}
-                    placeholder="e.g. Type 2 diabetes, hypertension"
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                  />
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Separate multiple with commas
-                  </p>
-                </Field>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              icon={ShieldCheck}
-              title="Emergency contact"
-              desc="Who we should reach in case of an emergency."
-            >
-              <div className="grid gap-5 sm:grid-cols-3">
-                <Field label="Contact name">
                   <Input
-                    value={form.emergencyContactName}
-                    onChange={(e) =>
-                      update("emergencyContactName", e.target.value)
-                    }
-                    placeholder="Full name"
+                    {...register("chronicConditions")}
+                    placeholder="Diabetes, Hypertension"
                     className="h-11"
                   />
                 </Field>
 
-                <Field label="Relationship">
-                  <Input
-                    value={form.emergencyContactRelation}
-                    onChange={(e) =>
-                      update("emergencyContactRelation", e.target.value)
-                    }
-                    placeholder="e.g. Spouse"
-                    className="h-11"
-                  />
-                </Field>
-
-                <Field label="Phone">
-                  <Input
-                    value={form.emergencyContactPhone}
-                    onChange={(e) =>
-                      update("emergencyContactPhone", e.target.value)
-                    }
-                    placeholder="9876543210"
-                    inputMode="numeric"
-                    maxLength={10}
-                    className="h-11"
-                  />
-                </Field>
+                <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={cancelEdit}
+                  >
+                    <X className="mr-1.5 h-4 w-4" />
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    <Save className="mr-1.5 h-4 w-4" />
+                    {isSubmitting ? "Saving..." : "Save changes"}
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                <InfoRow
+                  icon={Droplets}
+                  label="Blood group"
+                  value={formatBloodGroup(profile.bloodGroup)}
+                />
+                <InfoRow
+                  icon={Calendar}
+                  label="Date of birth"
+                  value={formatDate(profile.dateOfBirth)}
+                />
+                <InfoRow
+                  icon={Phone}
+                  label="Emergency contact"
+                  value={profile.emergencyContactName || "—"}
+                />
+                <InfoRow
+                  icon={User}
+                  label="Relation"
+                  value={profile.emergencyContactRelation || "—"}
+                />
+                <InfoRow
+                  icon={Phone}
+                  label="Emergency phone"
+                  value={profile.emergencyContactPhone || "—"}
+                />
+                <InfoRow
+                  icon={HeartPulse}
+                  label="Allergies"
+                  value={toCsv(profile.allergies) || "None recorded"}
+                />
+                <InfoRow
+                  icon={Heart}
+                  label="Chronic conditions"
+                  value={toCsv(profile.chronicConditions) || "None recorded"}
+                  className="sm:col-span-2"
+                />
               </div>
-
-              <div className="mt-5 flex items-start gap-2 rounded-xl border border-border bg-muted/30 p-3.5">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <p className="text-[11px] leading-5 text-muted-foreground">
-                  This person will be contacted if you need emergency care and
-                  we can&apos;t reach you first.
-                </p>
-              </div>
-            </SectionCard>
-
-            <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" asChild>
-                <Link href="/portal/patient">Cancel</Link>
-              </Button>
-              <Button
-                type="submit"
-                disabled={saving}
-                className="bg-brand text-brand-foreground hover:bg-brand/90"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save changes
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
+            )}
+          </SectionCard>
         </div>
       </div>
     </div>
   );
 }
 
-function SectionCard({ icon: Icon, title, desc, children }) {
+/* ══════════ Components ══════════ */
+
+function SectionCard({ title, desc, action, children }) {
   return (
     <div className="rounded-2xl border border-border bg-card">
-      <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-soft-foreground">
-          <Icon className="h-4 w-4" />
-        </div>
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
         <div>
           <h2 className="text-base font-semibold tracking-tight">{title}</h2>
           {desc && (
             <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
           )}
         </div>
+        {action}
       </div>
       <div className="p-5 sm:p-6">{children}</div>
-    </div>
-  );
-}
-
-function Field({ label, icon: Icon, required, className, children }) {
-  return (
-    <div className={className}>
-      <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">
-        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
-        {label}
-        {required && <span className="text-destructive">*</span>}
-      </label>
-      {children}
     </div>
   );
 }
@@ -511,19 +530,34 @@ function Row({ icon: Icon, label, value }) {
   );
 }
 
-function normalizeList(value) {
-  if (!value) return "";
-  if (Array.isArray(value)) return value.join(", ");
-  return String(value);
+function InfoRow({ icon: Icon, label, value, className }) {
+  return (
+    <div className={cn(className)}>
+      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <p className="mt-1.5 break-words text-sm font-medium">
+        {value || "—"}
+      </p>
+    </div>
+  );
 }
 
-function formatDate(iso) {
-  if (!iso) return "—";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+function Field({ label, required, hint, error, children }) {
+  return (
+    <div>
+      <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">
+        {label}
+        {required && <span className="text-destructive">*</span>}
+        {hint && (
+          <span className="text-[11px] font-normal text-muted-foreground">
+            ({hint})
+          </span>
+        )}
+      </label>
+      {children}
+      {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
+    </div>
+  );
 }
