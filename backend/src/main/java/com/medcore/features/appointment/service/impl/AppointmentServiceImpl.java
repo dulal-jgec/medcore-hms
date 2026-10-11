@@ -77,7 +77,7 @@ public class AppointmentServiceImpl
 
      
 
-    @Override
+        @Override
     @Transactional
     public ApiResponse<AppointmentResponse> createAppointment(
             CreateAppointmentRequest request) {
@@ -89,8 +89,6 @@ public class AppointmentServiceImpl
 
         Long hospitalId;
         Patient patient;
-
-         
 
         if (currentRole == RoleName.PATIENT) {
 
@@ -104,11 +102,49 @@ public class AppointmentServiceImpl
 
             patient = getCurrentPatient();
 
-        }
+            // ─────────────────────────────────────────────────────
+            // AUTO-LINK PATIENT'S USER TO THIS HOSPITAL
+            //
+            // Patients browse MedCore like a marketplace and can
+            // book from any hospital. The first time they book from
+            // a hospital, we link their User record to that hospital.
+            //
+            // If they later book from another hospital, we switch
+            // the primary hospital to the latest one. Their previous
+            // appointments remain intact because Appointment stores
+            // its own hospital reference.
+            // ─────────────────────────────────────────────────────
+            User patientUser = patient.getUser();
 
-         // RECEPTIONIST
- 
-        else if (currentRole == RoleName.RECEPTIONIST) {
+            boolean needsHospitalLink =
+                    patientUser.getHospital() == null
+                            || !patientUser.getHospital()
+                                    .getId()
+                                    .equals(hospitalId);
+
+            if (needsHospitalLink) {
+
+                Hospital targetHospital =
+                        hospitalRepository
+                                .findByIdAndDeletedAtIsNull(hospitalId)
+                                .orElseThrow(() ->
+                                        new ResourceNotFoundException(
+                                                "Hospital not found"
+                                        )
+                                );
+
+                patientUser.setHospital(targetHospital);
+
+                userRepository.save(patientUser);
+
+                log.info(
+                        "Patient auto-linked to hospital: userId={}, hospitalId={}",
+                        patientUser.getId(),
+                        hospitalId
+                );
+            }
+
+        } else if (currentRole == RoleName.RECEPTIONIST) {
 
             if (currentHospitalId == null) {
                 throw new BusinessException(
@@ -141,9 +177,7 @@ public class AppointmentServiceImpl
             );
         }
 
-
-         // HOSPITAL
- 
+        // ── HOSPITAL ──
         Hospital hospital =
                 hospitalRepository
                         .findByIdAndDeletedAtIsNull(hospitalId)
@@ -153,9 +187,7 @@ public class AppointmentServiceImpl
                                 )
                         );
 
-
-         // DOCTOR
- 
+        // ── DOCTOR ──
         Doctor doctor =
                 doctorRepository
                         .findByIdAndDeletedAtIsNull(
@@ -167,46 +199,30 @@ public class AppointmentServiceImpl
                                 )
                         );
 
-
- 
         if (!doctor.getHospital().getId().equals(hospitalId)) {
-
             throw new BusinessException(
                     "Doctor does not belong to the selected hospital"
             );
         }
 
-
-  
         if (doctor.getStatus() != DoctorStatus.ACTIVE) {
-
             throw new BusinessException(
                     "Appointment cannot be created for inactive doctor"
             );
         }
 
-
- 
         if (patient.getStatus() != PatientStatus.ACTIVE) {
-
             throw new BusinessException(
                     "Appointment cannot be created for inactive patient"
             );
         }
 
-
-         
-
         if (request.getAppointmentDate()
                 .isBefore(LocalDate.now())) {
-
             throw new BusinessException(
                     "Appointment date cannot be in the past"
             );
         }
-
-
-         
 
         com.medcore.features.doctor.enums.DayOfWeek dayOfWeek =
                 com.medcore.features.doctor.enums.DayOfWeek.valueOf(
@@ -222,54 +238,33 @@ public class AppointmentServiceImpl
                                 dayOfWeek
                         );
 
+        LocalTime startTime = request.getStartTime();
 
-         
-
-        LocalTime startTime =
-                request.getStartTime();
-
-        int duration =
-                doctor.getConsultationDurationMinutes();
+        int duration = doctor.getConsultationDurationMinutes();
 
         if (duration <= 0) {
-
             throw new BusinessException(
                     "Doctor consultation duration is not configured"
             );
         }
 
+        LocalTime endTime = startTime.plusMinutes(duration);
 
-        // Backend calculates end time.
-        LocalTime endTime =
-                startTime.plusMinutes(duration);
-
-
-        
         boolean validSlot = schedules.stream()
                 .filter(schedule ->
-                        Boolean.TRUE.equals(
-                                schedule.getAvailable()
-                        )
+                        Boolean.TRUE.equals(schedule.getAvailable())
                 )
                 .anyMatch(schedule ->
-                        !startTime.isBefore(
-                                schedule.getStartTime()
-                        )
-                        &&
-                        !endTime.isAfter(
-                                schedule.getEndTime()
-                        )
+                        !startTime.isBefore(schedule.getStartTime())
+                                &&
+                                !endTime.isAfter(schedule.getEndTime())
                 );
 
         if (!validSlot) {
-
             throw new BusinessException(
                     "Selected time is not a valid appointment slot"
             );
         }
-
-
-        
 
         boolean alreadyBooked =
                 appointmentRepository.existsOverlappingAppointment(
@@ -280,14 +275,10 @@ public class AppointmentServiceImpl
                 );
 
         if (alreadyBooked) {
-
             throw new BusinessException(
                     "Selected appointment slot is already booked"
             );
         }
-
-
-        
 
         Appointment appointment =
                 appointmentMapper.toEntity(
@@ -297,15 +288,8 @@ public class AppointmentServiceImpl
                         patient
                 );
 
-        // Mapper should calculate/set these from request/doctor.
-        // If mapper currently needs endTime, we will update it next.
-
-
         Appointment savedAppointment =
-                appointmentRepository.save(
-                        appointment
-                );
-
+                appointmentRepository.save(appointment);
 
         log.info(
                 "Appointment created: appointmentId={}, hospitalId={}, doctorId={}, patientId={}, appointmentDate={}, startTime={}, endTime={}",
@@ -318,7 +302,6 @@ public class AppointmentServiceImpl
                 endTime
         );
 
-
         return ApiResponse
                 .<AppointmentResponse>builder()
                 .success(true)
@@ -330,7 +313,6 @@ public class AppointmentServiceImpl
                 )
                 .build();
     }
-
 
      
 

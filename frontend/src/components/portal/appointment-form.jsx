@@ -164,6 +164,12 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
   const patientName =
     patient?.name || patient?.fullName || patient?.user?.fullName || "You";
 
+  // Selected slot's endTime (look up from slots array)
+  const selectedSlot = useMemo(
+    () => slots.find((s) => s.startTime === form.startTime) || null,
+    [slots, form.startTime],
+  );
+
   if (metaLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -203,7 +209,11 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
           Your appointment with <b>{doctor.doctorName}</b> at{" "}
           <b>{hospital.name}</b> on <b>{formatDate(form.appointmentDate)}</b> at{" "}
-          <b>{formatTime(form.startTime)}</b> has been scheduled.
+          <b>
+            {formatTime(form.startTime)}
+            {selectedSlot?.endTime && ` – ${formatTime(selectedSlot.endTime)}`}
+          </b>{" "}
+          has been scheduled.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button asChild>
@@ -338,7 +348,11 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                      {/* 
+                        Grid: 2 cols on mobile, 3 on sm, 4 on lg.
+                        Wider buttons so "9:00 AM - 9:20 AM" fits.
+                      */}
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                         {slots.map((slot) => {
                           const disabled = !slot.available;
                           const selected = form.startTime === slot.startTime;
@@ -352,7 +366,7 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
                                 update("startTime", slot.startTime)
                               }
                               className={cn(
-                                "rounded-lg border px-3 py-2.5 text-xs font-medium transition-all",
+                                "rounded-lg border px-2.5 py-2.5 text-[11px] font-medium leading-tight transition-all",
                                 disabled &&
                                   "cursor-not-allowed border-border bg-muted/40 text-muted-foreground line-through",
                                 !disabled &&
@@ -362,7 +376,19 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
                                   "border-brand bg-brand text-brand-foreground",
                               )}
                             >
-                              {formatTime(slot.startTime)}
+                              <span className="block">
+                                {formatTime(slot.startTime)}
+                              </span>
+                              <span
+                                className={cn(
+                                  "mt-0.5 block text-[10px] font-normal",
+                                  selected
+                                    ? "text-brand-foreground/80"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                to {formatTime(slot.endTime)}
+                              </span>
                             </button>
                           );
                         })}
@@ -493,6 +519,8 @@ export default function AppointmentForm({ hospitalId, doctorId }) {
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {formatTime(form.startTime)}
+                  {selectedSlot?.endTime &&
+                    ` – ${formatTime(selectedSlot.endTime)}`}
                 </p>
               </div>
             )}

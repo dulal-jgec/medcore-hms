@@ -4,7 +4,7 @@ import { ArrowLeft, Stethoscope } from "lucide-react";
 
 import { getPublicHospital } from "@/services/hospital-public.service";
 import { getPublicDoctors } from "@/services/public-doctor.service";
-import DoctorCard from "@/components/public-hospital/doctors/doctor-card";
+import DoctorsSearchGrid from "@/components/public-hospital/doctors/doctors-search-grid";
 
 export default async function DoctorsPage({ params }) {
   const { id } = await params;
@@ -49,27 +49,11 @@ export default async function DoctorsPage({ params }) {
         </p>
       </header>
 
-      {doctors.length === 0 ? (
-        <div className="mt-14 rounded-2xl border border-dashed border-border p-12 text-center sm:p-16">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-            <Stethoscope className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <p className="mt-5 text-base font-semibold">No doctors yet</p>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Doctor profiles will appear here once added.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
-          {doctors.map((doctor) => (
-            <DoctorCard
-              key={doctor.id}
-              doctor={doctor}
-              hospitalId={id}
-            />
-          ))}
-        </div>
-      )}
+      {/* Client component handles search + filtered grid */}
+      <DoctorsSearchGrid
+        doctors={doctors}
+        hospitalId={id}
+      />
     </div>
   );
 }
