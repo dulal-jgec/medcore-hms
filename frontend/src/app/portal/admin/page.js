@@ -66,29 +66,16 @@ const FALLBACK_STATS = {
 };
 
 /* ══════════════════════════════════════════════════════════════
-   Helper — normalise staff objects so all roles have same shape
+   Normalise staff objects
    ══════════════════════════════════════════════════════════════ */
 
 function normaliseStaff(item, role) {
   if (!item) return null;
 
-  // Status field naming differs between roles:
-  // - Doctor  : { status, userStatus, invitationStatus }
-  // - Nurse   : { status, userStatus, invitationStatus }  (same as doctor)
-  // - Receptionist: same
-  // - Accountant: same
-  const userStatus =
-    item.userStatus ||
-    item.user?.status ||
-    null;
-
+  const userStatus = item.userStatus || item.user?.status || null;
   const invitationStatus =
-    item.invitationStatus ||
-    item.user?.invitationStatus ||
-    null;
-
-  const entityStatus =
-    item.status || null;
+    item.invitationStatus || item.user?.invitationStatus || null;
+  const entityStatus = item.status || null;
 
   const fullName =
     item.fullName ||
@@ -206,6 +193,31 @@ export default function AdminDashboard() {
     };
   }, [initialized, isAuthenticated]);
 
+  /* ─────────────────────────────────────────────────────────────
+     Called from InvitationCenter after a successful resend.
+     Updates the matching staff's invitationStatus to PENDING
+     locally — no page reload needed.
+     ───────────────────────────────────────────────────────────── */
+  function handleInvitationResent(userId) {
+    if (!userId) return;
+
+    setStaff((prev) => {
+      const update = (list) =>
+        list.map((item) =>
+          item.userId === userId
+            ? { ...item, invitationStatus: "PENDING" }
+            : item
+        );
+
+      return {
+        doctors: update(prev.doctors),
+        nurses: update(prev.nurses),
+        receptionists: update(prev.receptionists),
+        accountants: update(prev.accountants),
+      };
+    });
+  }
+
   if (loading) return <DashboardSkeleton />;
 
   if (error) {
@@ -305,7 +317,10 @@ export default function AdminDashboard() {
       />
 
       <div className="mt-6">
-        <InvitationCenter staff={invitationStaff} />
+        <InvitationCenter
+          staff={invitationStaff}
+          onInvitationResent={handleInvitationResent}
+        />
       </div>
 
       {doctorStats.suspended > 0 && (
@@ -350,15 +365,13 @@ export default function AdminDashboard() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   Count helper — uses userStatus for user-level states and
-   status for entity-level states
+   Count helper
    ══════════════════════════════════════════════════════════════ */
 
 function countByStatus(list) {
   return {
     total: list.length,
 
-    // Entity statuses (DoctorStatus / NurseStatus etc.)
     active: list.filter(
       (x) => x.status === "ACTIVE" && x.userStatus === "ACTIVE"
     ).length,
@@ -369,7 +382,6 @@ function countByStatus(list) {
       (x) => x.status === "SUSPENDED" && x.userStatus === "ACTIVE"
     ).length,
 
-    // User statuses
     pending: list.filter(
       (x) =>
         x.userStatus === "PENDING_VERIFICATION" &&
@@ -387,136 +399,26 @@ function countByStatus(list) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   Hero
+   Invitation Center — now updates locally instead of reloading
    ══════════════════════════════════════════════════════════════ */
 
-function Hero({ hospital, user, greeting, today, stats }) {
-  const pendingAppointments = Math.max(
-    stats.appointmentsToday - stats.appointmentsCompleted,
-    0
-  );
-
-  const firstName = user?.fullName?.split(" ")[0] || "Admin";
-
-  return (
-    <div className="relative overflow-hidden rounded-3xl bg-primary p-6 sm:p-8 lg:p-10">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
-          backgroundSize: "24px 24px",
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-brand/20 blur-3xl"
-      />
-
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="max-w-2xl">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-primary-foreground/70">
-            <Sparkles className="h-3.5 w-3.5 text-brand" />
-            <span>{today}</span>
-            <span className="opacity-40">·</span>
-            <span className="truncate">{hospital.name}</span>
-          </div>
-
-          <div className="mt-4 flex items-center gap-4">
-            <div className="hidden h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary-foreground/10 sm:flex">
-              {hospital.logoUrl ? (
-                <img
-                  src={hospital.logoUrl}
-                  alt={hospital.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <Building2 className="h-6 w-6 text-brand" />
-              )}
-            </div>
-
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl lg:text-4xl">
-                {greeting}, {firstName}
-              </h1>
-              <p className="mt-1 text-sm text-primary-foreground/70">
-                {hospital.city}
-                {hospital.state && `, ${hospital.state}`}
-              </p>
-            </div>
-          </div>
-
-          <p className="mt-5 max-w-xl text-sm leading-6 text-primary-foreground/75">
-            You have{" "}
-            <span className="font-semibold text-primary-foreground">
-              {pendingAppointments} pending appointment
-              {pendingAppointments !== 1 ? "s" : ""}
-            </span>{" "}
-            and{" "}
-            <span className="font-semibold text-primary-foreground">
-              {stats.pendingBills} unpaid bill
-              {stats.pendingBills !== 1 ? "s" : ""}
-            </span>{" "}
-            awaiting action today.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Button
-            asChild
-            size="lg"
-            className="bg-brand text-brand-foreground hover:bg-brand/90"
-          >
-            <Link href="/portal/admin/doctors/new">
-              <UserPlus className="mr-1.5 h-4 w-4" />
-              Add doctor
-            </Link>
-          </Button>
-
-          <Button
-            asChild
-            size="lg"
-            variant="outline"
-            className="border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
-          >
-            <Link href="/portal/admin/settings">
-              <BarChart3 className="mr-1.5 h-4 w-4" />
-              Hospital settings
-            </Link>
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════
-   Invitation Center — real data from all 4 staff types
-   ══════════════════════════════════════════════════════════════ */
-
-function InvitationCenter({ staff }) {
+function InvitationCenter({ staff, onInvitationResent }) {
   const [resendingId, setResendingId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const active = staff.filter(
-    (u) => u.userStatus === "ACTIVE"
-  );
+  const active = staff.filter((u) => u.userStatus === "ACTIVE");
 
-  // EXHAUSTED = pending verification + invitation has exhausted retries
   const exhausted = staff.filter(
     (u) =>
       u.userStatus === "PENDING_VERIFICATION" &&
       u.invitationStatus === "EXHAUSTED"
   );
 
-  // EXPIRED = user status invitation expired
   const expired = staff.filter(
     (u) => u.userStatus === "INVITATION_EXPIRED"
   );
 
-  // WAITING = pending verification but not exhausted
   const waiting = staff.filter(
     (u) =>
       u.userStatus === "PENDING_VERIFICATION" &&
@@ -541,7 +443,11 @@ function InvitationCenter({ staff }) {
       const result = await resendStaffInvitation(userId);
       setMessage(result.message || "Invitation email queued successfully.");
 
-      setTimeout(() => window.location.reload(), 1200);
+      // ── No page reload! Just update local state ──
+      onInvitationResent?.(userId);
+
+      // Clear the message after a few seconds
+      setTimeout(() => setMessage(""), 4000);
     } catch (err) {
       setError(err.message || "Failed to resend invitation.");
     } finally {
@@ -563,7 +469,7 @@ function InvitationCenter({ staff }) {
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 All exhausted and expired invitations across doctors, nurses,
-                receptionists & accountants
+                receptionists &amp; accountants
               </p>
             </div>
           </div>
@@ -668,7 +574,7 @@ function MiniStatus({ label, value, type }) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   Invitation row — includes Role badge
+   Invitation row
    ══════════════════════════════════════════════════════════════ */
 
 function InvitationRow({ user, status, resending, onResend }) {
@@ -699,7 +605,6 @@ function InvitationRow({ user, status, resending, onResend }) {
 
   const Icon = config.icon;
 
-  // Role-specific new staff page
   const newPageHref = (() => {
     switch (user.staffRole) {
       case "Doctor":
@@ -715,7 +620,6 @@ function InvitationRow({ user, status, resending, onResend }) {
     }
   })();
 
-  // Role icon for the badge
   const RoleIcon = (() => {
     switch (user.staffRole) {
       case "Doctor":
@@ -750,7 +654,6 @@ function InvitationRow({ user, status, resending, onResend }) {
                 {user.fullName}
               </h3>
 
-              {/* Role badge */}
               <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-soft-foreground">
                 <RoleIcon className="h-2.5 w-2.5" />
                 {user.staffRole}
@@ -815,7 +718,7 @@ function InvitationRow({ user, status, resending, onResend }) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   Rest of the file — unchanged
+   Rest of the file — same as before
    ══════════════════════════════════════════════════════════════ */
 
 function AlertCard({ tone, icon: Icon, title, description, href, cta }) {
@@ -853,6 +756,107 @@ function AlertCard({ tone, icon: Icon, title, description, href, cta }) {
       >
         {cta}
       </Link>
+    </div>
+  );
+}
+
+function Hero({ hospital, user, greeting, today, stats }) {
+  const pendingAppointments = Math.max(
+    stats.appointmentsToday - stats.appointmentsCompleted,
+    0
+  );
+
+  const firstName = user?.fullName?.split(" ")[0] || "Admin";
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl bg-primary p-6 sm:p-8 lg:p-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-brand/20 blur-3xl"
+      />
+
+      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-2xl">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-primary-foreground/70">
+            <Sparkles className="h-3.5 w-3.5 text-brand" />
+            <span>{today}</span>
+            <span className="opacity-40">·</span>
+            <span className="truncate">{hospital.name}</span>
+          </div>
+
+          <div className="mt-4 flex items-center gap-4">
+            <div className="hidden h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary-foreground/10 sm:flex">
+              {hospital.logoUrl ? (
+                <img
+                  src={hospital.logoUrl}
+                  alt={hospital.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <Building2 className="h-6 w-6 text-brand" />
+              )}
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl lg:text-4xl">
+                {greeting}, {firstName}
+              </h1>
+              <p className="mt-1 text-sm text-primary-foreground/70">
+                {hospital.city}
+                {hospital.state && `, ${hospital.state}`}
+              </p>
+            </div>
+          </div>
+
+          <p className="mt-5 max-w-xl text-sm leading-6 text-primary-foreground/75">
+            You have{" "}
+            <span className="font-semibold text-primary-foreground">
+              {pendingAppointments} pending appointment
+              {pendingAppointments !== 1 ? "s" : ""}
+            </span>{" "}
+            and{" "}
+            <span className="font-semibold text-primary-foreground">
+              {stats.pendingBills} unpaid bill
+              {stats.pendingBills !== 1 ? "s" : ""}
+            </span>{" "}
+            awaiting action today.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button
+            asChild
+            size="lg"
+            className="bg-brand text-brand-foreground hover:bg-brand/90"
+          >
+            <Link href="/portal/admin/doctors/new">
+              <UserPlus className="mr-1.5 h-4 w-4" />
+              Add doctor
+            </Link>
+          </Button>
+
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+          >
+            <Link href="/portal/admin/settings">
+              <BarChart3 className="mr-1.5 h-4 w-4" />
+              Hospital settings
+            </Link>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
