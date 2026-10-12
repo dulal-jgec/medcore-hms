@@ -7,7 +7,7 @@ import {
   Clock,
   GraduationCap,
   Languages,
-  ShieldCheck,
+  ShieldAlert,
   Stethoscope,
 } from "lucide-react";
 
@@ -25,11 +25,24 @@ export default async function DoctorDetailsPage({ params }) {
     const result = await getPublicDoctor(id, doctor);
     doctorData = result.data;
   } catch (error) {
+    // Only true 404 → hard not found page
     if (error?.status === 404) notFound();
     throw error;
   }
 
   if (!doctorData) notFound();
+
+  // ⚠️ Inactive doctor → show a nice "not available" page (not 404)
+  if (doctorData.status && doctorData.status !== "ACTIVE") {
+    return (
+      <DoctorNotAvailable
+        hospitalId={id}
+        doctorName={doctorData.doctorName}
+        specialization={doctorData.specialization}
+        hospitalName={doctorData.hospitalName}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20">
@@ -172,7 +185,7 @@ export default async function DoctorDetailsPage({ params }) {
 
             <div className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-soft-foreground">
-                <ShieldCheck className="h-4 w-4" />
+                <ShieldAlert className="h-4 w-4" />
               </span>
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -204,6 +217,97 @@ export default async function DoctorDetailsPage({ params }) {
     </div>
   );
 }
+
+/* ══════════ Inactive doctor view ══════════ */
+
+function DoctorNotAvailable({
+  hospitalId,
+  doctorName,
+  specialization,
+  hospitalName,
+}) {
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28">
+      <Link
+        href={`/hospitals/${hospitalId}/doctors`}
+        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        All doctors
+      </Link>
+
+      <div className="mt-10 flex flex-col items-center text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-border bg-muted">
+          <ShieldAlert className="h-9 w-9 text-muted-foreground" />
+        </div>
+
+        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+          Not available
+        </p>
+
+        <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+          This doctor is currently unavailable
+        </h1>
+
+        <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
+          {doctorName ? (
+            <>
+              <span className="font-medium text-foreground">
+                Dr. {doctorName}
+              </span>
+              {specialization ? (
+                <>
+                  {" "}
+                  ({specialization})
+                </>
+              ) : null}{" "}
+              is not accepting appointments at the moment
+              {hospitalName ? (
+                <>
+                  {" "}
+                  at <span className="font-medium text-foreground">
+                    {hospitalName}
+                  </span>
+                </>
+              ) : null}
+              . Please check back later or browse other doctors.
+            </>
+          ) : (
+            <>
+              This doctor is not accepting appointments at the moment. Please
+              check back later or browse other doctors.
+            </>
+          )}
+        </p>
+
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Button asChild size="lg">
+            <Link href={`/hospitals/${hospitalId}/doctors`}>
+              <Stethoscope className="mr-2 h-4 w-4" />
+              Browse other doctors
+            </Link>
+          </Button>
+
+          <Button asChild size="lg" variant="outline">
+            <Link href={`/hospitals/${hospitalId}`}>
+              Back to hospital
+            </Link>
+          </Button>
+        </div>
+
+        <div className="mt-10 w-full max-w-md rounded-2xl border border-border bg-muted/30 p-5 text-left">
+          <p className="text-xs leading-5 text-muted-foreground">
+            <span className="font-medium text-foreground">Note:</span> Doctors
+            may be temporarily unavailable due to leave, schedule updates, or
+            verification status changes.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ Small components ══════════ */
 
 function InfoTile({ icon: Icon, label, value }) {
   return (

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PortalSidebar } from "@/components/portal/portal-sidebar";
 import { PortalTopbar } from "@/components/portal/portal-topbar";
-import { DemoNavigator } from "@/components/portal/demo-navigator";
+
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -70,7 +70,7 @@ export default function PortalLayout({ children }) {
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
 
-      <DemoNavigator />
+      
     </div>
   );
 }

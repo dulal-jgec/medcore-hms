@@ -65,6 +65,58 @@ const FALLBACK_STATS = {
   totalAccountants: 0,
 };
 
+/* ══════════════════════════════════════════════════════════════
+   Helper — normalise staff objects so all roles have same shape
+   ══════════════════════════════════════════════════════════════ */
+
+function normaliseStaff(item, role) {
+  if (!item) return null;
+
+  // Status field naming differs between roles:
+  // - Doctor  : { status, userStatus, invitationStatus }
+  // - Nurse   : { status, userStatus, invitationStatus }  (same as doctor)
+  // - Receptionist: same
+  // - Accountant: same
+  const userStatus =
+    item.userStatus ||
+    item.user?.status ||
+    null;
+
+  const invitationStatus =
+    item.invitationStatus ||
+    item.user?.invitationStatus ||
+    null;
+
+  const entityStatus =
+    item.status || null;
+
+  const fullName =
+    item.fullName ||
+    item.doctorName ||
+    item.nurseName ||
+    item.receptionistName ||
+    item.accountantName ||
+    item.name ||
+    item.user?.fullName ||
+    "Unknown staff";
+
+  return {
+    ...item,
+    id: item.id,
+    userId: item.userId || item.user?.id,
+    fullName,
+    email: item.email || item.user?.email,
+    status: entityStatus,
+    userStatus,
+    invitationStatus,
+    staffRole: role,
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Dashboard
+   ══════════════════════════════════════════════════════════════ */
+
 export default function AdminDashboard() {
   const user = useAuthStore((s) => s.user);
   const initialized = useAuthStore((s) => s.initialized);
@@ -121,35 +173,27 @@ export default function AdminDashboard() {
         return;
       }
 
+      function extractItems(res) {
+        if (res.status !== "fulfilled") return [];
+        const d = res.value?.data;
+        if (!d) return [];
+        if (Array.isArray(d)) return d;
+        return d.items || d.content || [];
+      }
+
       setStaff({
-        doctors:
-          doctorsRes.status === "fulfilled"
-            ? doctorsRes.value?.data?.items ||
-              doctorsRes.value?.data?.content ||
-              doctorsRes.value?.data ||
-              []
-            : [],
-        nurses:
-          nursesRes.status === "fulfilled"
-            ? nursesRes.value?.data?.items ||
-              nursesRes.value?.data?.content ||
-              nursesRes.value?.data ||
-              []
-            : [],
-        receptionists:
-          receptionistsRes.status === "fulfilled"
-            ? receptionistsRes.value?.data?.items ||
-              receptionistsRes.value?.data?.content ||
-              receptionistsRes.value?.data ||
-              []
-            : [],
-        accountants:
-          accountantsRes.status === "fulfilled"
-            ? accountantsRes.value?.data?.items ||
-              accountantsRes.value?.data?.content ||
-              accountantsRes.value?.data ||
-              []
-            : [],
+        doctors: extractItems(doctorsRes)
+          .map((d) => normaliseStaff(d, "Doctor"))
+          .filter(Boolean),
+        nurses: extractItems(nursesRes)
+          .map((n) => normaliseStaff(n, "Nurse"))
+          .filter(Boolean),
+        receptionists: extractItems(receptionistsRes)
+          .map((r) => normaliseStaff(r, "Receptionist"))
+          .filter(Boolean),
+        accountants: extractItems(accountantsRes)
+          .map((a) => normaliseStaff(a, "Accountant"))
+          .filter(Boolean),
       });
 
       setLoading(false);
@@ -220,16 +264,10 @@ export default function AdminDashboard() {
   const accountantStats = countByStatus(staff.accountants);
 
   const invitationStaff = [
-    ...staff.doctors.map((u) => ({ ...u, staffRole: "Doctor" })),
-    ...staff.nurses.map((u) => ({ ...u, staffRole: "Nurse" })),
-    ...staff.receptionists.map((u) => ({
-      ...u,
-      staffRole: "Receptionist",
-    })),
-    ...staff.accountants.map((u) => ({
-      ...u,
-      staffRole: "Accountant",
-    })),
+    ...staff.doctors,
+    ...staff.nurses,
+    ...staff.receptionists,
+    ...staff.accountants,
   ];
 
   const s = {
@@ -311,16 +349,46 @@ export default function AdminDashboard() {
   );
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Count helper — uses userStatus for user-level states and
+   status for entity-level states
+   ══════════════════════════════════════════════════════════════ */
+
 function countByStatus(list) {
   return {
     total: list.length,
-    active: list.filter((x) => x.status === "ACTIVE").length,
-    inactive: list.filter((x) => x.status === "INACTIVE").length,
-    suspended: list.filter((x) => x.status === "SUSPENDED").length,
-    pending: list.filter((x) => x.status === "PENDING_VERIFICATION").length,
-    expired: list.filter((x) => x.status === "INVITATION_EXPIRED").length,
+
+    // Entity statuses (DoctorStatus / NurseStatus etc.)
+    active: list.filter(
+      (x) => x.status === "ACTIVE" && x.userStatus === "ACTIVE"
+    ).length,
+    inactive: list.filter(
+      (x) => x.status === "INACTIVE" && x.userStatus === "ACTIVE"
+    ).length,
+    suspended: list.filter(
+      (x) => x.status === "SUSPENDED" && x.userStatus === "ACTIVE"
+    ).length,
+
+    // User statuses
+    pending: list.filter(
+      (x) =>
+        x.userStatus === "PENDING_VERIFICATION" &&
+        x.invitationStatus !== "EXHAUSTED"
+    ).length,
+    exhausted: list.filter(
+      (x) =>
+        x.userStatus === "PENDING_VERIFICATION" &&
+        x.invitationStatus === "EXHAUSTED"
+    ).length,
+    expired: list.filter(
+      (x) => x.userStatus === "INVITATION_EXPIRED"
+    ).length,
   };
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Hero
+   ══════════════════════════════════════════════════════════════ */
 
 function Hero({ hospital, user, greeting, today, stats }) {
   const pendingAppointments = Math.max(
@@ -423,45 +491,57 @@ function Hero({ hospital, user, greeting, today, stats }) {
   );
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Invitation Center — real data from all 4 staff types
+   ══════════════════════════════════════════════════════════════ */
+
 function InvitationCenter({ staff }) {
   const [resendingId, setResendingId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const active = staff.filter((u) => u.status === "ACTIVE");
+  const active = staff.filter(
+    (u) => u.userStatus === "ACTIVE"
+  );
 
+  // EXHAUSTED = pending verification + invitation has exhausted retries
   const exhausted = staff.filter(
     (u) =>
-      u.status === "PENDING_VERIFICATION" &&
+      u.userStatus === "PENDING_VERIFICATION" &&
       u.invitationStatus === "EXHAUSTED"
   );
 
+  // EXPIRED = user status invitation expired
   const expired = staff.filter(
-    (u) => u.status === "INVITATION_EXPIRED"
+    (u) => u.userStatus === "INVITATION_EXPIRED"
   );
 
+  // WAITING = pending verification but not exhausted
   const waiting = staff.filter(
     (u) =>
-      u.status === "PENDING_VERIFICATION" &&
+      u.userStatus === "PENDING_VERIFICATION" &&
       u.invitationStatus !== "EXHAUSTED"
   );
 
   const needsAttention = exhausted.length + expired.length;
 
   async function handleResend(user) {
+    const userId = user.userId || user.id;
+
+    if (!userId) {
+      setError("Missing user id for this staff member.");
+      return;
+    }
+
     try {
-      setResendingId(user.id || user.userId);
+      setResendingId(userId);
       setMessage("");
       setError("");
 
-      const userId = user.id || user.userId;
       const result = await resendStaffInvitation(userId);
-
       setMessage(result.message || "Invitation email queued successfully.");
 
-      setTimeout(() => {
-        window.location.reload();
-      }, 1200);
+      setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
       setError(err.message || "Failed to resend invitation.");
     } finally {
@@ -482,7 +562,8 @@ function InvitationCenter({ staff }) {
                 Staff invitation center
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Exhausted and expired invitations appear first
+                All exhausted and expired invitations across doctors, nurses,
+                receptionists & accountants
               </p>
             </div>
           </div>
@@ -527,17 +608,17 @@ function InvitationCenter({ staff }) {
         <div className="grid gap-3 p-4 sm:p-5 lg:grid-cols-2">
           {exhausted.map((u) => (
             <InvitationRow
-              key={`exh-${u.id || u.userId}`}
+              key={`exh-${u.staffRole}-${u.id || u.userId}`}
               user={u}
               status="exhausted"
-              resending={resendingId === (u.id || u.userId)}
+              resending={resendingId === (u.userId || u.id)}
               onResend={() => handleResend(u)}
             />
           ))}
 
           {expired.map((u) => (
             <InvitationRow
-              key={`exp-${u.id || u.userId}`}
+              key={`exp-${u.staffRole}-${u.id || u.userId}`}
               user={u}
               status="expired"
             />
@@ -586,10 +667,15 @@ function MiniStatus({ label, value, type }) {
   );
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Invitation row — includes Role badge
+   ══════════════════════════════════════════════════════════════ */
+
 function InvitationRow({ user, status, resending, onResend }) {
   const isExhausted = status === "exhausted";
   const isExpired = status === "expired";
-  const userId = user.id || user.userId;
+
+  const userId = user.userId || user.id;
 
   const config = {
     exhausted: {
@@ -613,6 +699,38 @@ function InvitationRow({ user, status, resending, onResend }) {
 
   const Icon = config.icon;
 
+  // Role-specific new staff page
+  const newPageHref = (() => {
+    switch (user.staffRole) {
+      case "Doctor":
+        return "/portal/admin/doctors/new";
+      case "Nurse":
+        return "/portal/admin/nurses/new";
+      case "Receptionist":
+        return "/portal/admin/receptionists/new";
+      case "Accountant":
+        return "/portal/admin/accountants/new";
+      default:
+        return "/portal/admin";
+    }
+  })();
+
+  // Role icon for the badge
+  const RoleIcon = (() => {
+    switch (user.staffRole) {
+      case "Doctor":
+        return Stethoscope;
+      case "Nurse":
+        return HeartPulse;
+      case "Receptionist":
+        return ClipboardList;
+      case "Accountant":
+        return Wallet;
+      default:
+        return Users;
+    }
+  })();
+
   return (
     <div className="group rounded-xl border border-border bg-background p-4 transition-all hover:border-brand/30 hover:shadow-sm">
       <div className="flex items-start gap-3">
@@ -629,11 +747,14 @@ function InvitationRow({ user, status, resending, onResend }) {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h3 className="truncate text-sm font-semibold">
-                {user.fullName || user.name || "Unknown staff"}
+                {user.fullName}
               </h3>
-              <p className="mt-0.5 text-[11px] font-medium text-brand">
+
+              {/* Role badge */}
+              <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-soft-foreground">
+                <RoleIcon className="h-2.5 w-2.5" />
                 {user.staffRole}
-              </p>
+              </span>
             </div>
 
             <span
@@ -682,17 +803,7 @@ function InvitationRow({ user, status, resending, onResend }) {
             {config.helper}
           </div>
           <Button asChild size="sm" variant="outline" className="w-full">
-            <Link
-              href={
-                user.staffRole === "Doctor"
-                  ? "/portal/admin/doctors/new"
-                  : user.staffRole === "Nurse"
-                  ? "/portal/admin/nurses/new"
-                  : user.staffRole === "Receptionist"
-                  ? "/portal/admin/receptionists/new"
-                  : "/portal/admin/accountants/new"
-              }
-            >
+            <Link href={newPageHref}>
               <UserPlus className="mr-1.5 h-3.5 w-3.5" />
               Create new {user.staffRole.toLowerCase()}
             </Link>
@@ -702,6 +813,10 @@ function InvitationRow({ user, status, resending, onResend }) {
     </div>
   );
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Rest of the file — unchanged
+   ══════════════════════════════════════════════════════════════ */
 
 function AlertCard({ tone, icon: Icon, title, description, href, cta }) {
   const styles =
@@ -1018,6 +1133,7 @@ function StaffCard({
   active,
   inactive,
   pending,
+  exhausted,
   expired,
   href,
   accent,
@@ -1055,6 +1171,12 @@ function StaffCard({
           <span className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-400">
             <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
             {pending} pending
+          </span>
+        )}
+        {exhausted > 0 && (
+          <span className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
+            {exhausted} resend
           </span>
         )}
         {expired > 0 && (

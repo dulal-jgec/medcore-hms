@@ -13,7 +13,7 @@ export default async function DoctorsPage({ params }) {
     getPublicHospital(id),
     getPublicDoctors(id, {
       page: 0,
-      size: 50,
+      size: 100,
       sortBy: "id",
       sortDir: "asc",
     }),
@@ -22,7 +22,11 @@ export default async function DoctorsPage({ params }) {
   const hospital = hospitalResult.data;
   if (!hospital) notFound();
 
-  const doctors = doctorsResult.data?.content || [];
+  // ⚠️ Only show ACTIVE doctors
+  const allDoctors = doctorsResult.data?.content || [];
+  const doctors = allDoctors.filter(
+    (d) => d.status === "ACTIVE"
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20">
@@ -50,10 +54,7 @@ export default async function DoctorsPage({ params }) {
       </header>
 
       {/* Client component handles search + filtered grid */}
-      <DoctorsSearchGrid
-        doctors={doctors}
-        hospitalId={id}
-      />
+      <DoctorsSearchGrid doctors={doctors} hospitalId={id} />
     </div>
   );
 }

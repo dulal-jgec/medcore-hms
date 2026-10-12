@@ -20,7 +20,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DemoAccountsPanel } from "@/components/auth/demo-accounts-panel";
+
 import { useAuthStore } from "@/store/auth-store";
 
 const loginSchema = z.object({
@@ -192,9 +192,7 @@ function LoginContent() {
               )}
             </Button>
           </form>
-
-          {/* Demo accounts panel — shows only if NEXT_PUBLIC_DEMO_MODE is on */}
-          <DemoAccountsPanel onUseAccount={handleUseAccount} />
+ 
 
           <div className="my-7 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
