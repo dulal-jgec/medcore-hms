@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SuperAdminSidebar } from "@/components/super-admin/super-admin-sidebar";
 import { SuperAdminTopbar } from "@/components/super-admin/super-admin-topbar";
-import { DemoNavigator } from "@/components/portal/demo-navigator";
+ 
 import {
   Sheet,
   SheetContent,
@@ -93,7 +93,7 @@ export default function SuperAdminLayout({ children }) {
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
 
-      <DemoNavigator />
+       
     </div>
   );
 }
