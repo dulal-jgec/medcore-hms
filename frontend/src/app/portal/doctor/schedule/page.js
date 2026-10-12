@@ -198,7 +198,7 @@ export default function DoctorSchedulePage() {
 
         <Button onClick={() => openCreate("MONDAY")}>
           <Plus className="mr-1.5 h-4 w-4" />
-          Add time slot
+          Add time block
         </Button>
       </div>
 
@@ -212,8 +212,9 @@ export default function DoctorSchedulePage() {
             Publicly visible
           </p>
           <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-            These slots appear on your public doctor profile. Patients can
-            pick any open slot to book.
+            These blocks appear on your public profile. Patients will book
+            20-minute slots within each block. Multiple blocks per day are
+            supported — e.g. 9:00–1:00 and 2:00–6:00 gives you a 1-hour break.
           </p>
         </div>
       </div>
@@ -222,15 +223,15 @@ export default function DoctorSchedulePage() {
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <MiniStat
           icon={CalendarClock}
-          label="Weekly slots"
+          label="Weekly blocks"
           value={stats.totalSlots}
-          sub="active blocks"
+          sub="active time blocks"
         />
         <MiniStat
           icon={Clock}
           label="Weekly hours"
           value={`${stats.weeklyHours}h`}
-          sub="OPD time"
+          sub="total OPD time"
           accent
         />
         <MiniStat
@@ -373,7 +374,7 @@ function ScheduleChip({ slot, onEdit, onDelete }) {
           type="button"
           onClick={onEdit}
           className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-black/5"
-          aria-label="Edit slot"
+          aria-label="Edit block"
         >
           <Pencil className="h-3 w-3" />
         </button>
@@ -381,7 +382,7 @@ function ScheduleChip({ slot, onEdit, onDelete }) {
           type="button"
           onClick={onDelete}
           className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-black/5"
-          aria-label="Delete slot"
+          aria-label="Delete block"
         >
           <Trash2 className="h-3 w-3" />
         </button>
@@ -439,7 +440,7 @@ function ScheduleEditor({ doctorId, initial, onClose, onSaved }) {
         onSaved(res.data, "create");
       }
     } catch (err) {
-      setError(err.message || "Unable to save the slot.");
+      setError(err.message || "Unable to save the block.");
     } finally {
       setSaving(false);
     }
@@ -461,7 +462,7 @@ function ScheduleEditor({ doctorId, initial, onClose, onSaved }) {
             </span>
             <div>
               <h2 className="text-base font-semibold tracking-tight">
-                {isEdit ? "Edit time slot" : "Add time slot"}
+                {isEdit ? "Edit time block" : "Add time block"}
               </h2>
               <p className="text-xs text-muted-foreground">
                 {isEdit
@@ -541,6 +542,19 @@ function ScheduleEditor({ doctorId, initial, onClose, onSaved }) {
               </div>
             </div>
 
+            <div className="rounded-xl border border-brand/20 bg-brand-soft/40 p-3">
+              <p className="text-xs leading-5 text-muted-foreground">
+                <span className="font-semibold text-brand-soft-foreground">
+                  Tip:
+                </span>{" "}
+                Define one block per continuous session. For a lunch break,
+                create two blocks — e.g.{" "}
+                <span className="font-medium text-foreground">9:00–13:00</span>{" "}
+                and{" "}
+                <span className="font-medium text-foreground">14:00–18:00</span>.
+              </p>
+            </div>
+
             {isEdit && (
               <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-background p-3">
                 <input
@@ -554,7 +568,7 @@ function ScheduleEditor({ doctorId, initial, onClose, onSaved }) {
                     Available for booking
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Uncheck to temporarily hide this slot.
+                    Uncheck to temporarily hide this block.
                   </p>
                 </div>
               </label>
@@ -574,7 +588,7 @@ function ScheduleEditor({ doctorId, initial, onClose, onSaved }) {
               ) : (
                 <>
                   <CheckCircle2 className="mr-2 h-4 w-4" />
-                  {isEdit ? "Save changes" : "Create slot"}
+                  {isEdit ? "Save changes" : "Create block"}
                 </>
               )}
             </Button>

@@ -43,60 +43,74 @@ public class DoctorScheduleServiceImpl
     private final TenantContextService tenantContextService;
     private final UserRepository userRepository;
 
+    // ─────────────────────────────────────────────────────────────
+    // CREATE
+    // ─────────────────────────────────────────────────────────────
+
     @Override
-public ApiResponse<DoctorScheduleResponse> createSchedule(
-        CreateDoctorScheduleRequest request) {
+    public ApiResponse<DoctorScheduleResponse> createSchedule(
+            CreateDoctorScheduleRequest request) {
 
-    Doctor doctor = resolveTargetDoctorForWrite(request.getDoctorId());
+        Doctor doctor = resolveTargetDoctorForWrite(request.getDoctorId());
 
-    if (doctor.getStatus() != DoctorStatus.ACTIVE) {
-        throw new BusinessException(
-                "Only active doctors can have schedules"
+        if (doctor.getStatus() != DoctorStatus.ACTIVE) {
+            throw new BusinessException(
+                    "Only active doctors can have schedules"
+            );
+        }
+
+        LocalTime startTime = request.getStartTime();
+        LocalTime endTime = request.getEndTime();
+
+        if (endTime == null) {
+            throw new BusinessException("End time is required");
+        }
+
+        if (!endTime.isAfter(startTime)) {
+            throw new BusinessException(
+                    "End time must be after start time"
+            );
+        }
+
+        validateNoOverlap(
+                doctor.getId(),
+                request.getDayOfWeek(),
+                startTime,
+                endTime,
+                null
         );
+
+        DoctorSchedule schedule =
+                DoctorSchedule.builder()
+                        .doctor(doctor)
+                        .dayOfWeek(request.getDayOfWeek())
+                        .startTime(startTime)
+                        .endTime(endTime)
+                        .available(true)
+                        .build();
+
+        DoctorSchedule savedSchedule =
+                scheduleRepository.save(schedule);
+
+        log.info(
+                "Doctor schedule created: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}",
+                savedSchedule.getId(),
+                doctor.getId(),
+                savedSchedule.getDayOfWeek(),
+                savedSchedule.getStartTime(),
+                savedSchedule.getEndTime()
+        );
+
+        return ApiResponse.<DoctorScheduleResponse>builder()
+                .success(true)
+                .message("Doctor schedule created successfully")
+                .data(scheduleMapper.toResponse(savedSchedule))
+                .build();
     }
 
-    LocalTime startTime = request.getStartTime();
-
-    LocalTime endTime =
-            startTime.plusMinutes(
-                    doctor.getConsultationDurationMinutes()
-            );
-
-    validateNoOverlap(
-            doctor.getId(),
-            request.getDayOfWeek(),
-            startTime,
-            endTime,
-            null
-    );
-
-    DoctorSchedule schedule =
-            DoctorSchedule.builder()
-                    .doctor(doctor)
-                    .dayOfWeek(request.getDayOfWeek())
-                    .startTime(startTime)
-                    .endTime(endTime)
-                    .available(true)
-                    .build();
-
-    DoctorSchedule savedSchedule =
-            scheduleRepository.save(schedule);
-
-    log.info(
-            "Doctor schedule created: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}",
-            savedSchedule.getId(),
-            doctor.getId(),
-            savedSchedule.getDayOfWeek(),
-            savedSchedule.getStartTime(),
-            savedSchedule.getEndTime()
-    );
-
-    return ApiResponse.<DoctorScheduleResponse>builder()
-            .success(true)
-            .message("Doctor schedule created successfully")
-            .data(scheduleMapper.toResponse(savedSchedule))
-            .build();
-}
+    // ─────────────────────────────────────────────────────────────
+    // READ
+    // ─────────────────────────────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
@@ -119,6 +133,15 @@ public ApiResponse<DoctorScheduleResponse> createSchedule(
                 .build();
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // UPDATE
+    //
+    // NOTE: This is the ONLY updateSchedule method. The previous
+    // duplicate that used `startTime.plusMinutes(duration)` has
+    // been removed — it was overwriting the correct `endTime`
+    // sent from the frontend.
+    // ─────────────────────────────────────────────────────────────
+
     @Override
     public ApiResponse<DoctorScheduleResponse> updateSchedule(
             Long scheduleId,
@@ -140,14 +163,19 @@ public ApiResponse<DoctorScheduleResponse> createSchedule(
                     "Only active doctors can have schedules"
             );
         }
-        
-        LocalTime startTime = request.getStartTime();
 
-        LocalTime endTime =
-                startTime.plusMinutes(
-                        doctor.getConsultationDurationMinutes()
-                );
-         
+        LocalTime startTime = request.getStartTime();
+        LocalTime endTime = request.getEndTime();
+
+        if (endTime == null) {
+            throw new BusinessException("End time is required");
+        }
+
+        if (!endTime.isAfter(startTime)) {
+            throw new BusinessException(
+                    "End time must be after start time"
+            );
+        }
 
         validateNoOverlap(
                 doctor.getId(),
@@ -183,6 +211,10 @@ public ApiResponse<DoctorScheduleResponse> createSchedule(
                 .build();
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // DELETE
+    // ─────────────────────────────────────────────────────────────
+
     @Override
     public ApiResponse<String> deleteSchedule(Long scheduleId) {
 
@@ -214,6 +246,10 @@ public ApiResponse<DoctorScheduleResponse> createSchedule(
                 .data("Deleted")
                 .build();
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────────────
 
     private Doctor resolveTargetDoctorForWrite(Long doctorId) {
 

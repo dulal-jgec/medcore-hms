@@ -77,13 +77,10 @@ public class AppointmentServiceImpl
 
      
 
-        @Override
+            @Override
     @Transactional
     public ApiResponse<AppointmentResponse> createAppointment(
             CreateAppointmentRequest request) {
-
-        Long currentHospitalId =
-                tenantContextService.getCurrentHospitalId();
 
         RoleName currentRole = getCurrentRole();
 
@@ -91,6 +88,11 @@ public class AppointmentServiceImpl
         Patient patient;
 
         if (currentRole == RoleName.PATIENT) {
+
+            // ─────────────────────────────────────────────────────
+            // PATIENT: no tenant context needed.
+            // The patient picks any hospital on MedCore (marketplace).
+            // ─────────────────────────────────────────────────────
 
             if (request.getHospitalId() == null) {
                 throw new BusinessException(
@@ -102,18 +104,7 @@ public class AppointmentServiceImpl
 
             patient = getCurrentPatient();
 
-            // ─────────────────────────────────────────────────────
-            // AUTO-LINK PATIENT'S USER TO THIS HOSPITAL
-            //
-            // Patients browse MedCore like a marketplace and can
-            // book from any hospital. The first time they book from
-            // a hospital, we link their User record to that hospital.
-            //
-            // If they later book from another hospital, we switch
-            // the primary hospital to the latest one. Their previous
-            // appointments remain intact because Appointment stores
-            // its own hospital reference.
-            // ─────────────────────────────────────────────────────
+            // Auto-link patient's User to this hospital
             User patientUser = patient.getUser();
 
             boolean needsHospitalLink =
@@ -134,7 +125,6 @@ public class AppointmentServiceImpl
                                 );
 
                 patientUser.setHospital(targetHospital);
-
                 userRepository.save(patientUser);
 
                 log.info(
@@ -145,6 +135,10 @@ public class AppointmentServiceImpl
             }
 
         } else if (currentRole == RoleName.RECEPTIONIST) {
+
+            // RECEPTIONIST: tenant context is required
+            Long currentHospitalId =
+                    tenantContextService.getCurrentHospitalId();
 
             if (currentHospitalId == null) {
                 throw new BusinessException(
