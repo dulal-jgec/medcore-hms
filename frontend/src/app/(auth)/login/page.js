@@ -136,12 +136,7 @@ function LoginContent() {
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label className="text-sm font-medium">Password</label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs font-medium text-brand hover:underline"
-                >
-                  Forgot password?
-                </Link>
+                
               </div>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
