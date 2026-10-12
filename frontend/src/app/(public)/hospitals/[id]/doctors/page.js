@@ -22,11 +22,22 @@ export default async function DoctorsPage({ params }) {
   const hospital = hospitalResult.data;
   if (!hospital) notFound();
 
-  // ⚠️ Only show ACTIVE doctors
   const allDoctors = doctorsResult.data?.content || [];
-  const doctors = allDoctors.filter(
-    (d) => d.status === "ACTIVE"
-  );
+
+  // Only show ACTIVE doctors.
+  //
+  // Public doctor response may or may not include a `status` field.
+  // - If it does   → filter by it (defense in depth on the client).
+  // - If it doesn't → trust the backend, which should already return
+  //                   only ACTIVE doctors on public endpoints.
+  const doctors = allDoctors.filter((d) => {
+    const status = d.status ?? d.doctorStatus ?? d.userStatus;
+
+    // No status field at all → trust backend, don't filter out
+    if (status === undefined || status === null) return true;
+
+    return status === "ACTIVE";
+  });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20">
@@ -53,7 +64,6 @@ export default async function DoctorsPage({ params }) {
         </p>
       </header>
 
-      {/* Client component handles search + filtered grid */}
       <DoctorsSearchGrid doctors={doctors} hospitalId={id} />
     </div>
   );
