@@ -20,7 +20,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
+import { DemoAccountsPanel } from "@/components/auth/demo-accounts-panel";
 import { useAuthStore } from "@/store/auth-store";
 
 const loginSchema = z.object({
@@ -112,6 +112,7 @@ function LoginContent() {
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
+            {/* Email */}
             <div>
               <label className="mb-1.5 block text-sm font-medium">
                 Email address
@@ -133,11 +134,11 @@ function LoginContent() {
               )}
             </div>
 
+            {/* Password */}
             <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <label className="text-sm font-medium">Password</label>
-                
-              </div>
+              <label className="mb-1.5 block text-sm font-medium">
+                Password
+              </label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -192,7 +193,9 @@ function LoginContent() {
               )}
             </Button>
           </form>
- 
+
+          {/* Demo accounts panel — shows only if NEXT_PUBLIC_DEMO_MODE is on */}
+          <DemoAccountsPanel onUseAccount={handleUseAccount} />
 
           <div className="my-7 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
