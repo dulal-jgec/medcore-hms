@@ -1,67 +1,37 @@
 spring:
   application:
-    name: medcore-hms-test
+    name: medcore-hms
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/medcore_hms_test
-    username: postgres
-    password: MyNewPassword123!
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 1
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
 
   data:
     redis:
-      host: localhost
-      port: 6379
-      username: default
-      password: ""
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USER:default}
+      password: ${REDIS_PASSWORD:}
 
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: create
-    show-sql: true
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
 
   flyway:
-    enabled: false
-
-  mail:
-    host: localhost
-    port: 1025
-    username: test
-    password: test
-
-app:
-  super-admin:
-    email: admin@test.local
-    password: TestPassword123!
-    phone: "9000000000"
-
-jwt:
-  secret: "test-secret-key-for-local-integration-tests-only-12345678901234567890"
-  access-token-expiration: 900000
-  refresh-token-expiration: 604800000
-
-razorpay:
-  key-id: test-key
-  key-secret: test-secret
-  webhook-secret: test-webhook-secret
-
-cloudinary:
-  cloud-name: test-cloud
-  api-key: test-key
-  api-secret: test-secret
+    baseline-on-migrate: true
+    baseline-version: 23
 
 server:
-  port: 0
-
-logging:
-  level:
-    root: INFO
-    org.hibernate.SQL: DEBUG
+  port: ${SERVER_PORT:8080}
