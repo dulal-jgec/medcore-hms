@@ -104,4 +104,4 @@ pnpm-debug.log*
 
 *.db
 
-src/test/resources/application-test.yml
+/backend/src/test/resources/application-test.yml
