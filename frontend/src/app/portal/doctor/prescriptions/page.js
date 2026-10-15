@@ -1,16 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import {
   Pill,
-  Plus,
   Search,
   User,
   Calendar,
   ChevronDown,
-  Download,
-  Printer,
   FileText,
   X,
   Clock,
@@ -56,23 +52,16 @@ export default function DoctorPrescriptionsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
-            Prescriptions
-          </p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-            Prescriptions I've written
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            All prescriptions issued to your patients.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/portal/doctor/prescriptions/new">
-            New prescription
-          </Link>
-        </Button>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+          Prescriptions
+        </p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+          Prescriptions I&apos;ve written
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          All prescriptions issued to your patients.
+        </p>
       </div>
 
       {/* Sample data notice */}
@@ -91,18 +80,29 @@ export default function DoctorPrescriptionsPage() {
 
       {/* Summary */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <MiniStat label="Active" value={active.length} sub="ongoing treatments" accent />
+        <MiniStat
+          label="Active"
+          value={active.length}
+          sub="ongoing treatments"
+          accent
+        />
         <MiniStat label="Completed" value={completed.length} sub="all time" />
         <MiniStat
           label="Total medicines prescribed"
-          value={DOCTOR_PRESCRIPTIONS.reduce((s, p) => s + p.medicines.length, 0)}
+          value={DOCTOR_PRESCRIPTIONS.reduce(
+            (s, p) => s + p.medicines.length,
+            0
+          )}
           sub="across all prescriptions"
         />
       </div>
 
       {/* Tabs */}
       <div className="mt-8 border-b border-border">
-        <nav className="flex gap-6 overflow-x-auto" aria-label="Prescription filters">
+        <nav
+          className="flex gap-6 overflow-x-auto"
+          aria-label="Prescription filters"
+        >
           {tabs.map(({ id, label, count }) => {
             const isActive = tab === id;
             return (
@@ -203,7 +203,6 @@ function PrescriptionCard({ prescription, isOpen, onToggle }) {
         className="flex w-full items-center gap-4 p-5 text-left sm:p-6"
         aria-expanded={isOpen}
       >
-        {/* Patient avatar */}
         <div
           className={cn(
             "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold",
@@ -215,7 +214,6 @@ function PrescriptionCard({ prescription, isOpen, onToggle }) {
           {prescription.patientName.charAt(0)}
         </div>
 
-        {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold tracking-tight">
@@ -257,11 +255,9 @@ function PrescriptionCard({ prescription, isOpen, onToggle }) {
         />
       </button>
 
-      {/* Expanded content */}
       {isOpen && (
         <div className="border-t border-border">
           <div className="p-5 sm:p-6">
-            {/* Medicines table */}
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Prescribed medicines
             </h4>
@@ -287,26 +283,31 @@ function PrescriptionCard({ prescription, isOpen, onToggle }) {
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:hidden">
                         Dosage:
                       </span>
-                      <span className="text-muted-foreground">{med.dosage}</span>
+                      <span className="text-muted-foreground">
+                        {med.dosage}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 sm:col-span-3">
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:hidden">
                         Timing:
                       </span>
-                      <span className="text-muted-foreground">{med.timing}</span>
+                      <span className="text-muted-foreground">
+                        {med.timing}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 sm:col-span-2">
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:hidden">
                         Duration:
                       </span>
-                      <span className="text-muted-foreground">{med.duration}</span>
+                      <span className="text-muted-foreground">
+                        {med.duration}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Meta boxes */}
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               {prescription.notes && (
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
@@ -341,27 +342,6 @@ function PrescriptionCard({ prescription, isOpen, onToggle }) {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Actions */}
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Button size="sm" variant="outline">
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                Download PDF
-              </Button>
-              <Button size="sm" variant="outline">
-                <Printer className="mr-1.5 h-3.5 w-3.5" />
-                Print
-              </Button>
-              {isActive && (
-                <Button size="sm" asChild>
-                  <Link
-                    href={`/portal/doctor/prescriptions/${prescription.id}/edit`}
-                  >
-                    Edit prescription
-                  </Link>
-                </Button>
-              )}
             </div>
           </div>
         </div>

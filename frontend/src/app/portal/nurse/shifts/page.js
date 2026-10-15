@@ -11,6 +11,7 @@ import {
   Sun,
   Sunrise,
   Sunset,
+  Info,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -118,6 +119,21 @@ export default function NurseShiftsPage() {
         </p>
       </div>
 
+      {/* Sample data notice */}
+      <div className="mt-6 flex items-start gap-3 rounded-xl border border-highlight-soft-foreground/20 bg-highlight-soft/40 px-4 py-3">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-highlight-soft-foreground" />
+        <div className="text-sm">
+          <p className="font-semibold text-highlight-soft-foreground">
+            Sample data
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            These shifts are demo entries to show how the page works. Real
+            shift schedules from your nursing supervisor will appear here
+            once integrated with your backend.
+          </p>
+        </div>
+      </div>
+
       {/* Current shift hero */}
       {today && (
         <div className="mt-6 relative overflow-hidden rounded-3xl bg-primary p-6 sm:p-8">
@@ -164,7 +180,7 @@ export default function NurseShiftsPage() {
       {/* Week schedule */}
       <div className="mt-8">
         <h2 className="text-base font-semibold tracking-tight">
-          This week's schedule
+          This week&apos;s schedule
         </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Click any day to see shift details

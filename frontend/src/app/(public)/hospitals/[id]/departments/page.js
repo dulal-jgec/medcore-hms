@@ -26,9 +26,6 @@ export default async function DepartmentsPage({ params }) {
   if (!hospital) notFound();
 
   const departments = departmentsResult.data?.content || [];
-  const activeCount = departments.filter(
-    (d) => d.status !== "INACTIVE"
-  ).length;
 
   return (
     <div className="bg-background">
@@ -71,7 +68,7 @@ export default async function DepartmentsPage({ params }) {
               />
               <StatTile
                 icon={HeartPulse}
-                value={activeCount}
+                value={departments.length}
                 label="Active units"
               />
               <StatTile

@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Menu,
   Bell,
   Search,
   ChevronDown,
   User,
-  Settings,
   LogOut,
   Building2,
   Home,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
+
+/* ══════════ Config ══════════ */
 
 const ROLE_LABELS = {
   SUPER_ADMIN: "Super Admin",
@@ -51,11 +54,31 @@ const SEGMENT_LABELS = {
   super: "Super Admin",
 };
 
+/**
+ * Role → profile page mapping.
+ * Sudhu jei role er profile page tomar project e ache shetai include koro.
+ * Na thakle, option ta show korbe na — broken link er theke better.
+ */
+const PROFILE_BY_ROLE = {
+  SUPER_ADMIN: null, // ekhono super-admin profile page nei
+  HOSPITAL_ADMIN: "/portal/admin/settings",
+  DOCTOR: "/portal/doctor/profile",
+  NURSE: "/portal/nurse/profile",
+  RECEPTIONIST: "/portal/reception/profile",
+  ACCOUNTANT: "/portal/accounts/profile",
+  PATIENT: "/portal/patient/profile",
+};
+
+/* ══════════ Component ══════════ */
+
 export function PortalTopbar({ onOpenSidebar }) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const segments = (pathname || "").split("/").filter(Boolean);
 
@@ -69,9 +92,20 @@ export function PortalTopbar({ onOpenSidebar }) {
     .join("")
     .toUpperCase();
 
+  const profileHref = user?.role ? PROFILE_BY_ROLE[user.role] : null;
+
   async function handleLogout() {
-    await logout();
-    router.push("/login");
+    if (loggingOut) return;
+
+    try {
+      setLoggingOut(true);
+      await logout();
+      setDropdownOpen(false);
+      router.push("/login");
+      router.refresh();
+    } catch {
+      setLoggingOut(false);
+    }
   }
 
   return (
@@ -90,6 +124,7 @@ export function PortalTopbar({ onOpenSidebar }) {
         <Breadcrumbs segments={segments} />
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Search */}
           <div className="relative hidden md:block">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -100,6 +135,7 @@ export function PortalTopbar({ onOpenSidebar }) {
 
           <ThemeToggle />
 
+          {/* Notifications */}
           <button
             type="button"
             className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-hover hover:text-hover-foreground"
@@ -109,8 +145,12 @@ export function PortalTopbar({ onOpenSidebar }) {
             <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand" />
           </button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg border border-border bg-card p-1 pr-2.5 outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring/40">
+          {/* User menu */}
+          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+            <DropdownMenuTrigger
+              className="flex items-center gap-2 rounded-lg border border-border bg-card p-1 pr-2.5 outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring/40"
+              aria-label="Account menu"
+            >
               <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand text-[11px] font-bold text-brand-foreground">
                 {initials}
               </span>
@@ -126,9 +166,9 @@ export function PortalTopbar({ onOpenSidebar }) {
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="w-64">
-              {/* Custom header — not using DropdownMenuLabel to avoid MenuGroupContext error */}
-              <div className="flex items-center gap-3 px-3 py-2">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand text-sm font-bold text-brand-foreground">
+              {/* User header */}
+              <div className="flex items-center gap-3 px-3 py-2.5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-brand-foreground">
                   {initials}
                 </span>
                 <div className="min-w-0">
@@ -141,10 +181,9 @@ export function PortalTopbar({ onOpenSidebar }) {
                 </div>
               </div>
 
-              <DropdownMenuSeparator />
-
-              <div className="px-2 py-1.5">
-                <div className="flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1.5 text-xs">
+              {/* Hospital badge */}
+              <div className="px-2 pb-1.5">
+                <div className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
                   <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate text-muted-foreground">
                     {displayHospital}
@@ -154,29 +193,32 @@ export function PortalTopbar({ onOpenSidebar }) {
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem asChild>
-                <Link href="/portal/admin/settings">
-                  <User className="h-4 w-4" />
-                  My profile
-                </Link>
-              </DropdownMenuItem>
+              {/* Profile — only if role has a page */}
+              {profileHref && (
+                <DropdownMenuItem asChild>
+                  <Link href={profileHref} className="cursor-pointer">
+                    <User className="h-4 w-4" />
+                    My profile
+                  </Link>
+                </DropdownMenuItem>
+              )}
 
-              <DropdownMenuItem asChild>
-                <Link href="/portal/admin/settings">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
+              {/* Sign out — destructive with loading state */}
               <DropdownMenuItem
                 variant="destructive"
-                onSelect={handleLogout}
-                className="cursor-pointer"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  handleLogout();
+                }}
+                disabled={loggingOut}
+                className={cn("cursor-pointer", loggingOut && "opacity-70")}
               >
-                <LogOut className="h-4 w-4" />
-                Sign out
+                {loggingOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="h-4 w-4" />
+                )}
+                {loggingOut ? "Signing out..." : "Sign out"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -185,6 +227,8 @@ export function PortalTopbar({ onOpenSidebar }) {
     </header>
   );
 }
+
+/* ══════════ Breadcrumbs ══════════ */
 
 function Breadcrumbs({ segments }) {
   if (!segments.length) return null;

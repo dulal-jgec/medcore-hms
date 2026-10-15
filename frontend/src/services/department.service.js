@@ -26,6 +26,11 @@ export async function getDepartments({
   return handleResponse(response);
 }
 
+export async function getDepartmentById(departmentId) {
+  const response = await apiFetch(`/departments/${departmentId}`);
+  return handleResponse(response);
+}
+
 export async function searchDepartments(keyword, { page = 0, size = 50 } = {}) {
   const params = new URLSearchParams({
     keyword,
@@ -50,6 +55,29 @@ export async function updateDepartment(id, data) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function updateDepartmentStatus(id, status) {
+  const response = await apiFetch(`/departments/${id}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  return handleResponse(response);
+}
+
+export async function deleteDepartment(id) {
+  const response = await apiFetch(`/departments/${id}`, {
+    method: "DELETE",
+  });
+  return handleResponse(response);
+}
+
+export async function restoreDepartment(id) {
+  const response = await apiFetch(`/departments/${id}/restore`, {
+    method: "PATCH",
   });
   return handleResponse(response);
 }

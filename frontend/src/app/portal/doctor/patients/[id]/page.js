@@ -10,6 +10,7 @@ import {
   CalendarX2,
   CheckCircle2,
   Clock,
+  FileText,
   Loader2,
   Stethoscope,
   UserRound,
@@ -153,6 +154,8 @@ export default function DoctorPatientDetailPage() {
     .join("")
     .toUpperCase();
 
+  const lastReason = appointments.find((a) => a.reason)?.reason || null;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <Link
@@ -163,44 +166,73 @@ export default function DoctorPatientDetailPage() {
         Back to patients
       </Link>
 
-      {/* Header */}
-      <div className="mt-6 flex items-start gap-5">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand text-2xl font-bold text-brand-foreground">
-          {initials}
-        </div>
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">
-            {patientName}
-          </h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Patient #{patientId}
-          </p>
-        </div>
-      </div>
+      {/* Patient header card */}
+      <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:p-7">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-brand text-2xl font-bold text-brand-foreground">
+            {initials}
+          </div>
 
-      {/* Stat strip */}
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <MiniStat
-          label="Total appointments"
-          value={appointments.length}
-          icon={Calendar}
-        />
-        <MiniStat
-          label="Upcoming"
-          value={buckets.upcoming.length}
-          icon={Clock}
-          accent={buckets.upcoming.length > 0}
-        />
-        <MiniStat
-          label="Completed"
-          value={buckets.past.length}
-          icon={CheckCircle2}
-        />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">
+              {patientName}
+            </h1>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Patient #{patientId}
+            </p>
+
+            {lastReason && (
+              <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  Latest reason:{" "}
+                </span>
+                {lastReason}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 sm:flex-col sm:items-end">
+            {buckets.upcoming.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-soft-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+                {buckets.upcoming.length} upcoming
+              </span>
+            )}
+            <span className="text-[11px] text-muted-foreground">
+              {appointments.length} total visit
+              {appointments.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
+
+        {/* Stat strip */}
+        <div className="grid grid-cols-3 divide-x divide-border border-t border-border bg-muted/20">
+          <BigStat
+            icon={Calendar}
+            label="Total appointments"
+            value={appointments.length}
+          />
+          <BigStat
+            icon={Clock}
+            label="Upcoming"
+            value={buckets.upcoming.length}
+            accent={buckets.upcoming.length > 0}
+          />
+          <BigStat
+            icon={CheckCircle2}
+            label="Completed"
+            value={buckets.past.length}
+          />
+        </div>
       </div>
 
       {/* Upcoming */}
       {buckets.upcoming.length > 0 && (
-        <Section title="Upcoming appointments" count={buckets.upcoming.length}>
+        <Section
+          title="Upcoming appointments"
+          count={buckets.upcoming.length}
+          icon={Calendar}
+        >
           <ul className="divide-y divide-border">
             {buckets.upcoming.map((apt) => (
               <AppointmentRow key={apt.id} appointment={apt} />
@@ -211,7 +243,11 @@ export default function DoctorPatientDetailPage() {
 
       {/* Past */}
       {buckets.past.length > 0 && (
-        <Section title="Past appointments" count={buckets.past.length}>
+        <Section
+          title="Past appointments"
+          count={buckets.past.length}
+          icon={CheckCircle2}
+        >
           <ul className="divide-y divide-border">
             {buckets.past.map((apt) => (
               <AppointmentRow key={apt.id} appointment={apt} />
@@ -222,7 +258,11 @@ export default function DoctorPatientDetailPage() {
 
       {/* Cancelled */}
       {buckets.cancelled.length > 0 && (
-        <Section title="Cancelled" count={buckets.cancelled.length}>
+        <Section
+          title="Cancelled appointments"
+          count={buckets.cancelled.length}
+          icon={CalendarX2}
+        >
           <ul className="divide-y divide-border">
             {buckets.cancelled.map((apt) => (
               <AppointmentRow key={apt.id} appointment={apt} />
@@ -236,11 +276,39 @@ export default function DoctorPatientDetailPage() {
 
 /* ══════════ Sub-components ══════════ */
 
-function Section({ title, count, children }) {
+function BigStat({ icon: Icon, label, value, accent }) {
+  return (
+    <div className="p-4 sm:p-5">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-lg",
+            accent
+              ? "bg-brand text-brand-foreground"
+              : "bg-brand-soft text-brand-soft-foreground"
+          )}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {label}
+          </p>
+          <p className="text-xl font-bold tracking-tight">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, count, icon: Icon, children }) {
   return (
     <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-brand" />
+          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+        </div>
         <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-soft-foreground">
           {count}
         </span>
@@ -255,7 +323,7 @@ function AppointmentRow({ appointment }) {
   const s = appointment.status;
 
   return (
-    <li className="flex items-center gap-4 p-4 sm:p-5">
+    <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
       <div
         className={cn(
           "flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border",
@@ -295,21 +363,24 @@ function AppointmentRow({ appointment }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-semibold">
-            {formatTime(appointment.startTime)} –{" "}
-            {formatTime(appointment.endTime)}
+            {date.toLocaleDateString("en-IN", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
           </p>
           <StatusPill status={s} />
         </div>
 
-        {appointment.hospitalName && (
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            <Stethoscope className="mr-1 inline h-3 w-3" />
-            {appointment.hospitalName}
-          </p>
-        )}
+        <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          {formatTime(appointment.startTime)} –{" "}
+          {formatTime(appointment.endTime)}
+        </p>
 
         {appointment.reason && (
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Reason: </span>
             {appointment.reason}
           </p>
@@ -365,31 +436,6 @@ function StatusPill({ status }) {
       <Icon className="h-3 w-3" />
       {c.label}
     </span>
-  );
-}
-
-function MiniStat({ label, value, icon: Icon, accent }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-lg",
-            accent
-              ? "bg-brand text-brand-foreground"
-              : "bg-brand-soft text-brand-soft-foreground"
-          )}
-        >
-          <Icon className="h-4 w-4" />
-        </span>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {label}
-          </p>
-          <p className="text-xl font-bold tracking-tight">{value}</p>
-        </div>
-      </div>
-    </div>
   );
 }
 

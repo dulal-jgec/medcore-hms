@@ -22,6 +22,8 @@ import {
   Smartphone,
   Calendar,
   FileText,
+  Info,
+  Sparkles,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,8 @@ import {
   uploadHospitalLogo,
   uploadHospitalBanner,
 } from "@/services/hospital-admin.service";
+
+/* ══════════ Schemas ══════════ */
 
 const generalSchema = z.object({
   name: z.string().min(3).max(120),
@@ -55,27 +59,40 @@ const hoursSchema = z.object({
   pharmacy: z.string().min(3, "Pharmacy hours required"),
 });
 
+/* ══════════ Tabs config ══════════ */
+
 const TABS = [
   {
     id: "general",
     label: "General",
     desc: "Profile and branding",
     icon: Building2,
+    ready: true,
   },
-  { id: "hours", label: "Hours", desc: "Operating schedule", icon: Clock },
+  {
+    id: "hours",
+    label: "Hours",
+    desc: "Operating schedule",
+    icon: Clock,
+    ready: false,
+  },
   {
     id: "notifications",
     label: "Notifications",
     desc: "Email and SMS alerts",
     icon: Bell,
+    ready: false,
   },
   {
     id: "security",
     label: "Security",
     desc: "Access and policy",
     icon: ShieldCheck,
+    ready: false,
   },
 ];
+
+/* ══════════ Page ══════════ */
 
 export default function AdminSettingsPage() {
   const [tab, setTab] = useState("general");
@@ -96,9 +113,10 @@ export default function AdminSettingsPage() {
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-12">
+        {/* Sidebar */}
         <aside className="lg:col-span-3">
           <nav className="flex gap-2 overflow-x-auto rounded-2xl border border-border bg-card p-2 lg:flex-col lg:gap-1 lg:overflow-visible">
-            {TABS.map(({ id, label, desc, icon: Icon }) => {
+            {TABS.map(({ id, label, desc, icon: Icon, ready }) => {
               const active = tab === id;
               return (
                 <button
@@ -113,8 +131,25 @@ export default function AdminSettingsPage() {
                   )}
                 >
                   <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+
                   <div className="hidden min-w-0 flex-1 lg:block">
-                    <p className="truncate text-sm font-semibold">{label}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold">
+                        {label}
+                      </p>
+                      {!ready && (
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+                            active
+                              ? "bg-brand-soft-foreground/15 text-brand-soft-foreground"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          Soon
+                        </span>
+                      )}
+                    </div>
                     <p
                       className={cn(
                         "mt-0.5 truncate text-[11px]",
@@ -126,6 +161,7 @@ export default function AdminSettingsPage() {
                       {desc}
                     </p>
                   </div>
+
                   <span className="text-sm font-semibold lg:hidden">
                     {label}
                   </span>
@@ -135,16 +171,67 @@ export default function AdminSettingsPage() {
           </nav>
         </aside>
 
+        {/* Content */}
         <div className="lg:col-span-9">
           {tab === "general" && <GeneralSettings />}
-          {tab === "hours" && <HoursSettings />}
-          {tab === "notifications" && <NotificationsSettings />}
-          {tab === "security" && <SecuritySettings />}
+          {tab === "hours" && (
+            <ComingSoonWrapper feature="Operating hours">
+              <HoursSettings />
+            </ComingSoonWrapper>
+          )}
+          {tab === "notifications" && (
+            <ComingSoonWrapper feature="Notifications">
+              <NotificationsSettings />
+            </ComingSoonWrapper>
+          )}
+          {tab === "security" && (
+            <ComingSoonWrapper feature="Security policies">
+              <SecuritySettings />
+            </ComingSoonWrapper>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+/* ══════════ Coming soon wrapper ══════════ */
+
+function ComingSoonWrapper({ feature, children }) {
+  return (
+    <div className="relative space-y-6">
+      {/* Notice banner */}
+      <div className="flex items-start gap-3 rounded-2xl border border-highlight-soft-foreground/20 bg-highlight-soft/40 p-4">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-highlight-soft text-highlight-soft-foreground">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-highlight-soft-foreground">
+            {feature} is coming soon
+          </p>
+          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+            This section is a preview of the feature. Changes made here are
+            not saved yet. Full functionality will be enabled in a future
+            update.
+          </p>
+        </div>
+        <span className="hidden shrink-0 rounded-full bg-highlight-soft-foreground/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-highlight-soft-foreground sm:inline-flex">
+          Not live
+        </span>
+      </div>
+
+      {/* Disabled preview */}
+      <div
+        className="pointer-events-none select-none opacity-60"
+        aria-disabled="true"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ General Settings ══════════ */
 
 function GeneralSettings() {
   const [saved, setSaved] = useState(false);
@@ -470,13 +557,13 @@ function GeneralSettings() {
   );
 }
 
-function HoursSettings() {
-  const [saved, setSaved] = useState(false);
+/* ══════════ Hours Settings (preview only) ══════════ */
 
+function HoursSettings() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm({
     resolver: zodResolver(hoursSchema),
     defaultValues: {
@@ -487,21 +574,13 @@ function HoursSettings() {
     },
   });
 
-  async function onSubmit() {
-    await new Promise((r) => setTimeout(r, 500));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  }
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form onSubmit={(e) => e.preventDefault()}>
       <SettingsSection
         icon={Clock}
         title="Operating hours"
         desc="Displayed to patients booking appointments or visiting the hospital."
       >
-        {saved && <SavedToast />}
-
         <div className="grid gap-5 sm:grid-cols-2">
           <Field
             label="OPD hours"
@@ -509,7 +588,7 @@ function HoursSettings() {
             required
             error={errors.opd?.message}
           >
-            <Input {...register("opd")} className="h-11 pl-10" />
+            <Input {...register("opd")} className="h-11 pl-10" disabled />
           </Field>
           <Field
             label="Emergency"
@@ -517,7 +596,11 @@ function HoursSettings() {
             required
             error={errors.emergency?.message}
           >
-            <Input {...register("emergency")} className="h-11 pl-10" />
+            <Input
+              {...register("emergency")}
+              className="h-11 pl-10"
+              disabled
+            />
           </Field>
           <Field
             label="Visiting hours"
@@ -525,7 +608,7 @@ function HoursSettings() {
             required
             error={errors.visiting?.message}
           >
-            <Input {...register("visiting")} className="h-11 pl-10" />
+            <Input {...register("visiting")} className="h-11 pl-10" disabled />
           </Field>
           <Field
             label="Pharmacy hours"
@@ -533,17 +616,21 @@ function HoursSettings() {
             required
             error={errors.pharmacy?.message}
           >
-            <Input {...register("pharmacy")} className="h-11 pl-10" />
+            <Input
+              {...register("pharmacy")}
+              className="h-11 pl-10"
+              disabled
+            />
           </Field>
         </div>
 
         <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-border pt-5">
-          <Button type="button" variant="outline" disabled={isSubmitting}>
+          <Button type="button" variant="outline" disabled>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="button" disabled>
             <Save className="mr-1.5 h-4 w-4" />
-            {isSubmitting ? "Saving..." : "Save hours"}
+            Save hours
           </Button>
         </div>
       </SettingsSection>
@@ -551,16 +638,17 @@ function HoursSettings() {
   );
 }
 
+/* ══════════ Notifications (preview only) ══════════ */
+
 function NotificationsSettings() {
-  const [prefs, setPrefs] = useState({
+  const prefs = {
     emailNewAppointment: true,
     emailNewPatient: true,
     emailBillingAlerts: true,
     emailCriticalLab: true,
     smsPatientReminders: true,
     smsStaffAlerts: false,
-  });
-  const [saved, setSaved] = useState(false);
+  };
 
   const emailItems = [
     {
@@ -598,24 +686,12 @@ function NotificationsSettings() {
     },
   ];
 
-  function toggle(key) {
-    setPrefs((p) => ({ ...p, [key]: !p[key] }));
-  }
-
-  async function save() {
-    await new Promise((r) => setTimeout(r, 500));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  }
-
   return (
     <SettingsSection
       icon={Bell}
       title="Notifications"
       desc="Choose which events trigger email or SMS notifications for your staff."
     >
-      {saved && <SavedToast />}
-
       <div className="space-y-6">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -624,12 +700,11 @@ function NotificationsSettings() {
           </div>
           <div className="mt-3 space-y-1">
             {emailItems.map((item) => (
-              <ToggleRow
+              <PreviewToggleRow
                 key={item.key}
                 label={item.label}
                 desc={item.desc}
                 checked={prefs[item.key]}
-                onChange={() => toggle(item.key)}
               />
             ))}
           </div>
@@ -642,22 +717,21 @@ function NotificationsSettings() {
           </div>
           <div className="mt-3 space-y-1">
             {smsItems.map((item) => (
-              <ToggleRow
+              <PreviewToggleRow
                 key={item.key}
                 label={item.label}
                 desc={item.desc}
                 checked={prefs[item.key]}
-                onChange={() => toggle(item.key)}
               />
             ))}
           </div>
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-5">
-          <Button type="button" variant="outline">
+          <Button type="button" variant="outline" disabled>
             Reset to defaults
           </Button>
-          <Button onClick={save}>
+          <Button type="button" disabled>
             <Save className="mr-1.5 h-4 w-4" />
             Save preferences
           </Button>
@@ -667,28 +741,15 @@ function NotificationsSettings() {
   );
 }
 
+/* ══════════ Security (preview only) ══════════ */
+
 function SecuritySettings() {
-  const [sec, setSec] = useState({
+  const sec = {
     requireTwoFactor: false,
     allowPatientSelfRegistration: true,
     sessionTimeout: 60,
     passwordExpiryDays: 90,
-  });
-  const [saved, setSaved] = useState(false);
-
-  function toggle(key) {
-    setSec((s) => ({ ...s, [key]: !s[key] }));
-  }
-
-  function update(key, value) {
-    setSec((s) => ({ ...s, [key]: value }));
-  }
-
-  async function save() {
-    await new Promise((r) => setTimeout(r, 500));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  }
+  };
 
   return (
     <SettingsSection
@@ -696,21 +757,17 @@ function SecuritySettings() {
       title="Security"
       desc="Authentication and session policies for your hospital staff."
     >
-      {saved && <SavedToast />}
-
       <div className="space-y-6">
-        <ToggleRow
+        <PreviewToggleRow
           label="Require two-factor authentication"
           desc="Staff must verify login with a second factor (email or authenticator app)"
           checked={sec.requireTwoFactor}
-          onChange={() => toggle("requireTwoFactor")}
         />
 
-        <ToggleRow
+        <PreviewToggleRow
           label="Allow patient self-registration"
           desc="Patients can create accounts directly without hospital approval"
           checked={sec.allowPatientSelfRegistration}
-          onChange={() => toggle("allowPatientSelfRegistration")}
         />
 
         <div className="border-t border-border pt-6">
@@ -723,9 +780,8 @@ function SecuritySettings() {
               <Input
                 type="number"
                 value={sec.sessionTimeout}
-                onChange={(e) =>
-                  update("sessionTimeout", parseInt(e.target.value) || 0)
-                }
+                readOnly
+                disabled
                 className="h-11 pl-10"
               />
             </Field>
@@ -734,28 +790,28 @@ function SecuritySettings() {
               <Input
                 type="number"
                 value={sec.passwordExpiryDays}
-                onChange={(e) =>
-                  update("passwordExpiryDays", parseInt(e.target.value) || 0)
-                }
+                readOnly
+                disabled
                 className="h-11 pl-10"
               />
             </Field>
           </div>
         </div>
 
-        <div className="flex items-start gap-3 rounded-xl border border-highlight-soft-foreground/20 bg-highlight-soft/40 p-4">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-highlight-soft-foreground" />
+        <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <p className="text-xs leading-5 text-muted-foreground">
-            Changes to security settings apply to all staff. Enabling 2FA will
-            require every user to reconfigure their login on next sign-in.
+            Once enabled, these settings apply to all hospital staff. Two-factor
+            authentication will require every user to reconfigure their login
+            on next sign-in.
           </p>
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-5">
-          <Button type="button" variant="outline">
+          <Button type="button" variant="outline" disabled>
             Cancel
           </Button>
-          <Button onClick={save}>
+          <Button type="button" disabled>
             <Save className="mr-1.5 h-4 w-4" />
             Save security settings
           </Button>
@@ -764,6 +820,8 @@ function SecuritySettings() {
     </SettingsSection>
   );
 }
+
+/* ══════════ Shared components ══════════ */
 
 function SettingsSection({ icon: Icon, title, desc, children }) {
   return (
@@ -893,21 +951,19 @@ function ErrorBanner({ message }) {
   );
 }
 
-function ToggleRow({ label, desc, checked, onChange }) {
+function PreviewToggleRow({ label, desc, checked }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-lg p-3 transition-colors hover:bg-hover/50">
+    <div className="flex cursor-not-allowed items-center justify-between gap-4 rounded-lg p-3">
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">{label}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
       </div>
-      <button
-        type="button"
-        onClick={onChange}
+      <div
         className={cn(
           "relative h-6 w-11 shrink-0 rounded-full transition-colors",
           checked ? "bg-brand" : "bg-muted"
         )}
-        aria-pressed={checked}
+        aria-hidden="true"
       >
         <span
           className={cn(
@@ -915,8 +971,8 @@ function ToggleRow({ label, desc, checked, onChange }) {
             checked ? "translate-x-[22px]" : "translate-x-0.5"
           )}
         />
-      </button>
-    </label>
+      </div>
+    </div>
   );
 }
 

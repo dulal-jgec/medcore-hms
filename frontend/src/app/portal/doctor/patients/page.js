@@ -4,15 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
-  ArrowUpRight,
   CalendarCheck,
-  CalendarX2,
-  CheckCircle2,
   ChevronRight,
-  Clock,
   Loader2,
   Search,
-  Stethoscope,
   UserRound,
   X,
 } from "lucide-react";
@@ -176,9 +171,12 @@ export default function DoctorPatientsPage() {
         )}
       </div>
 
-      {/* Status tabs */}
+      {/* Tabs */}
       <div className="mt-6 border-b border-border">
-        <nav className="flex gap-6 overflow-x-auto" aria-label="Patient filters">
+        <nav
+          className="flex gap-6 overflow-x-auto"
+          aria-label="Patient filters"
+        >
           {STATUS_TABS.map(({ id, label }) => {
             const isActive = status === id;
             return (
@@ -296,7 +294,7 @@ function PatientCard({ patient }) {
         </div>
       </div>
 
-      {/* Stats strip */}
+      {/* Stats */}
       <div className="grid grid-cols-3 divide-x divide-border border-t border-border bg-muted/20">
         <MiniStat
           label="Total"
@@ -309,10 +307,14 @@ function PatientCard({ patient }) {
           unit="booked"
           highlight={hasUpcoming}
         />
-        <MiniStat label="Past" value={patient.pastCount} unit="completed" />
+        <MiniStat
+          label="Past"
+          value={patient.pastCount}
+          unit="completed"
+        />
       </div>
 
-      {/* Next / last visit */}
+      {/* Next / last */}
       <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
         {patient.nextAppointment ? (
           <div className="min-w-0">

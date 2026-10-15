@@ -14,6 +14,7 @@ import {
   Heart,
   Loader2,
   Mail,
+  MapPin,
   Pencil,
   Phone,
   Save,
@@ -149,7 +150,6 @@ export default function ReceptionPatientDetailPage() {
         emergencyContactName: form.emergencyContactName.trim(),
         emergencyContactRelation: form.emergencyContactRelation.trim(),
         emergencyContactPhone: form.emergencyContactPhone.trim(),
-        // ✅ Always send arrays
         allergies: toStringArray(form.allergies),
         chronicConditions: toStringArray(form.chronicConditions),
       };
@@ -203,6 +203,7 @@ export default function ReceptionPatientDetailPage() {
   const name = getPatientName(patient);
   const email = patient.email || patient.user?.email;
   const phone = patient.phone || patient.user?.phone;
+  const city = patient.city || patient.user?.city;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
@@ -215,7 +216,6 @@ export default function ReceptionPatientDetailPage() {
         Back
       </button>
 
-      {/* Success banner */}
       {saved && (
         <div className="mt-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand-soft/50 px-4 py-3 text-sm">
           <CheckCircle2 className="h-4 w-4 text-brand" />
@@ -225,7 +225,6 @@ export default function ReceptionPatientDetailPage() {
         </div>
       )}
 
-      {/* Error banner (only when patient loaded but update failed) */}
       {error && patient && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -242,9 +241,16 @@ export default function ReceptionPatientDetailPage() {
                 {name.charAt(0).toUpperCase()}
               </div>
 
-              <h2 className="mt-4 text-lg font-bold tracking-tight">
+              {/* ⬇ Patient name — prominent */}
+              <h2 className="mt-4 text-2xl font-bold tracking-tight">
                 {name}
               </h2>
+
+              {email && (
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {email}
+                </p>
+              )}
 
               <p className="mt-1 text-xs text-muted-foreground">
                 Patient #{patient.id}
@@ -267,7 +273,7 @@ export default function ReceptionPatientDetailPage() {
               <QuickRow
                 icon={User}
                 label="Gender"
-                value={patient.gender || "—"}
+                value={formatEnum(patient.gender) || "—"}
               />
               <QuickRow
                 icon={Calendar}
@@ -296,7 +302,7 @@ export default function ReceptionPatientDetailPage() {
 
         {/* RIGHT */}
         <div className="space-y-6 lg:col-span-8">
-          {/* Contact info (read-only — managed by admin/user side) */}
+          {/* Contact */}
           <SectionCard
             icon={Phone}
             title="Contact information"
@@ -305,6 +311,16 @@ export default function ReceptionPatientDetailPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <InfoRow icon={Phone} label="Phone" value={phone} />
               <InfoRow icon={Mail} label="Email" value={email} />
+              <InfoRow
+                icon={MapPin}
+                label="City"
+                value={city}
+              />
+              <InfoRow
+                icon={User}
+                label="Patient ID"
+                value={`#${patient.id}`}
+              />
             </div>
           </SectionCard>
 
@@ -327,10 +343,7 @@ export default function ReceptionPatientDetailPage() {
             }
           >
             {editing ? (
-              <form
-                onSubmit={handleSubmit(onSubmit)}
-                className="space-y-5"
-              >
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field
                     label="Date of birth"
@@ -461,7 +474,7 @@ export default function ReceptionPatientDetailPage() {
                 <InfoRow
                   icon={User}
                   label="Gender"
-                  value={patient.gender}
+                  value={formatEnum(patient.gender)}
                 />
                 <InfoRow
                   icon={AlertCircle}
@@ -479,7 +492,7 @@ export default function ReceptionPatientDetailPage() {
             )}
           </SectionCard>
 
-          {/* Emergency contact (read view — hidden while editing because it lives inside form) */}
+          {/* Emergency contact (read view) */}
           {!editing && (
             <SectionCard
               icon={ShieldCheck}
@@ -594,6 +607,14 @@ function getPatientName(patient) {
 function formatBloodGroup(bg) {
   if (!bg) return "—";
   return bg.replace("_POSITIVE", "+").replace("_NEGATIVE", "-");
+}
+
+function formatEnum(value) {
+  if (!value) return "";
+  return String(value)
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function formatDate(iso) {

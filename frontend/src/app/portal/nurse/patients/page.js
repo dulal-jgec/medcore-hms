@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Activity,
   Pill,
+  Info,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -72,9 +73,24 @@ export default function NursePatientsPage() {
         </p>
       </div>
 
+      {/* Sample data notice */}
+      <div className="mt-6 flex items-start gap-3 rounded-xl border border-highlight-soft-foreground/20 bg-highlight-soft/40 px-4 py-3">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-highlight-soft-foreground" />
+        <div className="text-sm">
+          <p className="font-semibold text-highlight-soft-foreground">
+            Sample data
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            These are demo patient records to show how the page works. Real
+            ward assignments will appear here once integrated with your
+            backend.
+          </p>
+        </div>
+      </div>
+
       {/* Critical alert */}
       {criticalCount > 0 && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
           <p className="text-sm">
             <span className="font-semibold text-destructive">
@@ -182,7 +198,6 @@ function PatientCard({ patient }) {
           : "border-border hover:border-brand/40"
       )}
     >
-      {/* Header */}
       <div className="flex items-start gap-4 p-5">
         <div
           className={cn(
@@ -218,7 +233,6 @@ function PatientCard({ patient }) {
         </div>
       </div>
 
-      {/* Meta strip */}
       <div className="grid grid-cols-2 divide-x divide-border border-t border-border bg-muted/20">
         <div className="p-3 text-center">
           <div className="flex items-center justify-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -241,7 +255,6 @@ function PatientCard({ patient }) {
         </div>
       </div>
 
-      {/* Allergies */}
       {patient.allergies.length > 0 && (
         <div className="border-t border-border px-4 py-2.5">
           <div className="flex flex-wrap items-center gap-1.5">

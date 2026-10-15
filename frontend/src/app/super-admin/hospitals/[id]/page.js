@@ -205,15 +205,6 @@ export default function SuperAdminHospitalDetailPage() {
                   Add admin
                 </Link>
               </Button>
-
-              <Button asChild variant="outline" className="w-full">
-                <Link
-                  href={`/super-admin/hospitals/${hospital.id}/edit`}
-                >
-                  <Pencil className="mr-1.5 h-4 w-4" />
-                  Edit hospital
-                </Link>
-              </Button>
             </div>
           </div>
         </aside>

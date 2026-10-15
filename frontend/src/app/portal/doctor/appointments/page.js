@@ -10,7 +10,6 @@ import {
   Clock,
   Loader2,
   PlayCircle,
-  RefreshCw,
   Stethoscope,
   User,
   XCircle,
@@ -46,44 +45,44 @@ export default function DoctorAppointmentsPage() {
   const [tab, setTab] = useState("today");
 
   const initialized = useAuthStore((s) => s.initialized);
-const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
- useEffect(() => {
-  if (!initialized || !isAuthenticated) return;
+  useEffect(() => {
+    if (!initialized || !isAuthenticated) return;
 
-  let mounted = true;
+    let mounted = true;
 
-  async function load() {
-    try {
-      setLoading(true);
-      setError("");
+    async function load() {
+      try {
+        setLoading(true);
+        setError("");
 
-      const profileRes = await getMyDoctorProfile();
-      const doc = profileRes.data;
-      if (!mounted) return;
-      setDoctor(doc);
+        const profileRes = await getMyDoctorProfile();
+        const doc = profileRes.data;
+        if (!mounted) return;
+        setDoctor(doc);
 
-      const result = await getDoctorAppointments(doc.id, {
-        page: 0,
-        size: PAGE_SIZE,
-      });
-      if (!mounted) return;
+        const result = await getDoctorAppointments(doc.id, {
+          page: 0,
+          size: PAGE_SIZE,
+        });
+        if (!mounted) return;
 
-      setAppointments(result.data?.items || result.data?.content || []);
-    } catch (err) {
-      if (!mounted) return;
-      setError(err.message || "Unable to load appointments.");
-    } finally {
-      if (mounted) setLoading(false);
+        setAppointments(result.data?.items || result.data?.content || []);
+      } catch (err) {
+        if (!mounted) return;
+        setError(err.message || "Unable to load appointments.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
-  }
 
-  load();
+    load();
 
-  return () => {
-    mounted = false;
-  };
-}, [initialized, isAuthenticated]);
+    return () => {
+      mounted = false;
+    };
+  }, [initialized, isAuthenticated]);
 
   const today = toIsoDate(new Date());
 
@@ -94,32 +93,27 @@ const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const cancelled = [];
 
     for (const apt of appointments) {
-      if (apt.status === "CANCELLED") {
+      if (apt.status === "CANCELLED" || apt.status === "NO_SHOW") {
         cancelled.push(apt);
       } else if (apt.appointmentDate === today) {
         todayList.push(apt);
       } else if (apt.appointmentDate > today) {
-        if (apt.status !== "COMPLETED" && apt.status !== "NO_SHOW") {
-          upcoming.push(apt);
-        } else {
-          past.push(apt);
-        }
+        upcoming.push(apt);
       } else {
         past.push(apt);
       }
     }
 
-    const byTimeAsc = (a, b) =>
+    const asc = (a, b) =>
       (a.appointmentDate + " " + (a.startTime || "")).localeCompare(
         b.appointmentDate + " " + (b.startTime || "")
       );
+    const desc = (a, b) => asc(b, a);
 
-    const byTimeDesc = (a, b) => byTimeAsc(b, a);
-
-    todayList.sort(byTimeAsc);
-    upcoming.sort(byTimeAsc);
-    past.sort(byTimeDesc);
-    cancelled.sort(byTimeDesc);
+    todayList.sort(asc);
+    upcoming.sort(asc);
+    past.sort(desc);
+    cancelled.sort(desc);
 
     return { today: todayList, upcoming, past, cancelled };
   }, [appointments, today]);
@@ -127,8 +121,8 @@ const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const currentList = buckets[tab] || [];
 
   async function handleStatusChange(appointment, nextStatus) {
-    const confirmMessage = getConfirmMessage(nextStatus);
-    if (confirmMessage && !window.confirm(confirmMessage)) return;
+    const msg = getConfirmMessage(nextStatus);
+    if (msg && !window.confirm(msg)) return;
 
     try {
       setUpdatingId(appointment.id);
@@ -284,12 +278,9 @@ function AppointmentCard({ appointment, tab, updating, onStatusChange }) {
   const date = new Date(appointment.appointmentDate + "T00:00:00");
 
   return (
-    <div
-      id={`apt-${appointment.id}`}
-      className="overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/30 hover:shadow-sm"
-    >
+    <div className="overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/30 hover:shadow-sm">
       <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
-        {/* Date / time box */}
+        {/* Date box */}
         <div
           className={cn(
             "flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-xl border",
@@ -382,14 +373,15 @@ function AppointmentCard({ appointment, tab, updating, onStatusChange }) {
               </span>
             )}
 
-            <span className="flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5" />
-              #{appointment.patientId}
-            </span>
+            {appointment.patientId && (
+              <span className="flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />#{appointment.patientId}
+              </span>
+            )}
           </div>
 
           {appointment.reason && (
-            <p className="mt-2 text-sm">
+            <p className="mt-2 text-xs">
               <span className="text-muted-foreground">Reason: </span>
               <span className="font-medium">{appointment.reason}</span>
             </p>
@@ -403,9 +395,7 @@ function AppointmentCard({ appointment, tab, updating, onStatusChange }) {
               <Button
                 size="sm"
                 disabled={updating}
-                onClick={() =>
-                  onStatusChange(appointment, "CONFIRMED")
-                }
+                onClick={() => onStatusChange(appointment, "CONFIRMED")}
               >
                 {updating ? (
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -476,11 +466,12 @@ function AppointmentCard({ appointment, tab, updating, onStatusChange }) {
             </Button>
           )}
 
-          {isPast && (
+          {isPast && appointment.patientId && (
             <Button size="sm" variant="outline" asChild>
               <Link
                 href={`/portal/doctor/patients/${appointment.patientId}`}
               >
+                <User className="mr-1.5 h-3.5 w-3.5" />
                 Patient file
               </Link>
             </Button>
@@ -621,7 +612,6 @@ function formatTimeShort(time) {
   if (!time) return "--:--";
   const [h, m] = time.split(":");
   const hour = Number(h);
-  const suffix = hour >= 12 ? "PM" : "AM";
   const display = ((hour + 11) % 12) + 1;
   return `${display}:${m}`;
 }

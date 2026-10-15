@@ -21,6 +21,7 @@ import {
   IndianRupee,
   Camera,
   Building2,
+  Lock,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -36,11 +37,9 @@ const MAX_IMAGE_SIZE_MB = 5;
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+/* Consultation fee is NOT editable by doctors — hospital admin sets it.
+ * Removed from schema to prevent accidental submit error. */
 const profileSchema = z.object({
-  consultationFee: z.coerce
-    .number()
-    .min(0, "Fee cannot be negative"),
-
   bio: z
     .string()
     .max(1000, "Keep it under 1000 characters")
@@ -70,15 +69,12 @@ export default function DoctorProfilePage() {
   } = useForm({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      consultationFee: "",
       bio: "",
       languages: "",
     },
   });
 
-  /* ==============================
-     FETCH PROFILE
-  ============================== */
+  /* ══════════ Fetch ══════════ */
 
   useEffect(() => {
     let mounted = true;
@@ -96,7 +92,6 @@ export default function DoctorProfilePage() {
         setProfile(data);
 
         reset({
-          consultationFee: data.consultationFee ?? "",
           bio: data.bio ?? "",
           languages: data.languages ?? "",
         });
@@ -115,9 +110,7 @@ export default function DoctorProfilePage() {
     };
   }, [reset]);
 
-  /* ==============================
-     UPDATE PROFILE
-  ============================== */
+  /* ══════════ Update ══════════ */
 
   async function onSubmit(data) {
     try {
@@ -128,7 +121,6 @@ export default function DoctorProfilePage() {
       setProfile(result.data);
 
       reset({
-        consultationFee: result.data.consultationFee ?? "",
         bio: result.data.bio ?? "",
         languages: result.data.languages ?? "",
       });
@@ -142,13 +134,10 @@ export default function DoctorProfilePage() {
     }
   }
 
-  /* ==============================
-     PROFILE IMAGE
-  ============================== */
+  /* ══════════ Image ══════════ */
 
   async function handleImageChange(event) {
     const file = event.target.files?.[0];
-
     if (!file) return;
 
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -168,47 +157,32 @@ export default function DoctorProfilePage() {
       setError("");
 
       const result = await uploadDoctorProfileImage(file);
-
       setProfile(result.data);
       setSaved(true);
-
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setError(err.message || "Failed to upload profile image.");
     } finally {
       setUploadingImage(false);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
   function cancelEdit() {
     reset({
-      consultationFee: profile?.consultationFee ?? "",
       bio: profile?.bio ?? "",
       languages: profile?.languages ?? "",
     });
-
     setEditing(false);
   }
 
-  /* ==============================
-     LOADING
-  ============================== */
-
   if (loading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading profile...</p>
       </div>
     );
   }
-
-  /* ==============================
-     ERROR
-  ============================== */
 
   if (!profile) {
     return (
@@ -225,10 +199,15 @@ export default function DoctorProfilePage() {
   const languages = profile.languages
     ? profile.languages
         .split(",")
-        .map((language) => language.trim())
+        .map((l) => l.trim())
         .filter(Boolean)
         .join(", ")
     : "Not specified";
+
+  const initials = profile.doctorName
+    ?.replace(/^Dr\.?\s*/i, "")
+    .charAt(0)
+    .toUpperCase();
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
@@ -237,17 +216,15 @@ export default function DoctorProfilePage() {
         <p className="text-xs font-semibold uppercase tracking-wider text-brand">
           Profile
         </p>
-
         <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
           My profile
         </h1>
-
         <p className="mt-1 text-sm text-muted-foreground">
           Your professional details visible to patients and hospital staff.
         </p>
       </div>
 
-      {/* Success */}
+      {/* Success banner */}
       {saved && (
         <div className="mt-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand-soft/50 px-4 py-3 text-sm">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-brand" />
@@ -257,7 +234,6 @@ export default function DoctorProfilePage() {
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
           <p className="text-sm text-destructive">{error}</p>
@@ -265,10 +241,9 @@ export default function DoctorProfilePage() {
       )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-12">
-        {/* LEFT */}
+        {/* LEFT — Identity */}
         <aside className="lg:col-span-4">
           <div className="rounded-2xl border border-border bg-card p-6">
-            {/* Avatar */}
             <div className="flex flex-col items-center text-center">
               <div className="relative">
                 {profile.profileImageUrl ? (
@@ -279,10 +254,7 @@ export default function DoctorProfilePage() {
                   />
                 ) : (
                   <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-brand text-4xl font-bold text-brand-foreground">
-                    {profile.doctorName
-                      ?.replace(/^Dr\.?\s*/i, "")
-                      .charAt(0)
-                      .toUpperCase()}
+                    {initials}
                   </div>
                 )}
 
@@ -329,26 +301,26 @@ export default function DoctorProfilePage() {
               </span>
             </div>
 
-            {/* Quick facts */}
             <dl className="mt-6 space-y-3 border-t border-border pt-5 text-sm">
               <Row
                 icon={Stethoscope}
                 label="Department"
                 value={profile.departmentName}
               />
-
               <Row
                 icon={Award}
                 label="Experience"
                 value={`${profile.experienceYears} years`}
               />
-
               <Row
                 icon={IndianRupee}
                 label="Consultation fee"
-                value={`₹${profile.consultationFee}`}
+                value={
+                  profile.consultationFee != null
+                    ? `₹${profile.consultationFee}`
+                    : "—"
+                }
               />
-
               <Row
                 icon={Building2}
                 label="Hospital"
@@ -360,7 +332,7 @@ export default function DoctorProfilePage() {
 
         {/* RIGHT */}
         <div className="space-y-6 lg:col-span-8">
-          {/* Contact & Basic Info */}
+          {/* Contact & Basic — editable */}
           <SectionCard
             title="Contact & basic info"
             desc="Your contact details and editable profile information."
@@ -391,18 +363,6 @@ export default function DoctorProfilePage() {
                     />
                   </Field>
 
-                  <Field
-                    label="Consultation fee (₹)"
-                    error={errors.consultationFee?.message}
-                    required
-                  >
-                    <Input
-                      {...register("consultationFee")}
-                      type="number"
-                      className="h-11"
-                    />
-                  </Field>
-
                   <Field label="Email">
                     <Input
                       value={profile.email || ""}
@@ -419,9 +379,31 @@ export default function DoctorProfilePage() {
                     />
                   </Field>
 
+                  {/* Consultation fee — locked */}
+                  <Field
+                    label="Consultation fee (₹)"
+                    hint="Managed by hospital admin"
+                  >
+                    <div className="relative">
+                      <Input
+                        value={
+                          profile.consultationFee != null
+                            ? profile.consultationFee
+                            : ""
+                        }
+                        disabled
+                        readOnly
+                        className="h-11 pr-10"
+                      />
+                      <Lock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    </div>
+                  </Field>
+
                   <Field
                     label="Languages"
+                    hint="Separate with commas"
                     error={errors.languages?.message}
+                    className="sm:col-span-2"
                   >
                     <Input
                       {...register("languages")}
@@ -438,6 +420,7 @@ export default function DoctorProfilePage() {
                     <textarea
                       {...register("bio")}
                       rows={4}
+                      placeholder="Tell patients about your experience..."
                       className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
                     />
                   </Field>
@@ -467,25 +450,25 @@ export default function DoctorProfilePage() {
                     label="Full name"
                     value={profile.doctorName}
                   />
-
                   <InfoRow
                     icon={IndianRupee}
                     label="Consultation fee"
-                    value={`₹${profile.consultationFee}`}
+                    value={
+                      profile.consultationFee != null
+                        ? `₹${profile.consultationFee}`
+                        : "Not specified"
+                    }
                   />
-
                   <InfoRow
                     icon={Mail}
                     label="Email"
                     value={profile.email}
                   />
-
                   <InfoRow
                     icon={Phone}
                     label="Phone"
                     value={profile.phone}
                   />
-
                   <InfoRow
                     icon={Languages}
                     label="Languages"
@@ -499,7 +482,6 @@ export default function DoctorProfilePage() {
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Professional bio
                     </p>
-
                     <p className="mt-2 text-sm leading-6">{profile.bio}</p>
                   </div>
                 )}
@@ -507,7 +489,7 @@ export default function DoctorProfilePage() {
             )}
           </SectionCard>
 
-          {/* Professional information */}
+          {/* Professional info — locked */}
           <SectionCard
             title="Professional information"
             desc="Managed by your hospital. Contact them for changes."
@@ -518,19 +500,16 @@ export default function DoctorProfilePage() {
                 label="Specialization"
                 value={profile.specialization}
               />
-
               <FactBox
                 icon={GraduationCap}
                 label="Qualification"
                 value={profile.qualification}
               />
-
               <FactBox
                 icon={Briefcase}
                 label="Experience"
                 value={`${profile.experienceYears} years`}
               />
-
               <FactBox
                 icon={Building2}
                 label="Department"
@@ -539,12 +518,11 @@ export default function DoctorProfilePage() {
             </div>
 
             <div className="mt-5 flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <p className="text-xs leading-5 text-muted-foreground">
                 Professional details such as specialization, qualification,
-                department, and experience are managed by the hospital and
-                cannot be edited here.
+                department, experience, and consultation fee are managed by
+                the hospital and cannot be edited here.
               </p>
             </div>
           </SectionCard>
@@ -554,9 +532,7 @@ export default function DoctorProfilePage() {
   );
 }
 
-/* ==============================
-   SUB COMPONENTS
-============================== */
+/* ══════════ Components ══════════ */
 
 function SectionCard({ title, desc, action, children }) {
   return (
@@ -564,15 +540,12 @@ function SectionCard({ title, desc, action, children }) {
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
         <div>
           <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-
           {desc && (
             <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
           )}
         </div>
-
         {action}
       </div>
-
       <div className="p-5 sm:p-6">{children}</div>
     </div>
   );
@@ -585,7 +558,6 @@ function Row({ icon: Icon, label, value }) {
         <Icon className="h-3.5 w-3.5" />
         {label}
       </dt>
-
       <dd className="truncate text-right font-medium">
         {value || "Not specified"}
       </dd>
@@ -600,8 +572,7 @@ function InfoRow({ icon: Icon, label, value, className }) {
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
-
-      <p className="mt-1.5 text-sm font-medium">
+      <p className="mt-1.5 break-words text-sm font-medium">
         {value || "Not specified"}
       </p>
     </div>
@@ -617,7 +588,6 @@ function FactBox({ icon: Icon, label, value }) {
           {label}
         </p>
       </div>
-
       <p className="mt-2 text-sm font-medium leading-5">
         {value || "Not specified"}
       </p>
@@ -625,19 +595,20 @@ function FactBox({ icon: Icon, label, value }) {
   );
 }
 
-function Field({ label, required, error, className, children }) {
+function Field({ label, required, hint, error, className, children }) {
   return (
     <div className={cn(className)}>
-      <label className="mb-1.5 block text-sm font-medium">
+      <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">
         {label}
-        {required && <span className="ml-0.5 text-destructive">*</span>}
+        {required && <span className="text-destructive">*</span>}
+        {hint && (
+          <span className="text-[11px] font-normal text-muted-foreground">
+            ({hint})
+          </span>
+        )}
       </label>
-
       {children}
-
-      {error && (
-        <p className="mt-1.5 text-xs text-destructive">{error}</p>
-      )}
+      {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
     </div>
   );
 }
