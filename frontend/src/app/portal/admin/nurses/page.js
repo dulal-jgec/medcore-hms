@@ -12,7 +12,6 @@ import {
   GraduationCap,
   IndianRupee,
   Award,
-  Pencil,
   Ban,
   CheckCircle2,
   ShieldCheck,
@@ -27,7 +26,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { getNurses, activateNurse, deactivateNurse } from "@/services/nurse.service";
+import {
+  getNurses,
+  activateNurse,
+  deactivateNurse,
+} from "@/services/nurse.service";
 import { resendStaffInvitation } from "@/services/hospital-admin.service";
 
 const STATUS_TABS = [
@@ -58,7 +61,12 @@ export default function AdminNursesPage() {
     try {
       setLoading(true);
       setError("");
-      const result = await getNurses({ page: 0, size: 50, sortBy: "id", sortDir: "asc" });
+      const result = await getNurses({
+        page: 0,
+        size: 50,
+        sortBy: "id",
+        sortDir: "asc",
+      });
       setNurses(result.data?.items || result.data || []);
     } catch (err) {
       setError(err.message || "Failed to load nurses");
@@ -70,7 +78,12 @@ export default function AdminNursesPage() {
   async function handleToggleStatus(nurse) {
     const next = nurse.status === "ACTIVE" ? "deactivate" : "activate";
     const label = nurse.name || "this nurse";
-    if (!window.confirm(next === "deactivate" ? `Deactivate ${label}?` : `Activate ${label}?`)) return;
+    if (
+      !window.confirm(
+        next === "deactivate" ? `Deactivate ${label}?` : `Activate ${label}?`
+      )
+    )
+      return;
     try {
       setActionId(nurse.id);
       if (next === "deactivate") await deactivateNurse(nurse.id);
@@ -91,7 +104,9 @@ export default function AdminNursesPage() {
     }
     if (nurse.invitationStatus !== "EXHAUSTED") return;
     if (nurse.userStatus === "INVITATION_EXPIRED") {
-      setActionError("This invitation reached the max attempts. Please create a new nurse account.");
+      setActionError(
+        "This invitation reached the max attempts. Please create a new nurse account."
+      );
       return;
     }
     try {
@@ -99,14 +114,18 @@ export default function AdminNursesPage() {
       setActionMessage("");
       setActionError("");
       const result = await resendStaffInvitation(nurse.userId);
-      setActionMessage(result?.message || "Invitation email queued successfully.");
+      setActionMessage(
+        result?.message || "Invitation email queued successfully."
+      );
       setNurses((prev) =>
         prev.map((n) =>
           n.id === nurse.id ? { ...n, invitationStatus: "PENDING" } : n
         )
       );
       setViewStaff((prev) =>
-        prev && prev.id === nurse.id ? { ...prev, invitationStatus: "PENDING" } : prev
+        prev && prev.id === nurse.id
+          ? { ...prev, invitationStatus: "PENDING" }
+          : prev
       );
     } catch (err) {
       setActionError(err.message || "Failed to resend invitation.");
@@ -137,9 +156,14 @@ export default function AdminNursesPage() {
   const counts = useMemo(
     () => ({
       all: nurses.filter((n) => n.userStatus === "ACTIVE").length,
-      ACTIVE: nurses.filter((n) => n.userStatus === "ACTIVE" && n.status === "ACTIVE").length,
-      EXHAUSTED: nurses.filter((n) => n.invitationStatus === "EXHAUSTED").length,
-      INACTIVE: nurses.filter((n) => n.userStatus === "ACTIVE" && n.status === "INACTIVE").length,
+      ACTIVE: nurses.filter(
+        (n) => n.userStatus === "ACTIVE" && n.status === "ACTIVE"
+      ).length,
+      EXHAUSTED: nurses.filter((n) => n.invitationStatus === "EXHAUSTED")
+        .length,
+      INACTIVE: nurses.filter(
+        (n) => n.userStatus === "ACTIVE" && n.status === "INACTIVE"
+      ).length,
     }),
     [nurses]
   );
@@ -156,8 +180,12 @@ export default function AdminNursesPage() {
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand">Staff Management</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Nurses</h1>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand">
+            Staff Management
+          </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+            Nurses
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage nursing staff, shifts, and credentials.
           </p>
@@ -177,13 +205,20 @@ export default function AdminNursesPage() {
               <Mail className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-sm font-semibold">Invitations need attention</p>
+              <p className="text-sm font-semibold">
+                Invitations need attention
+              </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {attentionCount} invitation{attentionCount !== 1 ? "s" : ""} exhausted
+                {attentionCount} invitation
+                {attentionCount !== 1 ? "s" : ""} exhausted
               </p>
             </div>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setStatus("EXHAUSTED")}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setStatus("EXHAUSTED")}
+          >
             View exhausted
           </Button>
         </div>
@@ -241,7 +276,9 @@ export default function AdminNursesPage() {
                 <span
                   className={cn(
                     "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                    active ? "bg-brand-soft text-brand-soft-foreground" : "bg-muted text-muted-foreground"
+                    active
+                      ? "bg-brand-soft text-brand-soft-foreground"
+                      : "bg-muted text-muted-foreground"
                   )}
                 >
                   {counts[id]}
@@ -256,7 +293,9 @@ export default function AdminNursesPage() {
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
           <Ban className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-destructive">Unable to load nurses</p>
+            <p className="text-sm font-semibold text-destructive">
+              Unable to load nurses
+            </p>
             <p className="mt-0.5 text-xs text-muted-foreground">{error}</p>
           </div>
           <Button variant="outline" size="sm" onClick={load}>
@@ -286,7 +325,11 @@ export default function AdminNursesPage() {
           ))}
         </div>
       ) : (
-        <EmptyState hasFilters={hasFilters} status={status} onClear={clearFilters} />
+        <EmptyState
+          hasFilters={hasFilters}
+          status={status}
+          onClear={clearFilters}
+        />
       )}
 
       {viewStaff && (
@@ -317,11 +360,16 @@ function NurseCard({ nurse, onView, onResend, resending }) {
     <div
       className={cn(
         "group flex flex-col overflow-hidden rounded-2xl border bg-card transition-all hover:shadow-md",
-        isExhausted ? "border-destructive/30" : "border-border hover:border-brand/40"
+        isExhausted
+          ? "border-destructive/30"
+          : "border-border hover:border-brand/40"
       )}
     >
-      <button type="button" onClick={onView} className="flex items-start gap-4 p-5 text-left">
-        {/* Avatar with image support */}
+      <button
+        type="button"
+        onClick={onView}
+        className="flex items-start gap-4 p-5 text-left"
+      >
         <div
           className={cn(
             "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-lg font-bold",
@@ -357,7 +405,9 @@ function NurseCard({ nurse, onView, onResend, resending }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="truncate text-base font-semibold tracking-tight">{nurse.name}</h3>
+            <h3 className="truncate text-base font-semibold tracking-tight">
+              {nurse.name}
+            </h3>
             <StatusBadge
               status={nurse.status}
               invitationStatus={nurse.invitationStatus}
@@ -395,16 +445,26 @@ function NurseCard({ nurse, onView, onResend, resending }) {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">ID</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              ID
+            </p>
             <p className="mt-0.5 text-xs font-semibold">#{nurse.id}</p>
           </div>
         </div>
       </div>
 
+      {/* Single action button — Edit removed */}
       <div className="mt-auto flex gap-2 border-t border-border p-3">
         {canResend ? (
-          <Button size="sm" className="flex-1" onClick={onResend} disabled={resending}>
-            <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", resending && "animate-spin")} />
+          <Button
+            size="sm"
+            className="flex-1"
+            onClick={onResend}
+            disabled={resending}
+          >
+            <RefreshCw
+              className={cn("mr-1.5 h-3.5 w-3.5", resending && "animate-spin")}
+            />
             {resending ? "Sending..." : "Resend"}
           </Button>
         ) : isInvitationExpired ? (
@@ -415,13 +475,15 @@ function NurseCard({ nurse, onView, onResend, resending }) {
             </Link>
           </Button>
         ) : (
-          <Button size="sm" variant="outline" className="flex-1" onClick={onView}>
-            View
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            onClick={onView}
+          >
+            View details
           </Button>
         )}
-        <Button size="sm" className="flex-1" asChild>
-          <Link href={`/portal/admin/nurses/${nurse.id}/edit`}>Edit</Link>
-        </Button>
       </div>
     </div>
   );
@@ -466,26 +528,37 @@ function StatusBadge({ status, invitationStatus, userStatus }) {
   );
 }
 
-function NurseModal({ nurse, onClose, onToggleStatus, onResend, updating, resending }) {
+function NurseModal({
+  nurse,
+  onClose,
+  onToggleStatus,
+  onResend,
+  updating,
+  resending,
+}) {
   const isActive = nurse.status === "ACTIVE" && nurse.userStatus === "ACTIVE";
   const isExhausted = nurse.invitationStatus === "EXHAUSTED";
   const isInvitationPending = nurse.userStatus === "PENDING_VERIFICATION";
   const isInvitationExpired = nurse.userStatus === "INVITATION_EXPIRED";
   const canResend = isExhausted && !isInvitationExpired;
-  const canToggle = nurse.userStatus === "ACTIVE" && (nurse.status === "ACTIVE" || nurse.status === "INACTIVE");
+  const canToggle =
+    nurse.userStatus === "ACTIVE" &&
+    (nurse.status === "ACTIVE" || nurse.status === "INACTIVE");
 
   const initials = nurse.name?.charAt(0)?.toUpperCase() || "N";
   const hasImage = Boolean(nurse.profileImageUrl);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      onClick={onClose}
+    >
       <div
         className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card px-6 py-5">
           <div className="flex items-start gap-4">
-            {/* Avatar with image support */}
             <div
               className={cn(
                 "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-lg font-bold",
@@ -516,8 +589,12 @@ function NurseModal({ nurse, onClose, onToggleStatus, onResend, updating, resend
               )}
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-lg font-bold tracking-tight">{nurse.name}</h2>
-              <p className="mt-0.5 text-sm font-medium text-brand">{nurse.designation || "Staff Nurse"}</p>
+              <h2 className="truncate text-lg font-bold tracking-tight">
+                {nurse.name}
+              </h2>
+              <p className="mt-0.5 text-sm font-medium text-brand">
+                {nurse.designation || "Staff Nurse"}
+              </p>
               <div className="mt-1.5">
                 <StatusBadge
                   status={nurse.status}
@@ -527,7 +604,12 @@ function NurseModal({ nurse, onClose, onToggleStatus, onResend, updating, resend
               </div>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted" aria-label="Close">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -581,10 +663,22 @@ function NurseModal({ nurse, onClose, onToggleStatus, onResend, updating, resend
 
           <SectionTitle className="mt-6">Professional</SectionTitle>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <InfoBox icon={GraduationCap} label="Qualification" value={nurse.qualification} />
-            <InfoBox icon={Building2} label="Department" value={nurse.department} />
+            <InfoBox
+              icon={GraduationCap}
+              label="Qualification"
+              value={nurse.qualification}
+            />
+            <InfoBox
+              icon={Building2}
+              label="Department"
+              value={nurse.department}
+            />
             <InfoBox icon={Award} label="Ward" value={nurse.ward} />
-            <InfoBox icon={IndianRupee} label="Designation" value={nurse.designation} />
+            <InfoBox
+              icon={IndianRupee}
+              label="Designation"
+              value={nurse.designation}
+            />
           </div>
 
           <div className="mt-6 flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
@@ -595,17 +689,19 @@ function NurseModal({ nurse, onClose, onToggleStatus, onResend, updating, resend
           </div>
         </div>
 
+        {/* Footer — Edit removed, only Resend / Create new / Toggle */}
         <div className="sticky bottom-0 flex flex-wrap gap-2 border-t border-border bg-card px-6 py-4">
-          <Button variant="outline" asChild className="flex-1 sm:flex-none">
-            <Link href={`/portal/admin/nurses/${nurse.id}/edit`}>
-              <Pencil className="mr-1.5 h-4 w-4" />
-              Edit details
-            </Link>
-          </Button>
-
           {canResend && (
-            <Button onClick={onResend} disabled={resending} className="flex-1 sm:flex-none">
-              {resending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}
+            <Button
+              onClick={onResend}
+              disabled={resending}
+              className="flex-1 sm:flex-none"
+            >
+              {resending ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-4 w-4" />
+              )}
               {resending ? "Resending..." : "Resend invitation"}
             </Button>
           )}
@@ -626,7 +722,8 @@ function NurseModal({ nurse, onClose, onToggleStatus, onResend, updating, resend
               disabled={updating}
               className={cn(
                 "flex-1 sm:flex-none",
-                isActive && "text-destructive hover:bg-destructive/10 hover:text-destructive"
+                isActive &&
+                  "text-destructive hover:bg-destructive/10 hover:text-destructive"
               )}
             >
               {updating ? (
@@ -647,7 +744,12 @@ function NurseModal({ nurse, onClose, onToggleStatus, onResend, updating, resend
 
 function SectionTitle({ children, className }) {
   return (
-    <h3 className={cn("text-xs font-semibold uppercase tracking-wider text-muted-foreground", className)}>
+    <h3
+      className={cn(
+        "text-xs font-semibold uppercase tracking-wider text-muted-foreground",
+        className
+      )}
+    >
       {children}
     </h3>
   );
@@ -707,7 +809,10 @@ function GridSkeleton() {
   return (
     <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="h-56 animate-pulse rounded-2xl border border-border bg-muted/30" />
+        <div
+          key={i}
+          className="h-56 animate-pulse rounded-2xl border border-border bg-muted/30"
+        />
       ))}
     </div>
   );

@@ -175,7 +175,6 @@ export default function AdminDoctorDetailPage() {
     (doctor.status === "ACTIVE" || doctor.status === "SUSPENDED");
 
   const initials = (doctor.doctorName || "D").charAt(0).toUpperCase();
-  const hasImage = Boolean(doctor.profileImageUrl);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
@@ -251,31 +250,19 @@ export default function AdminDoctorDetailPage() {
               <div
                 className={cn(
                   "flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl text-4xl font-bold",
-                  hasImage
-                    ? "border-2 border-border bg-muted"
-                    : isExhausted || isSuspended
+                  isExhausted || isSuspended
                     ? "bg-destructive/10 text-destructive"
                     : !isActive
                     ? "bg-muted text-muted-foreground"
                     : "bg-brand text-brand-foreground"
                 )}
               >
-                {hasImage ? (
+                {doctor.profileImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={doctor.profileImageUrl}
                     alt={doctor.doctorName}
                     className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      const parent = e.currentTarget.parentElement;
-                      if (parent && !parent.querySelector("[data-fallback]")) {
-                        const span = document.createElement("span");
-                        span.dataset.fallback = "true";
-                        span.textContent = initials;
-                        parent.appendChild(span);
-                      }
-                    }}
                   />
                 ) : (
                   <span>{initials}</span>

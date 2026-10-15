@@ -316,7 +316,6 @@ function StaffCard({ item, onResend, resending }) {
         href={`/portal/admin/receptionists/${item.id}`}
         className="flex items-start gap-4 p-5 text-left"
       >
-        {/* Avatar with image support */}
         <div
           className={cn(
             "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-lg font-bold",
@@ -390,6 +389,7 @@ function StaffCard({ item, onResend, resending }) {
         </div>
       </div>
 
+      {/* Single action button — Edit removed */}
       <div className="mt-auto flex gap-2 border-t border-border p-3">
         {canResend ? (
           <Button
@@ -416,15 +416,10 @@ function StaffCard({ item, onResend, resending }) {
         ) : (
           <Button size="sm" variant="outline" className="flex-1" asChild>
             <Link href={`/portal/admin/receptionists/${item.id}`}>
-              View
+              View details
             </Link>
           </Button>
         )}
-        <Button size="sm" className="flex-1" asChild>
-          <Link href={`/portal/admin/receptionists/${item.id}/edit`}>
-            Edit
-          </Link>
-        </Button>
       </div>
     </div>
   );
