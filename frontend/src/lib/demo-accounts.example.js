@@ -1,12 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-//  DEMO ACCOUNTS — TEMPLATE
-//
-//  Copy this file to `lib/demo-accounts.js` and fill in real
-//  credentials. The real file is gitignored, so credentials
-//  never reach GitHub.
-//
-//  Command:
-//    cp lib/demo-accounts.example.js lib/demo-accounts.js
+//  DEMO ACCOUNTS
 // ─────────────────────────────────────────────────────────────
 
 export const DEMO_ACCOUNTS = {
@@ -82,3 +75,54 @@ export const DEMO_ACCOUNTS = {
     },
   ],
 };
+
+const MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
+export function isDemoModeEnabled() {
+  return MODE && getDemoAccounts().length > 0;
+}
+
+export function getDemoAccounts() {
+  if (!MODE) return [];
+
+  const list = [];
+
+  // Super Admin → Platform group (empty note)
+  if (
+    DEMO_ACCOUNTS.superAdmin?.email &&
+    DEMO_ACCOUNTS.superAdmin?.password
+  ) {
+    list.push({
+      role: DEMO_ACCOUNTS.superAdmin.role || "Super Admin",
+      email: DEMO_ACCOUNTS.superAdmin.email.trim(),
+      password: DEMO_ACCOUNTS.superAdmin.password,
+      note: "",
+    });
+  }
+
+  // Hospital accounts → grouped by hospital name
+  if (Array.isArray(DEMO_ACCOUNTS.hospitals)) {
+    for (const hospital of DEMO_ACCOUNTS.hospitals) {
+      if (!hospital?.name || !Array.isArray(hospital.accounts)) continue;
+
+      for (const acc of hospital.accounts) {
+        if (
+          acc &&
+          typeof acc.email === "string" &&
+          typeof acc.password === "string" &&
+          acc.email.length > 0 &&
+          acc.password.length > 0
+        ) {
+          list.push({
+            role: typeof acc.role === "string" ? acc.role : "Demo",
+            email: acc.email.trim(),
+            password: acc.password,
+            note: hospital.name,
+          });
+        }
+      }
+    }
+  }
+
+  return list;
+}
