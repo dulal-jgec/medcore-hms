@@ -43,9 +43,7 @@ public class DoctorScheduleServiceImpl
     private final TenantContextService tenantContextService;
     private final UserRepository userRepository;
 
-    // ─────────────────────────────────────────────────────────────
-    // CREATE
-    // ─────────────────────────────────────────────────────────────
+     
 
     @Override
     public ApiResponse<DoctorScheduleResponse> createSchedule(

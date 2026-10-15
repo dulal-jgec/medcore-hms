@@ -8,18 +8,7 @@ import lombok.*;
 import java.time.LocalTime;
 
 @Entity
-@Table(
-        name = "doctor_schedules",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        columnNames = {
-                                "doctor_id",
-                                "day_of_week",
-                                "start_time"
-                        }
-                )
-        }
-)
+@Table(name = "doctor_schedules")
 @Getter
 @Setter
 @NoArgsConstructor
