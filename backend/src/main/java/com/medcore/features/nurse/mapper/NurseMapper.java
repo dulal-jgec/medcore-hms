@@ -65,6 +65,7 @@ public class NurseMapper {
                 .qualification(nurse.getQualification())
                 .licenseNumber(nurse.getLicenseNumber())
                 .status(nurse.getStatus())
+                .profileImageUrl(nurse.getProfileImageUrl())
                 .userStatus(user.getStatus())
                 .invitationStatus(
                         invitationStatusService

@@ -57,6 +57,9 @@ public class ReceptionistMapper {
                 .designation(
                         receptionist.getDesignation()
                 )
+                
+                .profileImageUrl(receptionist.getProfileImageUrl())
+                
                 .status(
                         receptionist.getStatus()
                 )

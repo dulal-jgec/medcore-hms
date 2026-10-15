@@ -8,7 +8,6 @@ import {
   X,
   ClipboardList,
   Mail,
-  Building2,
   Ban,
   CheckCircle2,
   AlertTriangle,
@@ -301,6 +300,9 @@ function StaffCard({ item, onResend, resending }) {
   const isInvitationExpired = item.userStatus === "INVITATION_EXPIRED";
   const canResend = isExhausted && !isInvitationExpired;
 
+  const initials = item.name?.charAt(0)?.toUpperCase() || "R";
+  const hasImage = Boolean(item.profileImageUrl);
+
   return (
     <div
       className={cn(
@@ -314,17 +316,39 @@ function StaffCard({ item, onResend, resending }) {
         href={`/portal/admin/receptionists/${item.id}`}
         className="flex items-start gap-4 p-5 text-left"
       >
+        {/* Avatar with image support */}
         <div
           className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold",
-            isExhausted
+            "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-lg font-bold",
+            hasImage
+              ? "border border-border bg-muted"
+              : isExhausted
               ? "bg-destructive/10 text-destructive"
               : !isActive
               ? "bg-muted text-muted-foreground"
               : "bg-brand-soft text-brand-soft-foreground"
           )}
         >
-          {item.name?.charAt(0)?.toUpperCase() || "R"}
+          {hasImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.profileImageUrl}
+              alt={item.name}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                const parent = e.currentTarget.parentElement;
+                if (parent && !parent.querySelector("[data-fallback]")) {
+                  const span = document.createElement("span");
+                  span.dataset.fallback = "true";
+                  span.textContent = initials;
+                  parent.appendChild(span);
+                }
+              }}
+            />
+          ) : (
+            <span>{initials}</span>
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">

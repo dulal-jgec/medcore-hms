@@ -14,7 +14,6 @@ import {
   ImagePlus,
   Layers,
   Loader2,
-  Pencil,
   ShieldCheck,
 } from "lucide-react";
 
@@ -271,13 +270,6 @@ export default function AdminDepartmentDetailPage() {
             </dl>
 
             <div className="mt-6 space-y-2 border-t border-border pt-5">
-              <Button asChild className="w-full">
-                <Link href={`/portal/admin/departments/${department.id}/edit`}>
-                  <Pencil className="mr-1.5 h-4 w-4" />
-                  Edit details
-                </Link>
-              </Button>
-
               <Button
                 variant="outline"
                 onClick={handleToggleStatus}

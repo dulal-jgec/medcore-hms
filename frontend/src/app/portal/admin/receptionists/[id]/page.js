@@ -9,14 +9,12 @@ import {
   ArrowLeft,
   Ban,
   Building2,
-  Calendar,
   CheckCircle2,
   Clock3,
   ClipboardList,
   FileText,
   Loader2,
   Mail,
-  Pencil,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -95,7 +93,6 @@ export default function AdminReceptionistDetailPage() {
         await activateReceptionist(staff.id);
       }
 
-      // Refetch to get updated data
       const res = await getReceptionistById(staff.id);
       setStaff(res.data);
 
@@ -181,10 +178,10 @@ export default function AdminReceptionistDetailPage() {
     (staff.status === "ACTIVE" || staff.status === "INACTIVE");
 
   const initials = (staff.name || "R").charAt(0).toUpperCase();
+  const hasImage = Boolean(staff.profileImageUrl);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-      {/* Back */}
       <button
         type="button"
         onClick={() => router.push("/portal/admin/receptionists")}
@@ -194,7 +191,6 @@ export default function AdminReceptionistDetailPage() {
         Back to receptionists
       </button>
 
-      {/* Banners */}
       {message && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3 text-sm text-brand">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
@@ -209,7 +205,6 @@ export default function AdminReceptionistDetailPage() {
         </div>
       )}
 
-      {/* Invitation notice */}
       {(isInvitationPending || isExhausted || isInvitationExpired) && (
         <div
           className={cn(
@@ -255,17 +250,39 @@ export default function AdminReceptionistDetailPage() {
         <aside className="lg:col-span-4">
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="flex flex-col items-center text-center">
+              {/* Avatar with image support */}
               <div
                 className={cn(
-                  "flex h-24 w-24 items-center justify-center rounded-2xl text-4xl font-bold",
-                  isExhausted || isInactive
+                  "flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl text-4xl font-bold",
+                  hasImage
+                    ? "border-2 border-border bg-muted"
+                    : isExhausted || isInactive
                     ? "bg-destructive/10 text-destructive"
                     : !isActive
                     ? "bg-muted text-muted-foreground"
                     : "bg-brand text-brand-foreground"
                 )}
               >
-                {initials}
+                {hasImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={staff.profileImageUrl}
+                    alt={staff.name}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                      const parent = e.currentTarget.parentElement;
+                      if (parent && !parent.querySelector("[data-fallback]")) {
+                        const span = document.createElement("span");
+                        span.dataset.fallback = "true";
+                        span.textContent = initials;
+                        parent.appendChild(span);
+                      }
+                    }}
+                  />
+                ) : (
+                  <span>{initials}</span>
+                )}
               </div>
 
               <h2 className="mt-4 text-lg font-bold tracking-tight">
@@ -300,15 +317,6 @@ export default function AdminReceptionistDetailPage() {
             </dl>
 
             <div className="mt-6 space-y-2 border-t border-border pt-5">
-              <Button asChild className="w-full">
-                <Link
-                  href={`/portal/admin/receptionists/${staff.id}/edit`}
-                >
-                  <Pencil className="mr-1.5 h-4 w-4" />
-                  Edit details
-                </Link>
-              </Button>
-
               {canResend && (
                 <Button
                   onClick={handleResend}
@@ -358,9 +366,8 @@ export default function AdminReceptionistDetailPage() {
           </div>
         </aside>
 
-        {/* RIGHT — sections */}
+        {/* RIGHT */}
         <div className="space-y-6 lg:col-span-8">
-          {/* Contact */}
           <SectionCard
             icon={Mail}
             title="Contact information"
@@ -386,7 +393,6 @@ export default function AdminReceptionistDetailPage() {
             </div>
           </SectionCard>
 
-          {/* Professional */}
           <SectionCard
             icon={ClipboardList}
             title="Employment details"
@@ -416,7 +422,6 @@ export default function AdminReceptionistDetailPage() {
             </div>
           </SectionCard>
 
-          {/* Info note */}
           <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
             <p className="text-xs leading-5 text-muted-foreground">

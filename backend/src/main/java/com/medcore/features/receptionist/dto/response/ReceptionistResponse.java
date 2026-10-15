@@ -23,6 +23,8 @@ public class ReceptionistResponse {
 
     private String designation;
 
+    private String profileImageUrl;
+    
     private ReceptionistStatus status;
     
     private UserStatus userStatus;

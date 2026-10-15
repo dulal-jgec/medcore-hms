@@ -22,6 +22,8 @@ public class NurseResponse {
     private Long hospitalId;
 
     private String department;
+    
+    private String profileImageUrl;
 
     private String ward;
 

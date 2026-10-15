@@ -310,6 +310,9 @@ function NurseCard({ nurse, onView, onResend, resending }) {
   const isInvitationExpired = nurse.userStatus === "INVITATION_EXPIRED";
   const canResend = isExhausted && !isInvitationExpired;
 
+  const initials = nurse.name?.charAt(0)?.toUpperCase() || "N";
+  const hasImage = Boolean(nurse.profileImageUrl);
+
   return (
     <div
       className={cn(
@@ -318,17 +321,39 @@ function NurseCard({ nurse, onView, onResend, resending }) {
       )}
     >
       <button type="button" onClick={onView} className="flex items-start gap-4 p-5 text-left">
+        {/* Avatar with image support */}
         <div
           className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold",
-            isExhausted
+            "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-lg font-bold",
+            hasImage
+              ? "border border-border bg-muted"
+              : isExhausted
               ? "bg-destructive/10 text-destructive"
               : !isActive
               ? "bg-muted text-muted-foreground"
               : "bg-brand-soft text-brand-soft-foreground"
           )}
         >
-          {nurse.name?.charAt(0)?.toUpperCase() || "N"}
+          {hasImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={nurse.profileImageUrl}
+              alt={nurse.name}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                const parent = e.currentTarget.parentElement;
+                if (parent && !parent.querySelector("[data-fallback]")) {
+                  const span = document.createElement("span");
+                  span.dataset.fallback = "true";
+                  span.textContent = initials;
+                  parent.appendChild(span);
+                }
+              }}
+            />
+          ) : (
+            <span>{initials}</span>
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -449,6 +474,9 @@ function NurseModal({ nurse, onClose, onToggleStatus, onResend, updating, resend
   const canResend = isExhausted && !isInvitationExpired;
   const canToggle = nurse.userStatus === "ACTIVE" && (nurse.status === "ACTIVE" || nurse.status === "INACTIVE");
 
+  const initials = nurse.name?.charAt(0)?.toUpperCase() || "N";
+  const hasImage = Boolean(nurse.profileImageUrl);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center" onClick={onClose}>
       <div
@@ -457,8 +485,35 @@ function NurseModal({ nurse, onClose, onToggleStatus, onResend, updating, resend
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card px-6 py-5">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-lg font-bold text-brand-soft-foreground">
-              {nurse.name?.charAt(0)?.toUpperCase() || "N"}
+            {/* Avatar with image support */}
+            <div
+              className={cn(
+                "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-lg font-bold",
+                hasImage
+                  ? "border border-border bg-muted"
+                  : "bg-brand-soft text-brand-soft-foreground"
+              )}
+            >
+              {hasImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={nurse.profileImageUrl}
+                  alt={nurse.name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    if (parent && !parent.querySelector("[data-fallback]")) {
+                      const span = document.createElement("span");
+                      span.dataset.fallback = "true";
+                      span.textContent = initials;
+                      parent.appendChild(span);
+                    }
+                  }}
+                />
+              ) : (
+                <span>{initials}</span>
+              )}
             </div>
             <div className="min-w-0">
               <h2 className="truncate text-lg font-bold tracking-tight">{nurse.name}</h2>

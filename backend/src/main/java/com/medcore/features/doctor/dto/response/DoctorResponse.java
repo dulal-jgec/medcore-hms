@@ -33,7 +33,9 @@ public class DoctorResponse {
     private Long departmentId;
 
     private String departmentName;
-
+    
+    private String profileImageUrl;
+    
     private String specialization;
 
     private Integer experienceYears;

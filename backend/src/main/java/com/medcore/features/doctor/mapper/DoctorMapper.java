@@ -75,6 +75,10 @@ public class DoctorMapper {
                                 ? doctor.getDepartment().getName()
                                 : null
                 )
+                
+                .profileImageUrl(doctor.getProfileImageUrl())
+
+                
                 .specialization(
                         doctor.getSpecialization()
                 )

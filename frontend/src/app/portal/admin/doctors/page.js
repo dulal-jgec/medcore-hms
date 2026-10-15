@@ -365,6 +365,13 @@ function DoctorCard({ doctor, onResend, resending }) {
   const isInvitationExpired = doctor.userStatus === "INVITATION_EXPIRED";
   const canResend = isExhausted && !isInvitationExpired;
 
+  const initials =
+    (doctor.doctorName || doctor.name || "D")
+      ?.charAt(0)
+      ?.toUpperCase() || "D";
+
+  const hasImage = Boolean(doctor.profileImageUrl);
+
   return (
     <div
       className={cn(
@@ -382,10 +389,13 @@ function DoctorCard({ doctor, onResend, resending }) {
         href={`/portal/admin/doctors/${doctor.id}`}
         className="flex items-start gap-4 p-5 text-left"
       >
+        {/* Avatar with image support */}
         <div
           className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold",
-            isExhausted
+            "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-lg font-bold",
+            hasImage
+              ? "border border-border bg-muted"
+              : isExhausted
               ? "bg-destructive/10 text-destructive"
               : isSuspended
               ? "bg-destructive/10 text-destructive"
@@ -394,9 +404,26 @@ function DoctorCard({ doctor, onResend, resending }) {
               : "bg-brand-soft text-brand-soft-foreground"
           )}
         >
-          {(doctor.doctorName || doctor.name || "D")
-            ?.charAt(0)
-            ?.toUpperCase() || "D"}
+          {hasImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={doctor.profileImageUrl}
+              alt={doctor.doctorName || doctor.name}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                const parent = e.currentTarget.parentElement;
+                if (parent && !parent.querySelector("[data-fallback]")) {
+                  const span = document.createElement("span");
+                  span.dataset.fallback = "true";
+                  span.textContent = initials;
+                  parent.appendChild(span);
+                }
+              }}
+            />
+          ) : (
+            <span>{initials}</span>
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
