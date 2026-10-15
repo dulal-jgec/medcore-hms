@@ -742,58 +742,34 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     @Override
-    public ApiResponse<DoctorProfileResponse> updateMyProfile(
-            UpdateMyDoctorProfileRequest request) {
+public ApiResponse<DoctorProfileResponse> updateMyProfile(
+        UpdateMyDoctorProfileRequest request) {
 
-        String email =
-                SecurityUtil.getCurrentUsername();
+    String email = SecurityUtil.getCurrentUsername();
 
-        User user =
-                userRepository
-                        .findByEmail(email)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "User not found"
-                                ));
+    User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Doctor doctor =
-                doctorRepository
-                        .findByUserIdAndDeletedAtIsNull(
-                                user.getId()
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Doctor profile not found"
-                                ));
+    Doctor doctor = doctorRepository
+            .findByUserIdAndDeletedAtIsNull(user.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found"));
 
-        if (request.getBio() != null) {
-            doctor.setBio(
-                    request.getBio().trim()
-            );
-        }
-
-        if (request.getLanguages() != null) {
-            doctor.setLanguages(
-                    request.getLanguages().trim()
-            );
-        }
-
-        Doctor updatedDoctor =
-                doctorRepository.save(doctor);
-
-        return ApiResponse
-                .<DoctorProfileResponse>builder()
-                .success(true)
-                .message(
-                        "Doctor profile updated successfully"
-                )
-                .data(
-                        doctorMapper.toProfileResponse(
-                                updatedDoctor
-                        )
-                )
-                .build();
+    if (request.getBio() != null) {
+        doctor.setBio(request.getBio().trim());
     }
+
+    if (request.getLanguages() != null) {
+        doctor.setLanguages(request.getLanguages().trim());
+    }
+
+    Doctor updatedDoctor = doctorRepository.save(doctor);
+
+    return ApiResponse.<DoctorProfileResponse>builder()
+            .success(true)
+            .message("Doctor profile updated successfully")
+            .data(doctorMapper.toProfileResponse(updatedDoctor))
+            .build();
+}
 
     @Override
     public ApiResponse<DoctorProfileResponse> uploadMyProfileImage(
