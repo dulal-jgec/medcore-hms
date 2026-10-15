@@ -8,25 +8,23 @@ import {
   ArrowLeft,
   Building2,
   Calendar,
-  CheckCircle2,
-  Clock,
-  Droplets,
   FileText,
-  Globe,
-  Heart,
   Loader2,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   ShieldCheck,
-  Stethoscope,
+  Siren,
   User,
-  Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+// Try super-admin endpoint first, fall back to public endpoint
 import { getPublicHospital } from "@/services/hospital-public.service";
+import { getHospitalById } from "@/services/super-admin.service";
 
 /* ══════════ Page ══════════ */
 
@@ -49,9 +47,20 @@ export default function SuperAdminHospitalDetailPage() {
         setLoading(true);
         setError("");
 
-        const res = await getPublicHospital(hospitalId);
+        let res;
 
-        // Support both { data: {...} } and plain object responses
+        try {
+          // Preferred: super-admin endpoint (works even if hospital inactive)
+          res = await getHospitalById(hospitalId);
+        } catch (err) {
+          // Fallback: public endpoint (only returns active hospitals)
+          if (err?.status === 404 || err?.status === 403) {
+            res = await getPublicHospital(hospitalId);
+          } else {
+            throw err;
+          }
+        }
+
         const payload = res?.data ?? res;
 
         if (cancelled) return;
@@ -159,6 +168,7 @@ export default function SuperAdminHospitalDetailPage() {
               )}
             </div>
 
+            {/* Quick info list */}
             <dl className="mt-6 space-y-3 border-t border-border pt-5 text-sm">
               <Row
                 icon={MapPin}
@@ -185,13 +195,23 @@ export default function SuperAdminHospitalDetailPage() {
               />
             </dl>
 
-            <div className="mt-6 border-t border-border pt-5">
+            {/* Actions */}
+            <div className="mt-6 space-y-2 border-t border-border pt-5">
               <Button asChild className="w-full">
                 <Link
                   href={`/super-admin/admins/create?hospitalId=${hospital.id}`}
                 >
                   <User className="mr-1.5 h-4 w-4" />
                   Add admin
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline" className="w-full">
+                <Link
+                  href={`/super-admin/hospitals/${hospital.id}/edit`}
+                >
+                  <Pencil className="mr-1.5 h-4 w-4" />
+                  Edit hospital
                 </Link>
               </Button>
             </div>
@@ -213,25 +233,21 @@ export default function SuperAdminHospitalDetailPage() {
                 label="License number"
                 value={hospital.licenseNumber}
               />
+              <InfoRow icon={Mail} label="Email" value={hospital.email} />
               <InfoRow
-                icon={Globe}
-                label="Website"
-                value={hospital.website}
-              />
-              <InfoRow
-                icon={Users}
-                label="Hospital type"
-                value={hospital.type || hospital.hospitalType}
+                icon={ShieldCheck}
+                label="Status"
+                value={hospital.status}
               />
             </div>
 
             {hospital.description && (
-              <div className="mt-5">
+              <div className="mt-5 border-t border-border pt-5">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   <FileText className="h-3.5 w-3.5" />
                   About
                 </div>
-                <p className="mt-1.5 whitespace-pre-wrap break-words text-sm">
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">
                   {hospital.description}
                 </p>
               </div>
@@ -247,12 +263,16 @@ export default function SuperAdminHospitalDetailPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <InfoRow icon={Phone} label="Phone" value={hospital.phone} />
               <InfoRow
-                icon={Phone}
-                label="Alternate phone"
-                value={hospital.altPhone || hospital.alternatePhone}
+                icon={Siren}
+                label="Emergency phone"
+                value={hospital.emergencyPhone}
               />
               <InfoRow icon={Mail} label="Email" value={hospital.email} />
-              <InfoRow icon={Globe} label="Website" value={hospital.website} />
+              <InfoRow
+                icon={ShieldCheck}
+                label="Status"
+                value={hospital.status}
+              />
             </div>
           </SectionCard>
 
@@ -265,74 +285,39 @@ export default function SuperAdminHospitalDetailPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <InfoRow
                 icon={MapPin}
-                label="Address line 1"
-                value={hospital.addressLine1 || hospital.address}
-              />
-              <InfoRow
-                icon={MapPin}
-                label="Address line 2"
-                value={hospital.addressLine2}
+                label="Address"
+                value={hospital.address}
+                className="sm:col-span-2"
               />
               <InfoRow icon={MapPin} label="City" value={hospital.city} />
               <InfoRow icon={MapPin} label="State" value={hospital.state} />
               <InfoRow
                 icon={MapPin}
-                label="Country"
-                value={hospital.country}
-              />
-              <InfoRow
-                icon={MapPin}
                 label="Pincode"
-                value={hospital.pincode || hospital.postalCode}
+                value={hospital.pincode}
               />
             </div>
           </SectionCard>
 
-          {/* Facilities — only if present */}
-          {(hospital.beds != null ||
-            hospital.departmentsCount != null ||
-            hospital.doctorsCount != null ||
-            hospital.emergencyAvailable != null) && (
-            <SectionCard
-              icon={Stethoscope}
-              title="Facilities"
-              desc="Capacity and available services."
-            >
-              <div className="grid gap-5 sm:grid-cols-2">
-                {hospital.beds != null && (
-                  <StatTile
-                    icon={Building2}
-                    label="Total beds"
-                    value={hospital.beds}
-                  />
-                )}
-                {hospital.doctorsCount != null && (
-                  <StatTile
-                    icon={Stethoscope}
-                    label="Doctors"
-                    value={hospital.doctorsCount}
-                  />
-                )}
-                {hospital.departmentsCount != null && (
-                  <StatTile
-                    icon={Users}
-                    label="Departments"
-                    value={hospital.departmentsCount}
-                  />
-                )}
-                {hospital.emergencyAvailable != null && (
-                  <StatTile
-                    icon={Heart}
-                    label="Emergency"
-                    value={
-                      hospital.emergencyAvailable ? "Available" : "Not available"
-                    }
-                    accent={hospital.emergencyAvailable}
-                  />
-                )}
-              </div>
-            </SectionCard>
-          )}
+          {/* Timeline */}
+          <SectionCard
+            icon={Calendar}
+            title="Timeline"
+            desc="Registration details."
+          >
+            <div className="grid gap-5 sm:grid-cols-2">
+              <InfoRow
+                icon={Calendar}
+                label="Registered on"
+                value={formatDate(hospital.createdAt)}
+              />
+              <InfoRow
+                icon={Building2}
+                label="Hospital ID"
+                value={`#${hospital.id}`}
+              />
+            </div>
+          </SectionCard>
         </div>
       </div>
     </div>
@@ -382,29 +367,6 @@ function InfoRow({ icon: Icon, label, value, className }) {
       <p className="mt-1.5 break-words text-sm font-medium">
         {value || "—"}
       </p>
-    </div>
-  );
-}
-
-function StatTile({ icon: Icon, label, value, accent }) {
-  return (
-    <div className="flex items-center gap-4 rounded-xl border border-border bg-muted/20 p-4">
-      <span
-        className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-          accent
-            ? "bg-brand text-brand-foreground"
-            : "bg-brand-soft text-brand-soft-foreground"
-        )}
-      >
-        <Icon className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {label}
-        </p>
-        <p className="mt-0.5 text-lg font-bold tracking-tight">{value}</p>
-      </div>
     </div>
   );
 }

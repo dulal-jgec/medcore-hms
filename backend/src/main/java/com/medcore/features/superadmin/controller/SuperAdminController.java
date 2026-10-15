@@ -5,6 +5,8 @@ import com.medcore.features.hospital.dto.request.CreateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalStatusRequest;
 import com.medcore.features.hospital.dto.response.CreateHospitalResponse;
+import com.medcore.features.superadmin.dto.request.CreateHospitalAdminRequest;
+import com.medcore.features.superadmin.dto.response.CreateHospitalAdminResponse;
 import com.medcore.features.superadmin.dto.response.SuperAdminDashboardResponse;
 import com.medcore.features.superadmin.dto.response.SuperAdminResponse;
 import com.medcore.features.superadmin.service.SuperAdminService;
@@ -15,8 +17,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import com.medcore.features.superadmin.dto.request.CreateHospitalAdminRequest;
-import com.medcore.features.superadmin.dto.response.CreateHospitalAdminResponse;
 
 @RestController
 @RequestMapping("/api/v1/super-admin")
@@ -26,21 +26,22 @@ public class SuperAdminController {
 
     private final SuperAdminService superAdminService;
 
-    @GetMapping("/me")
-    public ApiResponse<SuperAdminResponse>
-    getCurrentSuperAdmin() {
+     
 
-        return superAdminService
-                .getCurrentSuperAdmin();
+    @GetMapping("/me")
+    public ApiResponse<SuperAdminResponse> getCurrentSuperAdmin() {
+
+        return superAdminService.getCurrentSuperAdmin();
     }
-    
+
+     
     @PostMapping("/hospitals")
     public ApiResponse<CreateHospitalResponse> createHospital(
             @Valid @RequestBody CreateHospitalRequest request) {
 
         return superAdminService.createHospital(request);
     }
-    
+
     @GetMapping("/hospitals")
     public ApiResponse<Page<CreateHospitalResponse>> getAllHospitals(
             @RequestParam(defaultValue = "0") int page,
@@ -55,15 +56,14 @@ public class SuperAdminController {
                 sortDir
         );
     }
-    
+
     @GetMapping("/hospitals/{hospitalId}")
-    public ApiResponse<CreateHospitalResponse>getHospitalById(
-    		@PathVariable Long hospitalId
-    		){
-    	return superAdminService.getHospitalById(hospitalId);
+    public ApiResponse<CreateHospitalResponse> getHospitalById(
+            @PathVariable Long hospitalId) {
+
+        return superAdminService.getHospitalById(hospitalId);
     }
-    
-    
+
     @PutMapping("/hospitals/{hospitalId}")
     public ApiResponse<CreateHospitalResponse> updateHospital(
             @PathVariable Long hospitalId,
@@ -74,7 +74,7 @@ public class SuperAdminController {
                 request
         );
     }
-    
+
     @PatchMapping("/hospitals/{hospitalId}/status")
     public ApiResponse<CreateHospitalResponse> updateHospitalStatus(
             @PathVariable Long hospitalId,
@@ -85,7 +85,7 @@ public class SuperAdminController {
                 request
         );
     }
-    
+
     @GetMapping("/hospitals/search")
     public ApiResponse<Page<CreateHospitalResponse>> searchHospitals(
             @RequestParam String keyword,
@@ -98,38 +98,37 @@ public class SuperAdminController {
                 size
         );
     }
-    
+
     @DeleteMapping("/hospitals/{hospitalId}")
     public ApiResponse<String> deleteHospital(
             @PathVariable Long hospitalId) {
 
-        return superAdminService.deleteHospital(
-                hospitalId
-        );
+        return superAdminService.deleteHospital(hospitalId);
     }
-    
+
     @PatchMapping("/hospitals/{hospitalId}/restore")
     public ApiResponse<String> restoreHospital(
             @PathVariable Long hospitalId) {
 
-        return superAdminService.restoreHospital(
-                hospitalId
-        );
+        return superAdminService.restoreHospital(hospitalId);
     }
-    
+
+     
+
     @GetMapping("/dashboard")
     public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
 
         return superAdminService.getDashboard();
     }
-    
+
+ 
     @PostMapping("/admins")
     public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
             @Valid @RequestBody CreateHospitalAdminRequest request) {
 
         return superAdminService.createHospitalAdmin(request);
     }
-    
+
     @GetMapping("/admins")
     public ApiResponse<Page<CreateHospitalAdminResponse>> getAllHospitalAdmins(
             @RequestParam(defaultValue = "0") int page,
@@ -137,7 +136,7 @@ public class SuperAdminController {
 
         return superAdminService.getAllHospitalAdmins(page, size);
     }
-    
+
     @PostMapping("/admins/{userId}/resend-invitation")
     public ApiResponse<String> resendHospitalAdminInvitation(
             @PathVariable Long userId,

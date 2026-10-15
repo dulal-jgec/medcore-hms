@@ -85,3 +85,10 @@ export async function resendHospitalAdminInvitation(
 
   return handleResponse(response);
 }
+
+export async function getHospitalById(hospitalId) {
+  const response = await apiFetch(
+    `/super-admin/hospitals/${hospitalId}`
+  );
+  return handleResponse(response);
+}

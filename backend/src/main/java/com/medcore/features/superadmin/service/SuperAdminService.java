@@ -1,7 +1,5 @@
 package com.medcore.features.superadmin.service;
 
-import org.springframework.data.domain.Page;
-
 import com.medcore.common.response.ApiResponse;
 import com.medcore.features.hospital.dto.request.CreateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalRequest;
@@ -12,6 +10,7 @@ import com.medcore.features.superadmin.dto.response.CreateHospitalAdminResponse;
 import com.medcore.features.superadmin.dto.response.SuperAdminDashboardResponse;
 import com.medcore.features.superadmin.dto.response.SuperAdminResponse;
 
+import org.springframework.data.domain.Page;
 
 public interface SuperAdminService {
 
@@ -21,8 +20,7 @@ public interface SuperAdminService {
             CreateHospitalRequest request
     );
 
-    ApiResponse<org.springframework.data.domain.Page<CreateHospitalResponse>>
-    getAllHospitals(
+    ApiResponse<Page<CreateHospitalResponse>> getAllHospitals(
             int page,
             int size,
             String sortBy,
@@ -32,7 +30,7 @@ public interface SuperAdminService {
     ApiResponse<CreateHospitalResponse> getHospitalById(
             Long hospitalId
     );
-    
+
     ApiResponse<CreateHospitalResponse> updateHospital(
             Long hospitalId,
             UpdateHospitalRequest request
@@ -48,25 +46,24 @@ public interface SuperAdminService {
             int page,
             int size
     );
-    
+
     ApiResponse<String> deleteHospital(Long hospitalId);
 
     ApiResponse<String> restoreHospital(Long hospitalId);
-    
-    ApiResponse<SuperAdminDashboardResponse>
-    getDashboard();
-    
+
+    ApiResponse<SuperAdminDashboardResponse> getDashboard();
+
     ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
             CreateHospitalAdminRequest request
     );
-    
+
     ApiResponse<Page<CreateHospitalAdminResponse>> getAllHospitalAdmins(
             int page,
             int size
     );
-    
-    ApiResponse<String>resendHospitalAdminInvitation(
-    	    Long userId,
-    	    String idempotencyKey
-    	);
+
+    ApiResponse<String> resendHospitalAdminInvitation(
+            Long userId,
+            String idempotencyKey
+    );
 }
