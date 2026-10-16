@@ -1,250 +1,253 @@
-# MedCore HMS — Multi-Tenant Hospital Management System
+# MedCore — Multi-Tenant Hospital Management System
 
-MedCore HMS is a hospital management platform I am building to manage hospital operations through a centralized system. My main focus has been on the backend, especially multi-tenant architecture, security, database design, and handling real-world failure scenarios.
+MedCore is a full-stack Hospital Management System where many hospitals run on **one deployment**, but each hospital's data stays **completely separate**. Built with Spring Boot and Next.js.
 
-I wanted to build something beyond basic CRUD operations and understand how backend systems should behave when requests are repeated, multiple workers run concurrently, or an external service fails.
+I did not build this only to make CRUD APIs work. My goal was to understand what happens in a real backend: data isolation, transactions, retries, duplicate requests, indexing, and failures. Every important concept I learned is written in my docs folder (links below).
 
-The project is still evolving, and I am continuing to improve its reliability, features, and overall user experience.
-
-## Project Links
-
-- **Frontend:**  https://medcore-hms-eight.vercel.app/login
-- **Backend:**  https://medcore-backend-jbgq.onrender.com
-- **Health Check:**  https://medcore-backend-jbgq.onrender.com/api/v1/health
-## Tech Stack
-
-**Backend**
-- Java 21
-- Spring Boot
-- Spring Security
-- JWT authentication
-- Spring Data JPA / Hibernate
-- Maven
-
-**Database and Caching**
-- PostgreSQL
-- Redis
-
-**Frontend**
-- Next.js
-- JavaScript
-
-**Deployment and Tools**
-- Docker
-- Docker Compose
-- Nginx
-- Git and GitHub
-- Flyway Database Migration
-- Postman
-
-## What I Have Built
-
-### 1. Multi-Tenant Architecture
-
-MedCore is designed as a multi-tenant platform where multiple hospitals can use the same application while keeping their data isolated.
-
-The main challenge was not simply adding a `hospital_id` column to database tables. I also needed to make sure that a user from one hospital could not access another hospital's data through an API request.
-
-Key areas include:
-
-- Hospital-level data isolation.
-- Tenant-aware backend operations.
-- Role-based access control.
-- Validation of access to hospital-specific resources.
-- Separation of platform-level and hospital-level responsibilities.
-
-I tested the isolation using accounts from different hospitals and verified that unauthorized cross-hospital access was rejected.
-
-### 2. Authentication and Authorization
-
-I implemented an authentication system using Spring Security and JWT.
-
-The authentication flow includes:
-
-- User registration and login.
-- JWT-based authentication.
-- Access-token and refresh-token handling.
-- Logout and refresh-token revocation.
-- Role-based authorization.
-- Protected API endpoints.
-
-MedCore supports different roles, including:
-
-- `SUPER_ADMIN`
-- `HOSPITAL_ADMIN`
-- `DOCTOR`
-- `NURSE`
-- `RECEPTIONIST`
-- `LAB_TECHNICIAN`
-- `PHARMACIST`
-- `ACCOUNTANT`
-- `PATIENT`
-
-The goal is to ensure that users can access only the operations and resources permitted by their role and hospital context.
-
-### 3. Reliable Email Invitation System
-
-One of the backend features I spent significant time working on is the hospital staff invitation workflow.
-
-A straightforward implementation would create a user and immediately send an email. However, email delivery depends on an external service, which can fail independently of the database transaction.
-
-To handle this, I implemented a transactional email outbox approach.
-
-The workflow includes:
-
-- Creating the user and outbox record within the same database transaction.
-- Processing emails asynchronously.
-- Tracking email delivery states.
-- Retrying failed deliveries.
-- Exponential backoff and jitter.
-- Recovering stale `PROCESSING` records.
-- Limiting invitation attempts.
-- Supporting controlled manual resends.
-
-The email outbox uses states such as `PENDING`, `PROCESSING`, `SENT`, and `EXHAUSTED`.
-
-I also used PostgreSQL row locking with `FOR UPDATE SKIP LOCKED` to allow workers to claim different pending emails without selecting the same locked records.
-
-### 4. Idempotent Invitation Resend
-
-I implemented idempotency for invitation resend operations to prevent the same request from creating duplicate invitation operations.
-
-The implementation uses:
-
-- An `Idempotency-Key` request header.
-- An `idempotency_records` database table.
-- A unique database constraint on the idempotency key.
-- Atomic insertion using PostgreSQL `ON CONFLICT DO NOTHING`.
-- Validation of the latest invitation state before allowing a resend.
-
-This was an important learning experience because checking whether a key exists before inserting it can create a race condition when concurrent requests arrive.
-
-The database-level constraint and atomic operation provide protection against duplicate processing of the same idempotency key.
-
-I also considered the limitations of external email delivery: a worker can crash after the email provider accepts an email but before the database records it as sent. Therefore, the system cannot guarantee exactly-once email delivery across the database and SMTP service.
-
-### 5. Database Indexing and Query Performance
-
-I reviewed the existing PostgreSQL indexes before adding new ones.
-
-The goal was to support the queries used by the application without creating unnecessary indexes on every column.
-
-The work included:
-
-- Inspecting existing indexes.
-- Reviewing foreign-key columns and query patterns.
-- Understanding B-Tree indexes.
-- Working with partial indexes.
-- Understanding composite index column order.
-- Using `EXPLAIN` to inspect planned execution.
-- Using `EXPLAIN ANALYZE` to inspect actual query execution.
-- Considering the storage and write overhead of indexes.
-
-I added query indexes through a Flyway migration:
-
-`V27__add_query_indexes.sql`
-
-The migration was applied and verified through `flyway_schema_history`.
-
-This work helped me understand that indexes should be selected according to actual query patterns and measured performance, rather than added blindly.
-
-### 6. Database Transactions and Concurrency
-
-I am studying and applying transaction management and concurrency control to improve the correctness of backend operations.
-
-My focus includes:
-
-- ACID properties.
-- Transaction boundaries with Spring's `@Transactional`.
-- Database commit and rollback.
-- Transaction isolation levels.
-- Race conditions and lost updates.
-- Database locking.
-- Safe handling of concurrent requests.
-
-I am continuing to strengthen the practical implementation and testing of these concepts within MedCore.
-
-### 7. Redis Integration
-
-MedCore includes Redis integration, and I am continuing to improve my understanding and implementation of caching and related performance concerns.
-
-My focus is on learning how to use caching appropriately, including cache invalidation, TTL, consistency, failure handling, and the trade-offs between faster reads and stale data.
-
-### 8. Database Migration Management
-
-I use Flyway to version database schema changes.
-
-Instead of relying only on manual database modifications, schema changes can be tracked through migration files alongside the application code.
-
-This makes database changes easier to review and helps keep schema evolution organized across environments.
-
-### 9. Deployment
-
-I have deployed the backend and frontend to publicly accessible environments.
-
-The deployment setup includes:
-
-- Spring Boot backend deployed on Render.
-- PostgreSQL and Redis hosted through Railway.
-- Frontend deployed on Vercel.
-- Docker-based backend deployment.
-- Environment-based application configuration.
-- A health endpoint for checking backend availability.
-
-Deployment has also given me practical experience with environment variables, database connectivity, Redis authentication, and troubleshooting configuration problems across environments.
-
-## Engineering Challenges
-
-Some of the most useful challenges I have worked through are:
-
-- Enforcing data isolation in a multi-tenant application.
-- Designing authentication and authorization across different roles.
-- Separating email delivery from the main database transaction.
-- Handling retry limits and recovering interrupted email processing.
-- Preventing duplicate resend operations using database-level idempotency.
-- Understanding concurrency problems that can occur when requests arrive simultaneously.
-- Improving database queries through indexes and execution-plan analysis.
-- Configuring the application to run in a deployed environment.
-
-These problems have helped me understand why production backend engineering requires more than implementing endpoints that work under normal conditions.
-
-## Architecture Overview
-
-At a high level, the system contains:
-
-1. A Next.js frontend for interacting with the application.
-2. A Spring Boot backend for business logic and API handling.
-3. Spring Security and JWT for authentication and authorization.
-4. PostgreSQL for persistent application data.
-5. Redis for supporting caching and related backend use cases.
-6. An email outbox processor for asynchronous invitation delivery.
-7. Flyway for database schema migrations.
-8. Docker and cloud hosting for deployment.
-
-The backend is organized into modules and layers to keep responsibilities separated and make the code easier to maintain as the project grows.
-
-## Current Focus
-
-I am continuing to work on:
-
-- Completing and improving the frontend experience.
-- Strengthening transaction and concurrency handling.
-- Improving Redis caching and performance.
-- Reviewing API design and database access patterns.
-- Expanding notification and other hospital workflows.
-- Improving testing, monitoring, and deployment reliability.
-- Exploring system design and AI integration with Spring AI.
-
-## What I Have Learned
-
-Working on MedCore has helped me connect backend concepts with practical implementation.
-
-I have learned that building a reliable backend is not only about making an API return the correct response. It also involves considering failure scenarios, concurrent requests, authorization boundaries, database consistency, retries, performance, and maintainability.
-
-I am continuing to build and improve MedCore as a practical way to develop my backend engineering skills.
+**Live Demo:** https://medcore-hms-eight.vercel.app
+**Backend API:** https://medcore-backend-jbgq.onrender.com
 
 ---
 
-**Project Status:** Actively developing and improving.
+## Why this project is different
 
-**Primary Focus:** Java, Spring Boot, backend engineering, multi-tenancy, database reliability, and system design.
+Most hospital projects are single-hospital CRUD apps. In MedCore, the main problem is:
+
+> Doctor of Hospital A must never see a patient of Hospital B — even if a developer makes a mistake in one place.
+
+So multi-tenant isolation is part of the design from day one, not added later. On top of that, I worked on the problems that usually come in production: what if email server is down, what if user clicks a button twice, what if two requests come at the same time.
+
+---
+
+## Roles
+
+| Role | What they do |
+|---|---|
+| Super Admin | Creates hospitals and hospital admins across the platform |
+| Hospital Admin | Manages one hospital: staff, departments, patients, billing |
+| Doctor | Appointments, schedules, medical records, prescriptions |
+| Nurse | Assigned patients, vitals, medication rounds |
+| Receptionist | Walk-in registration, appointments, queue |
+| Accountant | Billing, payments, financial reports |
+| Patient | Book appointments, see prescriptions, reports, bills |
+
+Access is checked in the backend, not only hidden in the UI.
+
+---
+
+## Features
+
+The project is **feature-based** (each module has its own controller, service, repository, DTOs), so every module can be understood on its own.
+
+- Authentication with JWT and refresh token rotation
+- Hospital and Super Admin management
+- Doctor management with schedules
+- Patient management
+- Appointment booking
+- Medical records
+- Prescriptions
+- Pharmacy dispensing and inventory
+- Billing and payments
+- Lab orders and results
+- Nurse, Receptionist and Accountant modules
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TB
+    Browser["Browser"] --> Next["Next.js Frontend - Vercel"]
+    Next --> API["Spring Boot REST API - /api/v1"]
+
+    subgraph Backend["Backend - Render"]
+        API --> Sec["Spring Security + JWT"]
+        Sec --> Svc["Service Layer - Business Logic"]
+        Svc --> Tenant["TenantContextService - Tenant Isolation"]
+        Svc --> Outbox["Email Outbox + Scheduler"]
+    end
+
+    Tenant --> PG[("PostgreSQL")]
+    Outbox --> PG
+    Svc -.->|in progress| Redis[("Redis Cache")]
+    Outbox --> Mail["Email Provider"]
+    Svc --> Cloud["Cloudinary - Images"]
+```
+
+### Multi-tenant isolation flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Hospital User
+    participant API as REST API
+    participant SEC as Security Filter
+    participant T as TenantContextService
+    participant SVC as Service
+    participant DB as PostgreSQL
+
+    U->>API: Request with JWT
+    API->>SEC: Validate token
+    SEC->>T: Set current hospital
+    API->>SVC: Call business logic
+    SVC->>T: Get current hospital id
+    SVC->>DB: Query filtered by hospital id
+    DB-->>SVC: Only this hospital's data
+    SVC-->>U: Response
+```
+
+Isolation is protected in layers: the current hospital comes from the authenticated request, services read it from `TenantContextService`, and repository queries are always scoped by hospital. Nothing is hard-deleted either — soft delete (`deletedAt`) is used everywhere.
+
+### Email Outbox lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: User created
+    PENDING --> PROCESSING: Worker claims
+    PROCESSING --> SENT: Email delivered
+    PROCESSING --> PENDING: Retry scheduled (with backoff)
+    PROCESSING --> EXHAUSTED: 5 failures
+    EXHAUSTED --> PENDING: Manual resend (attempt ≤ 3)
+    EXHAUSTED --> INVITATION_EXPIRED: 3rd attempt exhausted
+    SENT --> [*]: User becomes ACTIVE
+    INVITATION_EXPIRED --> [*]: Requires new account
+```
+
+### Create Hospital Admin — transaction flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor SA as Super Admin
+    participant SVC as SuperAdminServiceImpl
+    participant DB as PostgreSQL
+
+    SA->>SVC: Create Hospital Admin
+    SVC->>SVC: Validate Super Admin and hospital
+    SVC->>DB: Save user
+    SVC->>DB: Save email_outbox record
+
+    alt Transaction succeeds
+        SVC->>DB: Commit
+        SVC-->>SA: Success response
+    else Transaction fails
+        SVC->>DB: Rollback
+        SVC-->>SA: Failure response
+    end
+```
+
+---
+
+## Backend concepts I worked on
+
+These are the harder backend topics I implemented and wrote notes about. Each one has a doc in `backend/docs`.
+
+| Concept | What I did | Doc |
+|---|---|---|
+| **Reliable Email Delivery** | Outbox pattern, retry, exponential backoff, jitter, `FOR UPDATE SKIP LOCKED`, stale processing recovery | [email-delivery.md](https://github.com/dulal-jgec/medcore-hms/blob/main/backend/docs/email-delivery.md) |
+| **Idempotency** | `Idempotency-Key` header on resend API; duplicate request is blocked by a DB unique key with `ON CONFLICT DO NOTHING` (no race condition) | [invitation-and-idempotency.md](https://github.com/dulal-jgec/medcore-hms/blob/main/backend/docs/invitation-and-idempotency.md) |
+| **Database Indexing** | Checked existing indexes, foreign keys, used `EXPLAIN` / `EXPLAIN ANALYZE`, added partial and composite indexes only where queries needed them, via Flyway migration | [database-indexing.md](https://github.com/dulal-jgec/medcore-hms/blob/main/backend/docs/database-indexing.md) |
+| **Transaction Management** | `@Transactional` so user and email outbox are saved together or rolled back together | [transaction-management-and-consistency.md](https://github.com/dulal-jgec/medcore-hms/blob/main/backend/docs/transaction-management-and-consistency.md) |
+| **Transaction Isolation** | Tested `READ COMMITTED` vs `REPEATABLE READ` with two PostgreSQL sessions | [transaction-isolation.md](https://github.com/dulal-jgec/medcore-hms/blob/main/backend/docs/transaction-isolation.md) |
+| **Rollback Testing** | Integration test that forces outbox save to fail and checks the user is not saved | [transaction-rollback.md](https://github.com/dulal-jgec/medcore-hms/blob/main/backend/docs/transaction-rollback.md) |
+| **N+1 Query Problem** | Used `@EntityGraph` / `JOIN FETCH` so list APIs load related data in one query, and checked SQL logs | in code (repositories) |
+
+### Short notes on the important ones
+
+**Email Outbox + Retry**
+Sending email inside the API request is risky, because the SMTP server can fail. So the user and an `email_outbox` row are saved in one transaction, and a scheduled worker sends the email later. Failed email retries after 1, 2, 4, 8 minutes (plus a small random jitter so all retries don't hit at the same second). After 5 failures it becomes `EXHAUSTED`, and the Super Admin can resend — maximum 3 invitation attempts.
+
+**Idempotency**
+If the same resend request comes twice (double click, network retry), only one is accepted. I did not use "check if exists, then insert", because two requests can pass the check together. The database unique constraint decides the winner.
+
+**Indexing**
+A foreign key does not create an index automatically in PostgreSQL. I did not index every column, because indexes cost storage and slow down writes. I checked real query patterns first.
+
+**Honest limitation:** external email delivery cannot be truly "exactly once". If the app crashes after SMTP accepts the mail but before the status is saved, the email can go twice. My design focuses on safe retries and no duplicate API effects, not on pretending this problem does not exist.
+
+---
+
+## Tech Stack
+
+**Backend:** Java 21, Spring Boot 3, Spring Security, JWT, Spring Data JPA / Hibernate, PostgreSQL, Flyway, Spring Mail, Cloudinary, Docker, Nginx, CI/CD
+
+**Frontend:** Next.js (App Router), React, Tailwind CSS, shadcn/ui, Zustand, React Hook Form, Zod
+
+**Hosting:** Frontend on Vercel, backend and PostgreSQL on Render
+
+---
+
+## Testing
+
+Backend tests use JUnit 5, Mockito and a separate PostgreSQL test database. The most important ones are the transaction tests:
+
+| Test | What it checks |
+|---|---|
+| `SuperAdminTransactionIntegrationTest` | Transaction rollback works |
+| `SuperAdminTransactionRollbackTest` | User is rolled back when outbox save fails |
+| `SuperAdminTransactionSuccessTest` | User and outbox are both saved on success |
+| `SuperAdminConcurrentRequestTest` | Concurrent requests with same email are blocked |
+
+Run tests:
+
+```bash
+cd backend
+./mvnw test
+```
+
+---
+
+## Run Locally
+
+**Requirements:** Java 21, Node.js 20+, PostgreSQL
+
+**Backend**
+
+```bash
+cd backend
+cp .env.example .env     # fill database, JWT, mail and Cloudinary values
+./mvnw spring-boot:run
+```
+
+Flyway runs the database migrations automatically on startup.
+
+**Frontend**
+
+```bash
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+---
+
+## What I am learning now
+
+I learn backend concepts daily and try to use them in this project. Right now I am working on **caching with Redis** — where to cache, how to invalidate, and how to keep cache and database consistent.
+
+Next on my list:
+
+- Distributed locking
+- Message queues (RabbitMQ / Kafka)
+- Better observability (metrics, tracing)
+- Advanced indexing for reports
+
+I write notes for each topic in [`backend/docs`](https://github.com/dulal-jgec/medcore-hms/tree/main/backend/docs), so I can come back to them later.
+
+---
+
+## More docs
+
+Module-wise design notes are also in [`backend/docs`](https://github.com/dulal-jgec/medcore-hms/tree/main/backend/docs): database design, authentication, hospital, doctor, patient, appointment, medical record, prescription, pharmacy, billing, nurse, lab, receptionist, accountant and super admin.
+
+---
+
+## Author
+
+**SK Dulal Islam** — Java / Full-Stack Developer, B.Tech IT (JGEC, 2027)
+
+- GitHub: [dulal-jgec](https://github.com/dulal-jgec)
+- LinkedIn: [sk-dulal-islam](https://www.linkedin.com/in/sk-dulal-islam-4b02542b2)
