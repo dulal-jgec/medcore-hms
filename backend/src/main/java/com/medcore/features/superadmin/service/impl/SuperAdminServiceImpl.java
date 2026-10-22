@@ -27,6 +27,7 @@ import com.medcore.features.superadmin.entity.SuperAdmin;
 import com.medcore.features.superadmin.enums.SuperAdminStatus;
 import com.medcore.features.superadmin.mapper.SuperAdminMapper;
 import com.medcore.features.superadmin.repository.SuperAdminRepository;
+import com.medcore.features.superadmin.service.SuperAdminDashboardCacheService;
 import com.medcore.features.superadmin.service.SuperAdminService;
 import com.medcore.features.user.entity.Role;
 import com.medcore.features.user.entity.User;
@@ -50,7 +51,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SuperAdminServiceImpl implements SuperAdminService {
 
-    // ── Dependencies ──
+    
     private final SuperAdminRepository superAdminRepository;
     private final SuperAdminMapper superAdminMapper;
     private final UserRepository userRepository;
@@ -62,9 +63,8 @@ public class SuperAdminServiceImpl implements SuperAdminService {
     private final EmailOutboxRepository emailOutboxRepository;
     private final IdempotencyService idempotencyService;
 
-    /* ══════════════════════════════════════════════════════════════
-       SUPER ADMIN PROFILE
-       ══════════════════════════════════════════════════════════════ */
+    private final SuperAdminDashboardCacheService superAdminDashboardCacheService;
+     
 
     @Override
     public ApiResponse<SuperAdminResponse> getCurrentSuperAdmin() {
@@ -99,9 +99,7 @@ public class SuperAdminServiceImpl implements SuperAdminService {
                 .build();
     }
 
-    /* ══════════════════════════════════════════════════════════════
-       HOSPITALS
-       ══════════════════════════════════════════════════════════════ */
+     
 
     @Override
     public ApiResponse<CreateHospitalResponse> createHospital(
@@ -195,52 +193,33 @@ public class SuperAdminServiceImpl implements SuperAdminService {
         return hospitalService.restoreHospital(hospitalId);
     }
 
-    /* ══════════════════════════════════════════════════════════════
-       DASHBOARD
-       ══════════════════════════════════════════════════════════════ */
+     
+    
+@Override
+public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
 
-    @Override
-    public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
+    // Authorization validation must run on every request.
+    validateSuperAdmin();
 
-        validateSuperAdmin();
+    SuperAdminDashboardCacheService.HospitalCounts counts =
+            superAdminDashboardCacheService.getHospitalCounts();
 
-        long totalHospitals =
-                hospitalRepository.countByDeletedAtIsNull();
+    SuperAdminDashboardResponse response =
+            SuperAdminDashboardResponse.builder()
+                    .totalHospitals(counts.totalHospitals())
+                    .activeHospitals(counts.activeHospitals())
+                    .inactiveHospitals(counts.inactiveHospitals())
+                    .deletedHospitals(counts.deletedHospitals())
+                    .build();
 
-        long activeHospitals =
-                hospitalRepository
-                        .countByStatusAndDeletedAtIsNull(
-                                HospitalStatus.ACTIVE
-                        );
+    return ApiResponse
+            .<SuperAdminDashboardResponse>builder()
+            .success(true)
+            .message("Super Admin dashboard fetched successfully")
+            .data(response)
+            .build();
+}
 
-        long inactiveHospitals =
-                hospitalRepository
-                        .countByStatusAndDeletedAtIsNull(
-                                HospitalStatus.INACTIVE
-                        );
-
-        long deletedHospitals =
-                hospitalRepository.countByDeletedAtIsNotNull();
-
-        SuperAdminDashboardResponse response =
-                SuperAdminDashboardResponse.builder()
-                        .totalHospitals(totalHospitals)
-                        .activeHospitals(activeHospitals)
-                        .inactiveHospitals(inactiveHospitals)
-                        .deletedHospitals(deletedHospitals)
-                        .build();
-
-        return ApiResponse
-                .<SuperAdminDashboardResponse>builder()
-                .success(true)
-                .message("Super Admin dashboard fetched successfully")
-                .data(response)
-                .build();
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       HOSPITAL ADMINS
-       ══════════════════════════════════════════════════════════════ */
 
     @Transactional
     @Override
@@ -541,10 +520,7 @@ public class SuperAdminServiceImpl implements SuperAdminService {
                 .build();
     }
 
-    /* ══════════════════════════════════════════════════════════════
-       HELPERS
-       ══════════════════════════════════════════════════════════════ */
-
+    
     private void validateSuperAdmin() {
 
         User currentUser = getCurrentUser();
