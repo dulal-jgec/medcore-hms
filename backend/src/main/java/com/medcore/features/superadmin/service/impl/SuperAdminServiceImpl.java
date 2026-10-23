@@ -101,14 +101,21 @@ public class SuperAdminServiceImpl implements SuperAdminService {
 
      
 
-    @Override
-    public ApiResponse<CreateHospitalResponse> createHospital(
-            CreateHospitalRequest request) {
 
-        validateSuperAdmin();
+@Override
+public ApiResponse<CreateHospitalResponse> createHospital(
+        CreateHospitalRequest request) {
 
-        return hospitalService.createHospital(request);
-    }
+    validateSuperAdmin();
+
+    ApiResponse<CreateHospitalResponse> response =
+            hospitalService.createHospital(request);
+
+    superAdminDashboardCacheService.evictHospitalCounts();
+
+    return response;
+}
+
 
     @Override
     public ApiResponse<Page<CreateHospitalResponse>> getAllHospitals(
@@ -137,30 +144,34 @@ public class SuperAdminServiceImpl implements SuperAdminService {
     }
 
     @Override
-    public ApiResponse<CreateHospitalResponse> updateHospital(
-            Long hospitalId,
-            UpdateHospitalRequest request) {
+public ApiResponse<CreateHospitalResponse> updateHospital(
+        Long hospitalId,
+        UpdateHospitalRequest request) {
 
-        validateSuperAdmin();
+    validateSuperAdmin();
 
-        return hospitalService.updateHospital(
-                hospitalId,
-                request
-        );
-    }
+    ApiResponse<CreateHospitalResponse> response =
+            hospitalService.updateHospital(hospitalId, request);
+
+    superAdminDashboardCacheService.evictHospitalCounts();
+
+    return response;
+}
 
     @Override
-    public ApiResponse<CreateHospitalResponse> updateHospitalStatus(
-            Long hospitalId,
-            UpdateHospitalStatusRequest request) {
+public ApiResponse<CreateHospitalResponse> updateHospitalStatus(
+        Long hospitalId,
+        UpdateHospitalStatusRequest request) {
 
-        validateSuperAdmin();
+    validateSuperAdmin();
 
-        return hospitalService.updateHospitalStatus(
-                hospitalId,
-                request
-        );
-    }
+    ApiResponse<CreateHospitalResponse> response =
+            hospitalService.updateHospitalStatus(hospitalId, request);
+
+    superAdminDashboardCacheService.evictHospitalCounts();
+
+    return response;
+}
 
     @Override
     public ApiResponse<Page<CreateHospitalResponse>> searchHospitals(
@@ -182,7 +193,12 @@ public class SuperAdminServiceImpl implements SuperAdminService {
 
         validateSuperAdmin();
 
-        return hospitalService.deleteHospital(hospitalId);
+        ApiResponse<String> response =
+                hospitalService.deleteHospital(hospitalId);
+
+        superAdminDashboardCacheService.evictHospitalCounts();
+
+        return response;
     }
 
     @Override
@@ -190,7 +206,12 @@ public class SuperAdminServiceImpl implements SuperAdminService {
 
         validateSuperAdmin();
 
-        return hospitalService.restoreHospital(hospitalId);
+        ApiResponse<String> response =
+                hospitalService.restoreHospital(hospitalId);
+
+        superAdminDashboardCacheService.evictHospitalCounts();
+
+        return response;
     }
 
      

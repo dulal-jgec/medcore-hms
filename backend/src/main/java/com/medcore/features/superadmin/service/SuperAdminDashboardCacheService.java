@@ -1,9 +1,10 @@
 
 package com.medcore.features.superadmin.service;
 
-import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.hospital.enums.HospitalStatus;
+import com.medcore.features.hospital.repository.HospitalRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +39,11 @@ public class SuperAdminDashboardCacheService {
                 inactiveHospitals,
                 deletedHospitals
         );
+    }
+
+    @CacheEvict(cacheNames = "superAdminDashboard", key = "'hospitalCounts'")
+    public void evictHospitalCounts() {
+        // Spring removes the cached entry.
     }
 
     public record HospitalCounts(
