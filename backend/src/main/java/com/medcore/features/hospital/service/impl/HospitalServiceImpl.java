@@ -13,6 +13,8 @@ import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.mapper.HospitalMapper;
 import com.medcore.features.hospital.repository.HospitalRepository;
 import com.medcore.features.hospital.service.HospitalService;
+import com.medcore.features.superadmin.service.SuperAdminDashboardCacheService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
@@ -37,6 +39,9 @@ public class HospitalServiceImpl implements HospitalService {
     private final HospitalMapper hospitalMapper;
     private static final Set<String> ALLOWED_SORT_FIELDS =
             Set.of("id", "name", "email", "city", "createdAt", "updatedAt");
+    
+    private final SuperAdminDashboardCacheService
+    superAdminDashboardCacheService;
 
   @Override
 public ApiResponse<CreateHospitalResponse> createHospital(
@@ -75,6 +80,8 @@ public ApiResponse<CreateHospitalResponse> createHospital(
     hospital.setPhone(phone);
 
     Hospital savedHospital = hospitalRepository.save(hospital);
+    
+    superAdminDashboardCacheService.evictHospitalCounts();
     
     log.info(
             "Hospital created: hospitalId={}, name={}, licenseNumber={}",
@@ -198,6 +205,8 @@ public ApiResponse<CreateHospitalResponse> createHospital(
 
         Hospital updatedHospital = hospitalRepository.save(hospital);
         
+        superAdminDashboardCacheService.evictHospitalCounts();
+        
         log.info(
                 "Hospital updated: hospitalId={}",
                 hospitalId
@@ -227,6 +236,8 @@ public ApiResponse<CreateHospitalResponse> createHospital(
         hospital.setStatus(request.getStatus());
 
         Hospital updatedHospital = hospitalRepository.save(hospital);
+        
+        superAdminDashboardCacheService.evictHospitalCounts();
         
         log.info(
                 "Hospital status updated: hospitalId={}, status={}",
@@ -299,6 +310,8 @@ public ApiResponse<Page<CreateHospitalResponse>> searchHospitals(
         hospital.setDeletedAt(LocalDateTime.now());
 
         hospitalRepository.save(hospital);
+        
+        superAdminDashboardCacheService.evictHospitalCounts();
         
         log.info(
                 "Hospital deleted: hospitalId={}",
