@@ -35,7 +35,7 @@ import com.medcore.features.user.enums.RoleName;
 import com.medcore.features.user.enums.UserStatus;
 import com.medcore.features.user.repository.RoleRepository;
 import com.medcore.features.user.repository.UserRepository;
-
+import com.medcore.common.response.PageResponse;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
@@ -118,21 +118,21 @@ public ApiResponse<CreateHospitalResponse> createHospital(
 
 
     @Override
-    public ApiResponse<Page<CreateHospitalResponse>> getAllHospitals(
-            int page,
-            int size,
-            String sortBy,
-            String sortDir) {
+public ApiResponse<PageResponse<CreateHospitalResponse>> getAllHospitals(
+        int page,
+        int size,
+        String sortBy,
+        String sortDir) {
 
-        validateSuperAdmin();
+    validateSuperAdmin();
 
-        return hospitalService.getAllHospitals(
-                page,
-                size,
-                sortBy,
-                sortDir
-        );
-    }
+    return hospitalService.getAllHospitals(
+            page,
+            size,
+            sortBy,
+            sortDir
+    );
+}
 
     @Override
     public ApiResponse<CreateHospitalResponse> getHospitalById(
@@ -174,19 +174,19 @@ public ApiResponse<CreateHospitalResponse> updateHospitalStatus(
 }
 
     @Override
-    public ApiResponse<Page<CreateHospitalResponse>> searchHospitals(
-            String keyword,
-            int page,
-            int size) {
+public ApiResponse<PageResponse<CreateHospitalResponse>> searchHospitals(
+        String keyword,
+        int page,
+        int size) {
 
-        validateSuperAdmin();
+    validateSuperAdmin();
 
-        return hospitalService.searchHospitals(
-                keyword,
-                page,
-                size
-        );
-    }
+    return hospitalService.searchHospitals(
+            keyword,
+            page,
+            size
+    );
+}
 
     @Override
     public ApiResponse<String> deleteHospital(Long hospitalId) {

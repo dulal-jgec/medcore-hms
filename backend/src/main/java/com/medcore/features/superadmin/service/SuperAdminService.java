@@ -1,6 +1,8 @@
+
 package com.medcore.features.superadmin.service;
 
 import com.medcore.common.response.ApiResponse;
+import com.medcore.common.response.PageResponse;
 import com.medcore.features.hospital.dto.request.CreateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalRequest;
 import com.medcore.features.hospital.dto.request.UpdateHospitalStatusRequest;
@@ -17,35 +19,29 @@ public interface SuperAdminService {
     ApiResponse<SuperAdminResponse> getCurrentSuperAdmin();
 
     ApiResponse<CreateHospitalResponse> createHospital(
-            CreateHospitalRequest request
-    );
+            CreateHospitalRequest request);
 
-    ApiResponse<Page<CreateHospitalResponse>> getAllHospitals(
+    ApiResponse<PageResponse<CreateHospitalResponse>> getAllHospitals(
             int page,
             int size,
             String sortBy,
-            String sortDir
-    );
+            String sortDir);
 
     ApiResponse<CreateHospitalResponse> getHospitalById(
-            Long hospitalId
-    );
+            Long hospitalId);
 
     ApiResponse<CreateHospitalResponse> updateHospital(
             Long hospitalId,
-            UpdateHospitalRequest request
-    );
+            UpdateHospitalRequest request);
 
     ApiResponse<CreateHospitalResponse> updateHospitalStatus(
             Long hospitalId,
-            UpdateHospitalStatusRequest request
-    );
+            UpdateHospitalStatusRequest request);
 
-    ApiResponse<Page<CreateHospitalResponse>> searchHospitals(
+    ApiResponse<PageResponse<CreateHospitalResponse>> searchHospitals(
             String keyword,
             int page,
-            int size
-    );
+            int size);
 
     ApiResponse<String> deleteHospital(Long hospitalId);
 
@@ -54,16 +50,13 @@ public interface SuperAdminService {
     ApiResponse<SuperAdminDashboardResponse> getDashboard();
 
     ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
-            CreateHospitalAdminRequest request
-    );
+            CreateHospitalAdminRequest request);
 
     ApiResponse<Page<CreateHospitalAdminResponse>> getAllHospitalAdmins(
             int page,
-            int size
-    );
+            int size);
 
     ApiResponse<String> resendHospitalAdminInvitation(
             Long userId,
-            String idempotencyKey
-    );
+            String idempotencyKey);
 }
