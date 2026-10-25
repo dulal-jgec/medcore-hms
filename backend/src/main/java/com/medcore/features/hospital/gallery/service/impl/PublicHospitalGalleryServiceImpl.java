@@ -1,3 +1,4 @@
+
 package com.medcore.features.hospital.gallery.service.impl;
 
 import com.medcore.common.exception.BusinessException;
@@ -15,11 +16,11 @@ import com.medcore.features.hospital.repository.HospitalRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,14 +37,14 @@ public class PublicHospitalGalleryServiceImpl
     private final HospitalGalleryMapper galleryMapper;
 
     private static final Set<String> ALLOWED_SORT_FIELDS =
-            Set.of(
-                    "id",
-                    "title",
-                    "displayOrder",
-                    "createdAt"
-            );
+            Set.of("id", "title", "displayOrder", "createdAt");
 
     @Override
+    @Cacheable(
+    	    cacheNames = "publicHospitalGallery",
+    	    key = "#p0 + ':page=' + #p1 + ':size=' + #p2 + ':sort=' + #p3 + ':dir=' + #p4.trim().toLowerCase()",
+    	    unless = "#result == null || #result.data == null"
+    	)
     public ApiResponse<Page<GalleryImageResponse>> getGallery(
             Long hospitalId,
             int page,
@@ -51,38 +52,23 @@ public class PublicHospitalGalleryServiceImpl
             String sortBy,
             String sortDir) {
 
-        validatePagination(
-                page,
-                size,
-                sortBy,
-                sortDir
-        );
-
+        validatePagination(page, size, sortBy, sortDir);
         validateHospital(hospitalId);
 
-        Pageable pageable =
-                createPageable(
-                        page,
-                        size,
-                        sortBy,
-                        sortDir
-                );
+        Pageable pageable = createPageable(
+                page, size, sortBy, sortDir
+        );
 
-        Page<HospitalGallery> galleryPage =
+        Page<GalleryImageResponse> responsePage =
                 galleryRepository
                         .findByHospitalIdAndStatusAndDeletedAtIsNull(
                                 hospitalId,
                                 GalleryStatus.ACTIVE,
                                 pageable
-                        );
+                        )
+                        .map(galleryMapper::toResponse);
 
-        Page<GalleryImageResponse> responsePage =
-                galleryPage.map(
-                        galleryMapper::toResponse
-                );
-
-        return ApiResponse
-                .<Page<GalleryImageResponse>>builder()
+        return ApiResponse.<Page<GalleryImageResponse>>builder()
                 .success(true)
                 .message("Hospital gallery fetched successfully")
                 .data(responsePage)
@@ -90,8 +76,12 @@ public class PublicHospitalGalleryServiceImpl
     }
 
     @Override
-    public ApiResponse<Page<GalleryImageResponse>>
-    getGalleryByCategory(
+    @Cacheable(
+    	    cacheNames = "publicHospitalGalleryByCategory",
+    	    key = "#p0 + ':category=' + #p1 + ':page=' + #p2 + ':size=' + #p3 + ':sort=' + #p4 + ':dir=' + #p5.trim().toLowerCase()",
+    	    unless = "#result == null || #result.data == null"
+    	)
+    public ApiResponse<Page<GalleryImageResponse>> getGalleryByCategory(
             Long hospitalId,
             GalleryCategory category,
             int page,
@@ -99,12 +89,7 @@ public class PublicHospitalGalleryServiceImpl
             String sortBy,
             String sortDir) {
 
-        validatePagination(
-                page,
-                size,
-                sortBy,
-                sortDir
-        );
+        validatePagination(page, size, sortBy, sortDir);
 
         if (category == null) {
             throw new BusinessException(
@@ -114,30 +99,21 @@ public class PublicHospitalGalleryServiceImpl
 
         validateHospital(hospitalId);
 
-        Pageable pageable =
-                createPageable(
-                        page,
-                        size,
-                        sortBy,
-                        sortDir
-                );
+        Pageable pageable = createPageable(
+                page, size, sortBy, sortDir
+        );
 
-        Page<HospitalGallery> galleryPage =
+        Page<GalleryImageResponse> responsePage =
                 galleryRepository
                         .findByHospitalIdAndCategoryAndStatusAndDeletedAtIsNull(
                                 hospitalId,
                                 category,
                                 GalleryStatus.ACTIVE,
                                 pageable
-                        );
+                        )
+                        .map(galleryMapper::toResponse);
 
-        Page<GalleryImageResponse> responsePage =
-                galleryPage.map(
-                        galleryMapper::toResponse
-                );
-
-        return ApiResponse
-                .<Page<GalleryImageResponse>>builder()
+        return ApiResponse.<Page<GalleryImageResponse>>builder()
                 .success(true)
                 .message("Hospital gallery fetched successfully")
                 .data(responsePage)
@@ -145,6 +121,11 @@ public class PublicHospitalGalleryServiceImpl
     }
 
     @Override
+    @Cacheable(
+    	    cacheNames = "publicHospitalGalleryImage",
+    	    key = "#p0 + ':galleryId=' + #p1",
+    	    unless = "#result == null || #result.data == null"
+    	)
     public ApiResponse<GalleryImageResponse> getGalleryImage(
             Long hospitalId,
             Long galleryId) {
@@ -164,18 +145,19 @@ public class PublicHospitalGalleryServiceImpl
                                 )
                         );
 
-        GalleryImageResponse response =
-                galleryMapper.toResponse(gallery);
-
-        return ApiResponse
-                .<GalleryImageResponse>builder()
+        return ApiResponse.<GalleryImageResponse>builder()
                 .success(true)
                 .message("Gallery image fetched successfully")
-                .data(response)
+                .data(galleryMapper.toResponse(gallery))
                 .build();
     }
 
     private void validateHospital(Long hospitalId) {
+        if (hospitalId == null) {
+            throw new BusinessException(
+                    "Hospital ID is required"
+            );
+        }
 
         hospitalRepository
                 .findByIdAndStatusAndDeletedAtIsNull(
@@ -195,15 +177,15 @@ public class PublicHospitalGalleryServiceImpl
             String sortBy,
             String sortDir) {
 
-        Sort sort =
+        Sort.Direction direction =
                 sortDir.trim().equalsIgnoreCase("desc")
-                        ? Sort.by(sortBy).descending()
-                        : Sort.by(sortBy).ascending();
+                        ? Sort.Direction.DESC
+                        : Sort.Direction.ASC;
 
         return PageRequest.of(
                 page,
                 size,
-                sort
+                Sort.by(direction, sortBy)
         );
     }
 
@@ -225,24 +207,16 @@ public class PublicHospitalGalleryServiceImpl
             );
         }
 
-        if (!ALLOWED_SORT_FIELDS.contains(sortBy)) {
+        if (sortBy == null
+                || !ALLOWED_SORT_FIELDS.contains(sortBy)) {
             throw new BusinessException(
                     "Invalid sort field: " + sortBy
             );
         }
 
-        if (sortDir == null) {
-            throw new BusinessException(
-                    "Sort direction is required"
-            );
-        }
-
-        String normalizedSortDir =
-                sortDir.trim().toLowerCase();
-
-        if (!normalizedSortDir.equals("asc")
-                && !normalizedSortDir.equals("desc")) {
-
+        if (sortDir == null
+                || (!sortDir.trim().equalsIgnoreCase("asc")
+                && !sortDir.trim().equalsIgnoreCase("desc"))) {
             throw new BusinessException(
                     "Sort direction must be 'asc' or 'desc'"
             );
