@@ -258,6 +258,8 @@ public class HospitalServiceImpl implements HospitalService {
         Hospital updatedHospital = hospitalRepository.save(hospital);
 
         evictCachesAfterCommit();
+        
+        
 
         log.info(
                 "Hospital status updated: hospitalId={}, status={}",
@@ -329,6 +331,8 @@ public class HospitalServiceImpl implements HospitalService {
         hospitalRepository.save(hospital);
 
         evictCachesAfterCommit();
+        
+        
 
         log.info("Hospital deleted: hospitalId={}", hospitalId);
 
@@ -394,20 +398,27 @@ public class HospitalServiceImpl implements HospitalService {
                 .build();
     }
 
-    private void evictCachesAfterCommit() {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            hospitalCacheService.evictHospitalCaches();
-                            superAdminDashboardCacheService.evictHospitalCounts();
-                        }
+    
+private void evictCachesAfterCommit() {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        hospitalCacheService.evictHospitalCaches();
+                        hospitalCacheService
+                                .evictPublicHospitalGalleryCaches();
+
+                        superAdminDashboardCacheService
+                                .evictHospitalCounts();
                     }
-            );
-        } else {
-            hospitalCacheService.evictHospitalCaches();
-            superAdminDashboardCacheService.evictHospitalCounts();
-        }
+                }
+        );
+    } else {
+        hospitalCacheService.evictHospitalCaches();
+        hospitalCacheService.evictPublicHospitalGalleryCaches();
+        superAdminDashboardCacheService.evictHospitalCounts();
     }
+}
+
 }

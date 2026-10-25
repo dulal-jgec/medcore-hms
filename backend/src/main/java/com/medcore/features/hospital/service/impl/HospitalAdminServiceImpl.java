@@ -29,11 +29,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.cache.annotation.Cacheable;
+import com.medcore.features.hospital.service.HospitalCacheService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class HospitalAdminServiceImpl implements HospitalAdminService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(HospitalAdminServiceImpl.class);
 
     private static final int MAX_INVITATION_ATTEMPTS = 3;
 
@@ -48,23 +55,33 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
     private final EmailOutboxRepository emailOutboxRepository;
     private final IdempotencyService idempotencyService;
     private final PasswordEncoder passwordEncoder;
+    private final HospitalCacheService hospitalCacheService;
+    
+    
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<HospitalProfileResponse> getMyHospitalProfile() {
 
-        Hospital hospital = tenantContextService.getCurrentHospital();
+@Cacheable(
+        cacheNames = "hospitalProfile",
+        keyGenerator = "tenantCacheKeyGenerator"
+)
+@Override
+@Transactional(readOnly = true)
+public ApiResponse<HospitalProfileResponse> getMyHospitalProfile() {
 
-        HospitalProfileResponse response =
-                hospitalMapper.toProfileResponse(hospital);
+    log.info("Executing getMyHospitalProfile() - Redis cache MISS");
 
-        return ApiResponse
-                .<HospitalProfileResponse>builder()
-                .success(true)
-                .message("Hospital profile fetched successfully")
-                .data(response)
-                .build();
-    }
+    Hospital hospital = tenantContextService.getCurrentHospital();
+
+    HospitalProfileResponse response =
+            hospitalMapper.toProfileResponse(hospital);
+
+    return ApiResponse.<HospitalProfileResponse>builder()
+            .success(true)
+            .message("Hospital profile fetched successfully")
+            .data(response)
+            .build();
+}
+
 
     @Override
     public ApiResponse<HospitalProfileResponse> updateMyHospitalProfile(
@@ -79,7 +96,9 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
         hospital.setDescription(request.getDescription());
 
         Hospital updatedHospital = hospitalRepository.save(hospital);
-
+        
+        hospitalCacheService.evictHospitalProfileAfterCommit(hospital.getId());
+        
         HospitalProfileResponse response =
                 hospitalMapper.toProfileResponse(updatedHospital);
 
@@ -106,7 +125,9 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
         hospital.setLogoUrl(logoUrl);
 
         Hospital updatedHospital = hospitalRepository.save(hospital);
-
+        
+        hospitalCacheService.evictHospitalProfileAfterCommit(hospital.getId());
+        
         HospitalProfileResponse response =
                 hospitalMapper.toProfileResponse(updatedHospital);
 
@@ -133,7 +154,9 @@ public class HospitalAdminServiceImpl implements HospitalAdminService {
         hospital.setBannerUrl(bannerUrl);
 
         Hospital updatedHospital = hospitalRepository.save(hospital);
-
+        
+        hospitalCacheService.evictHospitalProfileAfterCommit(hospital.getId());
+        
         HospitalProfileResponse response =
                 hospitalMapper.toProfileResponse(updatedHospital);
 

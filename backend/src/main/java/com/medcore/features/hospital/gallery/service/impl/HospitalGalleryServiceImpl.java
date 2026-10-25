@@ -11,7 +11,8 @@ import com.medcore.features.hospital.gallery.entity.HospitalGallery;
 import com.medcore.features.hospital.gallery.mapper.HospitalGalleryMapper;
 import com.medcore.features.hospital.gallery.repository.HospitalGalleryRepository;
 import com.medcore.features.hospital.gallery.service.HospitalGalleryService;
- import com.medcore.common.storage.FileStorageService;
+import com.medcore.features.hospital.service.HospitalCacheService;
+import com.medcore.common.storage.FileStorageService;
 import com.medcore.common.storage.FileValidationService;
 
 import lombok.RequiredArgsConstructor;
@@ -36,7 +37,8 @@ public class HospitalGalleryServiceImpl
 
     private final FileStorageService fileStorageService;
     private final FileValidationService fileValidationService;
-
+    private final HospitalCacheService hospitalCacheService;
+    
     @Override
     @Transactional
     public ApiResponse<GalleryImageResponse> create(
@@ -69,6 +71,9 @@ public class HospitalGalleryServiceImpl
 
         HospitalGallery savedGallery =
                 galleryRepository.save(gallery);
+        
+        hospitalCacheService
+        .evictPublicHospitalGalleryCachesAfterCommit();
 
         log.info(
                 "Hospital gallery image created: galleryId={}, hospitalId={}",
@@ -155,6 +160,9 @@ public class HospitalGalleryServiceImpl
 
         HospitalGallery updatedGallery =
                 galleryRepository.save(gallery);
+        
+        hospitalCacheService
+        .evictPublicHospitalGalleryCachesAfterCommit();
 
         return ApiResponse
                 .<GalleryImageResponse>builder()
@@ -191,6 +199,9 @@ public class HospitalGalleryServiceImpl
 
         HospitalGallery updatedGallery =
                 galleryRepository.save(gallery);
+        
+        hospitalCacheService
+        .evictPublicHospitalGalleryCachesAfterCommit();
 
         log.info(
                 "Hospital gallery image replaced: galleryId={}, hospitalId={}",
@@ -223,6 +234,9 @@ public class HospitalGalleryServiceImpl
         );
 
         galleryRepository.save(gallery);
+        
+        hospitalCacheService
+        .evictPublicHospitalGalleryCachesAfterCommit();
 
         log.info(
                 "Hospital gallery image deleted: galleryId={}, hospitalId={}",
@@ -236,7 +250,7 @@ public class HospitalGalleryServiceImpl
                 .message("Gallery image deleted successfully")
                 .build();
     }
-
+    
     private HospitalGallery getGallery(
             Long galleryId,
             Long hospitalId
