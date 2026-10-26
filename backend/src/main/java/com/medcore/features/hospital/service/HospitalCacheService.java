@@ -19,6 +19,8 @@ public class HospitalCacheService {
         evictCache("hospitalById");
         evictCache("hospitalSearch");
         evictCache("hospitalProfile");
+        evictCache("publicHospitalList");
+        evictCache("publicHospitalById");
     }
 
     public void evictHospitalProfile(Long hospitalId) {
