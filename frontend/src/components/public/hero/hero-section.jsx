@@ -12,19 +12,12 @@ import {
   Search,
   Sparkles,
   X,
-  AlertTriangle,
-  ServerCrash,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroTrustBadges } from "./hero-trust-badges";
 import { getPublicHospitals } from "@/services/hospital-public.service";
-
-// ⚠️ TOGGLE THIS:
-// Set to `true` when Render backend is down.
-// Set to `false` when backend is back online.
-const IS_BACKEND_DOWN = true;
 
 export function HeroSection() {
   const router = useRouter();
@@ -147,31 +140,11 @@ export function HeroSection() {
               appointments, labs, pharmacy, and billing.
             </p>
 
-            {/* ───── MAINTENANCE NOTICE ───── */}
-            {IS_BACKEND_DOWN && (
-              <div className="mt-6 flex items-start gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 backdrop-blur-md sm:mt-8">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-yellow-500/20 text-yellow-500">
-                  <ServerCrash className="h-5 w-5" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-yellow-500">
-                    Backend Maintenance in Progress
-                  </h3>
-                  <p className="mt-1 text-xs leading-relaxed text-white/80 sm:text-sm">
-                    Our backend servers are currently upgrading. Live data (like
-                    hospital search) will be unavailable for the next{" "}
-                    <b>6-7 days</b>. Feel free to explore the UI, but some
-                    features may not work.
-                  </p>
-                </div>
-              </div>
-            )}
-
             {/* Search */}
             <form
               ref={containerRef}
               onSubmit={submit}
-              className="relative mt-6 max-w-2xl sm:mt-8"
+              className="relative mt-6 max-w-2xl sm:mt-10"
             >
               <div className="flex items-center gap-1.5 rounded-2xl border border-white/20 bg-white/10 p-1.5 shadow-2xl backdrop-blur-xl sm:gap-2 sm:p-2">
                 <Search className="ml-2.5 h-4 w-4 shrink-0 text-white/70 sm:ml-3 sm:h-5 sm:w-5" />
@@ -184,7 +157,6 @@ export function HeroSection() {
                   onFocus={() => setShowResults(true)}
                   placeholder="Search hospitals..."
                   className="h-10 flex-1 border-0 bg-transparent px-1 text-sm text-white placeholder:text-white/60 focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-12 sm:text-base"
-                  disabled={IS_BACKEND_DOWN}
                 />
                 {query && (
                   <button
@@ -199,8 +171,7 @@ export function HeroSection() {
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={IS_BACKEND_DOWN}
-                  className="hidden h-12 shrink-0 bg-brand text-brand-foreground hover:bg-brand/90 disabled:opacity-50 sm:inline-flex"
+                  className="hidden h-12 shrink-0 bg-brand text-brand-foreground hover:bg-brand/90 sm:inline-flex"
                 >
                   Search
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -208,14 +179,13 @@ export function HeroSection() {
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={IS_BACKEND_DOWN}
-                  className="h-10 shrink-0 bg-brand text-brand-foreground hover:bg-brand/90 disabled:opacity-50 sm:hidden"
+                  className="h-10 shrink-0 bg-brand text-brand-foreground hover:bg-brand/90 sm:hidden"
                 >
                   Go
                 </Button>
               </div>
 
-              {showResults && query.trim() && !IS_BACKEND_DOWN && (
+              {showResults && query.trim() && (
                 <div className="absolute left-0 right-0 top-full z-30 mt-2 max-h-[60vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
                   {searching ? (
                     <div className="px-4 py-6 text-center text-sm text-muted-foreground">
@@ -258,7 +228,7 @@ export function HeroSection() {
             </form>
 
             {/* CTAs */}
-            <div className="mt-5 flex flex-col gap-2.5 sm:mt-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            <div className="mt-5 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               <Button
                 asChild
                 size="lg"
