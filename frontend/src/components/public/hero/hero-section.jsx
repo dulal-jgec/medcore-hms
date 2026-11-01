@@ -17,7 +17,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroTrustBadges } from "./hero-trust-badges";
+import { BackendStatusBanner } from "./backend-status-banner"; // ⬅️ Notun Banner Import
 import { getPublicHospitals } from "@/services/hospital-public.service";
+
+// ⚠️ BACKEND DOWN TOGGLE:
+// true = Banner dekhabe ar Search off thakbe (jokhon backend down)
+// false = Normal website (jokhon backend up)
+const IS_BACKEND_DOWN = true;
 
 export function HeroSection() {
   const router = useRouter();
@@ -29,6 +35,8 @@ export function HeroSection() {
   const containerRef = useRef(null);
 
   useEffect(() => {
+    if (IS_BACKEND_DOWN) return; // Backend down thakle data fetch korbe na
+
     let mounted = true;
     async function load() {
       try {
@@ -54,6 +62,7 @@ export function HeroSection() {
   }, []);
 
   useEffect(() => {
+    if (IS_BACKEND_DOWN) return;
     const q = query.trim().toLowerCase();
     if (!q) {
       setResults([]);
@@ -91,12 +100,16 @@ export function HeroSection() {
 
   function submit(e) {
     e.preventDefault();
+    if (IS_BACKEND_DOWN) return;
     if (!query.trim()) return;
     router.push(`/hospitals?q=${encodeURIComponent(query.trim())}`);
   }
 
   return (
     <section className="relative w-full bg-primary-darker text-white">
+      {/* ───── FULL WIDTH BANNER ───── */}
+      {IS_BACKEND_DOWN && <BackendStatusBanner />}
+
       {/* ───── DESKTOP background image (hidden on mobile) ───── */}
       <div className="absolute inset-0 hidden lg:block">
         <Image
@@ -155,10 +168,15 @@ export function HeroSection() {
                     setShowResults(true);
                   }}
                   onFocus={() => setShowResults(true)}
-                  placeholder="Search hospitals..."
-                  className="h-10 flex-1 border-0 bg-transparent px-1 text-sm text-white placeholder:text-white/60 focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-12 sm:text-base"
+                  placeholder={
+                    IS_BACKEND_DOWN
+                      ? "Search disabled (Backend offline)"
+                      : "Search hospitals..."
+                  }
+                  disabled={IS_BACKEND_DOWN} // Search disabled when backend is down
+                  className="h-10 flex-1 border-0 bg-transparent px-1 text-sm text-white placeholder:text-white/60 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50 sm:h-12 sm:text-base"
                 />
-                {query && (
+                {query && !IS_BACKEND_DOWN && (
                   <button
                     type="button"
                     onClick={() => setQuery("")}
@@ -171,7 +189,8 @@ export function HeroSection() {
                 <Button
                   type="submit"
                   size="lg"
-                  className="hidden h-12 shrink-0 bg-brand text-brand-foreground hover:bg-brand/90 sm:inline-flex"
+                  disabled={IS_BACKEND_DOWN}
+                  className="hidden h-12 shrink-0 bg-brand text-brand-foreground hover:bg-brand/90 disabled:opacity-50 sm:inline-flex"
                 >
                   Search
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -179,13 +198,14 @@ export function HeroSection() {
                 <Button
                   type="submit"
                   size="sm"
-                  className="h-10 shrink-0 bg-brand text-brand-foreground hover:bg-brand/90 sm:hidden"
+                  disabled={IS_BACKEND_DOWN}
+                  className="h-10 shrink-0 bg-brand text-brand-foreground hover:bg-brand/90 disabled:opacity-50 sm:hidden"
                 >
                   Go
                 </Button>
               </div>
 
-              {showResults && query.trim() && (
+              {showResults && query.trim() && !IS_BACKEND_DOWN && (
                 <div className="absolute left-0 right-0 top-full z-30 mt-2 max-h-[60vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
                   {searching ? (
                     <div className="px-4 py-6 text-center text-sm text-muted-foreground">
