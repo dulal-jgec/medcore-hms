@@ -1,3 +1,4 @@
+
 package com.medcore.features.department.service.impl;
 
 import com.medcore.common.exception.BusinessException;
@@ -16,13 +17,15 @@ import com.medcore.features.department.entity.Department;
 import com.medcore.features.department.mapper.DepartmentMapper;
 import com.medcore.features.department.repository.DepartmentRepository;
 import com.medcore.features.department.service.DepartmentService;
+import com.medcore.features.department.service.DepartmentCacheService;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.cache.annotation.CacheEvict;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -36,16 +39,22 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @Service
 @RequiredArgsConstructor
-public class DepartmentServiceImpl
-        implements DepartmentService {
+public class DepartmentServiceImpl implements DepartmentService {
 
     private static final Logger log =
             LoggerFactory.getLogger(DepartmentServiceImpl.class);
+
+    private static final int MAX_PAGE_SIZE = 50;
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id",
+            "name",
+            "code",
+            "createdAt",
+            "updatedAt"
+    );
 
     private final DepartmentRepository departmentRepository;
     private final HospitalRepository hospitalRepository;
@@ -53,68 +62,45 @@ public class DepartmentServiceImpl
     private final TenantContextService tenantContextService;
     private final FileStorageService fileStorageService;
     private final FileValidationService fileValidationService;
-    
-    private static final int MAX_PAGE_SIZE = 50;
-
-    private static final Set<String> ALLOWED_SORT_FIELDS =
-            Set.of(
-                    "id",
-                    "name",
-                    "code",
-                    "createdAt",
-                    "updatedAt"
-            );
-
-     
+    private final DepartmentCacheService departmentCacheService;
 
     @Override
     @Transactional
-    @CacheEvict(cacheNames = "departments", allEntries = true)
     public ApiResponse<DepartmentResponse> createDepartment(
             CreateDepartmentRequest request) {
 
         Long hospitalId = getCurrentHospitalId();
 
-        Hospital hospital =
-                hospitalRepository
-                        .findByIdAndDeletedAtIsNull(hospitalId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Hospital not found"
-                                ));
+        Hospital hospital = hospitalRepository
+                .findByIdAndDeletedAtIsNull(hospitalId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Hospital not found"));
+
         if (hospital.getStatus() != HospitalStatus.ACTIVE) {
             throw new BusinessException("Hospital is not active");
         }
-        
 
         String name = request.getName().trim();
         String code = request.getCode().trim().toUpperCase();
 
         if (departmentRepository
                 .existsByHospitalIdAndNameIgnoreCaseAndDeletedAtIsNull(
-                        hospitalId,
-                        name
-                )) {
+                        hospitalId, name)) {
             throw new DuplicateResourceException(
-                    "Department name already exists in this hospital"
-            );
+                    "Department name already exists in this hospital");
         }
 
         if (departmentRepository
                 .existsByHospitalIdAndCodeIgnoreCaseAndDeletedAtIsNull(
-                        hospitalId,
-                        code
-                )) {
+                        hospitalId, code)) {
             throw new DuplicateResourceException(
-                    "Department code already exists in this hospital"
-            );
+                    "Department code already exists in this hospital");
         }
 
-        Department department =
-                departmentMapper.toEntity(request, hospital);
+        Department department = departmentMapper.toEntity(request, hospital);
+        Department savedDepartment = departmentRepository.save(department);
 
-        Department savedDepartment =
-                departmentRepository.save(department);
+        evictDepartmentCachesAfterCommit(hospitalId);
 
         log.info(
                 "Department created: departmentId={}, hospitalId={}, name={}, code={}",
@@ -124,15 +110,12 @@ public class DepartmentServiceImpl
                 savedDepartment.getCode()
         );
 
-        return ApiResponse
-                .<DepartmentResponse>builder()
+        return ApiResponse.<DepartmentResponse>builder()
                 .success(true)
                 .message("Department created successfully")
                 .data(departmentMapper.toResponse(savedDepartment))
                 .build();
     }
-
- 
 
     @Override
     @Transactional(readOnly = true)
@@ -140,24 +123,17 @@ public class DepartmentServiceImpl
             cacheNames = "departments",
             keyGenerator = "tenantCacheKeyGenerator"
     )
-    public ApiResponse<PageResponse<DepartmentResponse>>
-    getAllDepartments(
+    public ApiResponse<PageResponse<DepartmentResponse>> getAllDepartments(
             int page,
             int size,
             String sortBy,
             String sortDir) {
 
         Long hospitalId = getCurrentHospitalId();
+        Pageable pageable = createPageable(page, size, sortBy, sortDir);
 
-        Pageable pageable =
-                createPageable(page, size, sortBy, sortDir);
-
-        Page<Department> departmentPage =
-                departmentRepository
-                        .findByHospitalIdAndDeletedAtIsNull(
-                                hospitalId,
-                                pageable
-                        );
+        Page<Department> departmentPage = departmentRepository
+                .findByHospitalIdAndDeletedAtIsNull(hospitalId, pageable);
 
         return buildPageResponse(
                 departmentPage,
@@ -165,20 +141,15 @@ public class DepartmentServiceImpl
         );
     }
 
-    
-
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<DepartmentResponse> getDepartmentById(
             Long departmentId) {
 
         Long hospitalId = getCurrentHospitalId();
+        Department department = getDepartment(departmentId, hospitalId);
 
-        Department department =
-                getDepartment(departmentId, hospitalId);
-
-        return ApiResponse
-                .<DepartmentResponse>builder()
+        return ApiResponse.<DepartmentResponse>builder()
                 .success(true)
                 .message("Department fetched successfully")
                 .data(departmentMapper.toResponse(department))
@@ -187,15 +158,12 @@ public class DepartmentServiceImpl
 
     @Override
     @Transactional
-    @CacheEvict(cacheNames = "departments", allEntries = true)
     public ApiResponse<DepartmentResponse> updateDepartment(
             Long departmentId,
             UpdateDepartmentRequest request) {
 
         Long hospitalId = getCurrentHospitalId();
-
-        Department department =
-                getDepartment(departmentId, hospitalId);
+        Department department = getDepartment(departmentId, hospitalId);
 
         String newName = request.getName().trim();
         String newCode = request.getCode().trim().toUpperCase();
@@ -203,85 +171,65 @@ public class DepartmentServiceImpl
         if (!department.getName().equalsIgnoreCase(newName)
                 && departmentRepository
                 .existsByHospitalIdAndNameIgnoreCaseAndDeletedAtIsNull(
-                        hospitalId,
-                        newName
-                )) {
+                        hospitalId, newName)) {
             throw new DuplicateResourceException(
-                    "Department name already exists in this hospital"
-            );
+                    "Department name already exists in this hospital");
         }
 
         if (!department.getCode().equalsIgnoreCase(newCode)
                 && departmentRepository
                 .existsByHospitalIdAndCodeIgnoreCaseAndDeletedAtIsNull(
-                        hospitalId,
-                        newCode
-                )) {
+                        hospitalId, newCode)) {
             throw new DuplicateResourceException(
-                    "Department code already exists in this hospital"
-            );
+                    "Department code already exists in this hospital");
         }
 
         departmentMapper.updateEntity(department, request);
+        Department updatedDepartment = departmentRepository.save(department);
 
-        Department updatedDepartment =
-                departmentRepository.save(department);
+        evictDepartmentCachesAfterCommit(hospitalId);
 
         log.info(
                 "Department updated: departmentId={}, hospitalId={}",
-                departmentId,
-                hospitalId
+                departmentId, hospitalId
         );
 
-        return ApiResponse
-                .<DepartmentResponse>builder()
+        return ApiResponse.<DepartmentResponse>builder()
                 .success(true)
                 .message("Department updated successfully")
                 .data(departmentMapper.toResponse(updatedDepartment))
                 .build();
     }
 
- 
-
     @Override
     @Transactional
-    @CacheEvict(cacheNames = "departments", allEntries = true)
     public ApiResponse<DepartmentResponse> updateDepartmentStatus(
             Long departmentId,
             UpdateDepartmentStatusRequest request) {
 
         Long hospitalId = getCurrentHospitalId();
-
-        Department department =
-                getDepartment(departmentId, hospitalId);
+        Department department = getDepartment(departmentId, hospitalId);
 
         if (request.getStatus() == null) {
-            throw new BusinessException(
-                    "Department status is required"
-            );
+            throw new BusinessException("Department status is required");
         }
 
         department.setStatus(request.getStatus());
+        Department updatedDepartment = departmentRepository.save(department);
 
-        Department updatedDepartment =
-                departmentRepository.save(department);
+        evictDepartmentCachesAfterCommit(hospitalId);
 
         log.info(
                 "Department status updated: departmentId={}, hospitalId={}, status={}",
-                departmentId,
-                hospitalId,
-                updatedDepartment.getStatus()
+                departmentId, hospitalId, updatedDepartment.getStatus()
         );
 
-        return ApiResponse
-                .<DepartmentResponse>builder()
+        return ApiResponse.<DepartmentResponse>builder()
                 .success(true)
                 .message("Department status updated successfully")
                 .data(departmentMapper.toResponse(updatedDepartment))
                 .build();
     }
-
-    
 
     @Override
     @Transactional(readOnly = true)
@@ -289,8 +237,7 @@ public class DepartmentServiceImpl
             cacheNames = "departments",
             keyGenerator = "tenantCacheKeyGenerator"
     )
-    public ApiResponse<PageResponse<DepartmentResponse>>
-    searchDepartments(
+    public ApiResponse<PageResponse<DepartmentResponse>> searchDepartments(
             String keyword,
             int page,
             int size) {
@@ -298,24 +245,18 @@ public class DepartmentServiceImpl
         Long hospitalId = getCurrentHospitalId();
 
         if (keyword == null || keyword.trim().isEmpty()) {
-            throw new BusinessException(
-                    "Search keyword is required"
-            );
+            throw new BusinessException("Search keyword is required");
         }
 
-        Pageable pageable =
-                PageRequest.of(
-                        validatePage(page),
-                        validateSize(size)
-                );
+        Pageable pageable = PageRequest.of(
+                validatePage(page),
+                validateSize(size)
+        );
 
-        Page<Department> departmentPage =
-                departmentRepository
-                        .findByHospitalIdAndNameContainingIgnoreCaseAndDeletedAtIsNull(
-                                hospitalId,
-                                keyword.trim(),
-                                pageable
-                        );
+        Page<Department> departmentPage = departmentRepository
+                .findByHospitalIdAndNameContainingIgnoreCaseAndDeletedAtIsNull(
+                        hospitalId, keyword.trim(), pageable
+                );
 
         return buildPageResponse(
                 departmentPage,
@@ -323,181 +264,136 @@ public class DepartmentServiceImpl
         );
     }
 
-     
-
     @Override
     @Transactional
-    @CacheEvict(cacheNames = "departments", allEntries = true)
     public ApiResponse<String> deleteDepartment(Long departmentId) {
 
         Long hospitalId = getCurrentHospitalId();
-
-        Department department =
-                getDepartment(departmentId, hospitalId);
+        Department department = getDepartment(departmentId, hospitalId);
 
         department.setDeletedAt(LocalDateTime.now());
         departmentRepository.save(department);
 
+        evictDepartmentCachesAfterCommit(hospitalId);
+
         log.info(
                 "Department deleted: departmentId={}, hospitalId={}",
-                departmentId,
-                hospitalId
+                departmentId, hospitalId
         );
 
-        return ApiResponse
-                .<String>builder()
+        return ApiResponse.<String>builder()
                 .success(true)
                 .message("Department deleted successfully")
                 .data("Deleted")
                 .build();
     }
 
-    
     @Override
     @Transactional
-    @CacheEvict(cacheNames = "departments", allEntries = true)
     public ApiResponse<String> restoreDepartment(Long departmentId) {
 
         Long hospitalId = getCurrentHospitalId();
 
-        Department department =
-                departmentRepository
-                        .findByIdAndHospitalId(
-                                departmentId,
-                                hospitalId
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Department not found"
-                                )
-                        );
+        Department department = departmentRepository
+                .findByIdAndHospitalId(departmentId, hospitalId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Department not found"));
 
         if (department.getDeletedAt() == null) {
-            throw new BusinessException(
-                    "Department is already active"
-            );
+            throw new BusinessException("Department is already active");
         }
-        
-        boolean nameExists =
-                departmentRepository
-                        .findByHospitalIdAndNameIgnoreCaseAndDeletedAtIsNull(
-                                hospitalId,
-                                department.getName()
-                        )
-                        .isPresent();
+
+        boolean nameExists = departmentRepository
+                .findByHospitalIdAndNameIgnoreCaseAndDeletedAtIsNull(
+                        hospitalId, department.getName())
+                .isPresent();
 
         if (nameExists) {
             throw new BusinessException(
-                    "Cannot restore department. Another active department already uses this name"
-            );
+                    "Cannot restore department. Another active department already uses this name");
         }
 
-        boolean codeExists =
-                departmentRepository
-                        .findByHospitalIdAndCodeIgnoreCaseAndDeletedAtIsNull(
-                                hospitalId,
-                                department.getCode()
-                        )
-                        .isPresent();
+        boolean codeExists = departmentRepository
+                .findByHospitalIdAndCodeIgnoreCaseAndDeletedAtIsNull(
+                        hospitalId, department.getCode())
+                .isPresent();
 
         if (codeExists) {
             throw new BusinessException(
-                    "Cannot restore department. Another active department already uses this code"
-            );
+                    "Cannot restore department. Another active department already uses this code");
         }
 
         department.setDeletedAt(null);
         departmentRepository.save(department);
 
+        evictDepartmentCachesAfterCommit(hospitalId);
+
         log.info(
                 "Department restored: departmentId={}, hospitalId={}",
-                departmentId,
-                hospitalId
+                departmentId, hospitalId
         );
 
-        return ApiResponse
-                .<String>builder()
+        return ApiResponse.<String>builder()
                 .success(true)
                 .message("Department restored successfully")
                 .data("Restored")
                 .build();
     }
 
-     
-    
     @Override
     @Transactional
-    @CacheEvict(
-            cacheNames = "departments",
-            allEntries = true
-    )
     public ApiResponse<DepartmentResponse> uploadDepartmentImage(
             Long departmentId,
             MultipartFile file) {
 
         Long hospitalId = getCurrentHospitalId();
-
-        Department department =
-                getDepartment(departmentId, hospitalId);
+        Department department = getDepartment(departmentId, hospitalId);
 
         fileValidationService.validateImage(file);
 
-        String imageUrl =
-                fileStorageService.upload(
-                        file,
-                        "medcore/departments/"
-                                + department.getId()
-                                + "/image"
-                );
+        String imageUrl = fileStorageService.upload(
+                file,
+                "medcore/departments/" + department.getId() + "/image"
+        );
 
         department.setImageUrl(imageUrl);
+        Department updatedDepartment = departmentRepository.save(department);
 
-        Department updatedDepartment =
-                departmentRepository.save(department);
+        evictDepartmentCachesAfterCommit(hospitalId);
 
         log.info(
                 "Department image uploaded: departmentId={}, hospitalId={}",
-                departmentId,
-                hospitalId
+                departmentId, hospitalId
         );
 
-        return ApiResponse
-                .<DepartmentResponse>builder()
+        return ApiResponse.<DepartmentResponse>builder()
                 .success(true)
                 .message("Department image uploaded successfully")
                 .data(departmentMapper.toResponse(updatedDepartment))
                 .build();
     }
-    
+
+    private void evictDepartmentCachesAfterCommit(Long hospitalId) {
+        departmentCacheService.evictDepartmentCachesAfterCommit(hospitalId);
+    }
 
     private Long getCurrentHospitalId() {
-
-        Long hospitalId =
-                tenantContextService.getCurrentHospitalId();
+        Long hospitalId = tenantContextService.getCurrentHospitalId();
 
         if (hospitalId == null) {
             throw new BusinessException(
-                    "User is not associated with a hospital"
-            );
+                    "User is not associated with a hospital");
         }
 
         return hospitalId;
     }
 
-    private Department getDepartment(
-            Long departmentId,
-            Long hospitalId) {
-
+    private Department getDepartment(Long departmentId, Long hospitalId) {
         return departmentRepository
                 .findByIdAndHospitalIdAndDeletedAtIsNull(
-                        departmentId,
-                        hospitalId
-                )
+                        departmentId, hospitalId)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Department not found"
-                        )
-                );
+                        new ResourceNotFoundException("Department not found"));
     }
 
     private Pageable createPageable(
@@ -510,85 +406,61 @@ public class DepartmentServiceImpl
         int validSize = validateSize(size);
         String validSortBy = validateSortField(sortBy);
 
-        Sort sort =
-                "desc".equalsIgnoreCase(sortDir)
-                        ? Sort.by(validSortBy).descending()
-                        : Sort.by(validSortBy).ascending();
+        Sort sort = "desc".equalsIgnoreCase(sortDir)
+                ? Sort.by(validSortBy).descending()
+                : Sort.by(validSortBy).ascending();
 
         return PageRequest.of(validPage, validSize, sort);
     }
 
     private int validatePage(int page) {
-
         if (page < 0) {
-            throw new BusinessException(
-                    "Page number cannot be negative"
-            );
+            throw new BusinessException("Page number cannot be negative");
         }
-
         return page;
     }
 
     private int validateSize(int size) {
-
         if (size <= 0) {
-            throw new BusinessException(
-                    "Page size must be greater than zero"
-            );
+            throw new BusinessException("Page size must be greater than zero");
         }
-
         if (size > MAX_PAGE_SIZE) {
             throw new BusinessException(
-                    "Page size cannot exceed " + MAX_PAGE_SIZE
-            );
+                    "Page size cannot exceed " + MAX_PAGE_SIZE);
         }
-
         return size;
     }
 
     private String validateSortField(String sortBy) {
-
-        if (sortBy == null
-                || !ALLOWED_SORT_FIELDS.contains(sortBy)) {
-
+        if (sortBy == null || !ALLOWED_SORT_FIELDS.contains(sortBy)) {
             throw new BusinessException("Invalid sort field");
         }
-
         return sortBy;
     }
 
-    private ApiResponse<PageResponse<DepartmentResponse>>
-    buildPageResponse(
+    private ApiResponse<PageResponse<DepartmentResponse>> buildPageResponse(
             Page<Department> departmentPage,
             String message) {
 
-        List<DepartmentResponse> items =
-                departmentPage
-                        .getContent()
-                        .stream()
-                        .map(departmentMapper::toResponse)
-                        .toList();
+        List<DepartmentResponse> items = departmentPage.getContent()
+                .stream()
+                .map(departmentMapper::toResponse)
+                .toList();
 
         PageResponse<DepartmentResponse> response =
-                PageResponse
-                        .<DepartmentResponse>builder()
+                PageResponse.<DepartmentResponse>builder()
                         .items(items)
                         .page(departmentPage.getNumber())
                         .size(departmentPage.getSize())
-                        .totalElements(
-                                departmentPage.getTotalElements()
-                        )
-                        .totalPages(
-                                departmentPage.getTotalPages()
-                        )
+                        .totalElements(departmentPage.getTotalElements())
+                        .totalPages(departmentPage.getTotalPages())
                         .first(departmentPage.isFirst())
                         .last(departmentPage.isLast())
                         .hasNext(departmentPage.hasNext())
                         .hasPrevious(departmentPage.hasPrevious())
                         .build();
 
-        return ApiResponse
-                .<PageResponse<DepartmentResponse>>builder()
+        return ApiResponse.<PageResponse<DepartmentResponse>>builder()
                 .success(true)
                 .message(message)
                 .data(response)

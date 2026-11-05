@@ -14,6 +14,7 @@ import com.medcore.features.department.entity.Department;
 import com.medcore.features.department.enums.DepartmentStatus;
 import com.medcore.features.department.mapper.DepartmentMapper;
 import com.medcore.features.department.repository.DepartmentRepository;
+import com.medcore.features.department.service.DepartmentCacheService;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.enums.HospitalStatus;
 import com.medcore.features.hospital.repository.HospitalRepository;
@@ -52,6 +53,9 @@ class DepartmentServiceImplTest {
 
     @Mock
     private TenantContextService tenantContextService;
+
+    @Mock
+    private DepartmentCacheService departmentCacheService;
 
     @InjectMocks
     private DepartmentServiceImpl departmentService;
