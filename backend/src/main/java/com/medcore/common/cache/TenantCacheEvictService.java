@@ -1,22 +1,23 @@
 package com.medcore.common.cache;
 
 import com.medcore.common.exception.BusinessException;
-import com.medcore.common.security.TenantContextService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class TenantCacheEvictService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final TenantContextService tenantContextService;
+    private final StringRedisTemplate redisTemplate;
 
-    public void evictDepartments() {
-
-        Long hospitalId =
-                tenantContextService.getCurrentHospitalId();
+    public void evictTenantCache(String cacheName, Long hospitalId) {
 
         if (hospitalId == null) {
             throw new BusinessException(
@@ -25,43 +26,35 @@ public class TenantCacheEvictService {
         }
 
         String pattern =
-                "departments::hospital:"
-                        + hospitalId
-                        + ":*";
+                cacheName + "::hospital:" + hospitalId + ":*";
 
-        var keys =
-                redisTemplate
-                        .keys(pattern);
+        redisTemplate.execute((RedisCallback<Void>) connection -> {
 
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
+            try (var cursor = connection.scan(
+                    ScanOptions.scanOptions()
+                            .match(pattern)
+                            .count(500)
+                            .build()
+            )) {
+
+                List<byte[]> batch = new ArrayList<>();
+
+                while (cursor.hasNext()) {
+
+                    batch.add(cursor.next());
+
+                    if (batch.size() >= 500) {
+                        connection.del(batch.toArray(new byte[0][]));
+                        batch.clear();
+                    }
+                }
+
+                if (!batch.isEmpty()) {
+                    connection.del(batch.toArray(new byte[0][]));
+                }
+            }
+
+            return null;
+        });
     }
-    
-    public void evictLabOrders() {
-
-        Long hospitalId =
-                tenantContextService.getCurrentHospitalId();
-
-        if (hospitalId == null) {
-            throw new BusinessException(
-                    "Hospital context is required"
-            );
-        }
-
-        String pattern =
-                "labOrders::hospital:"
-                        + hospitalId
-                        + ":*";
-
-        var keys =
-                redisTemplate.keys(pattern);
-
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
-    }
-    
-
-    
 }
