@@ -46,7 +46,7 @@ export default function CreateHospitalAdminPage() {
 
         if (cancelled) return;
 
-        setHospitals(result.data?.content || []);
+        setHospitals(result.data?.items || []);
       } catch (err) {
         if (!cancelled) {
           setError(err.message || "Failed to load hospitals.");
@@ -81,12 +81,12 @@ export default function CreateHospitalAdminPage() {
     }
 
     const selected = hospitals.find(
-      (h) => String(h.id) === String(formData.hospitalId)
+      (h) => String(h.id) === String(formData.hospitalId),
     );
 
     if (selected && selected.status !== "ACTIVE") {
       setError(
-        `"${selected.name}" is not active. Activate the hospital before assigning an admin.`
+        `"${selected.name}" is not active. Activate the hospital before assigning an admin.`,
       );
       return;
     }
@@ -110,8 +110,7 @@ export default function CreateHospitalAdminPage() {
     }
   }
 
-  const noHospitals =
-    !loadingHospitals && hospitals.length === 0;
+  const noHospitals = !loadingHospitals && hospitals.length === 0;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -227,8 +226,8 @@ export default function CreateHospitalAdminPage() {
                 {loadingHospitals
                   ? "Loading hospitals..."
                   : hospitals.length === 0
-                  ? "No hospitals available"
-                  : "Select a hospital"}
+                    ? "No hospitals available"
+                    : "Select a hospital"}
               </option>
 
               {hospitals.map((hospital) => (
