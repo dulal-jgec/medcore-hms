@@ -35,29 +35,10 @@ import {
 } from "@/services/super-admin.service";
 
 const STAT_CONFIG = [
-  {
-    key: "totalHospitals",
-    label: "Total hospitals",
-    icon: Building2,
-    accent: true,
-  },
-  {
-    key: "activeHospitals",
-    label: "Active",
-    icon: CheckCircle2,
-  },
-  {
-    key: "inactiveHospitals",
-    label: "Inactive",
-    icon: XCircle,
-    muted: true,
-  },
-  {
-    key: "deletedHospitals",
-    label: "Deleted",
-    icon: Trash2,
-    alert: true,
-  },
+  { key: "totalHospitals", label: "Total hospitals", icon: Building2, accent: true },
+  { key: "activeHospitals", label: "Active", icon: CheckCircle2 },
+  { key: "inactiveHospitals", label: "Inactive", icon: XCircle, muted: true },
+  { key: "deletedHospitals", label: "Deleted", icon: Trash2, alert: true },
 ];
 
 export default function SuperAdminPage() {
@@ -71,39 +52,24 @@ export default function SuperAdminPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   
-  // Retry state for waking up server
   const [retryCount, setRetryCount] = useState(0);
   const [isWakingUp, setIsWakingUp] = useState(false);
-
   const [idempotencyKeys, setIdempotencyKeys] = useState({});
 
   useEffect(() => {
     if (!accessToken) return;
-
     let cancelled = false;
-
-    async function fetchData() {
-      return Promise.allSettled([
-        getDashboard(),
-        getAllHospitals(0, 5, "createdAt", "desc"),
-        getAllHospitalAdmins(0, 10),
-      ]);
-    }
 
     async function load() {
       setLoading(true);
       setError("");
       setIsWakingUp(false);
 
-      let results = await fetchData();
-
-      // 🚀 Cold Start Fix: If ALL requests failed, wait 3s and retry once
-      if (results.every((res) => res.status === "rejected")) {
-        if (!cancelled) setIsWakingUp(true);
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        if (cancelled) return;
-        results = await fetchData();
-      }
+      const results = await Promise.allSettled([
+        getDashboard(),
+        getAllHospitals(0, 5, "createdAt", "desc"),
+        getAllHospitalAdmins(0, 10),
+      ]);
 
       if (cancelled) return;
 
@@ -113,36 +79,30 @@ export default function SuperAdminPage() {
       if (statsRes.status === "fulfilled") {
         setStats(statsRes.value?.data ?? null);
       } else {
-        console.error("dashboard failed:", statsRes.reason);
         hasFatalError = true;
       }
 
       if (hospitalsRes.status === "fulfilled") {
-        setRecentHospitals(hospitalsRes.value?.data?.content ?? hospitalsRes.value?.data?.items ?? []);
-      } else {
-        console.error("hospitals failed:", hospitalsRes.reason);
+        const hData = hospitalsRes.value?.data;
+        setRecentHospitals(hData?.items || hData?.content || []);
       }
 
       if (adminsRes.status === "fulfilled") {
-        setRecentAdmins(adminsRes.value?.data?.content ?? adminsRes.value?.data?.items ?? []);
-      } else {
-        console.error("admins failed:", adminsRes.reason);
+        const aData = adminsRes.value?.data;
+        setRecentAdmins(aData?.items || aData?.content || []);
       }
 
       if (hasFatalError) {
-        setError("Unable to connect to the server. It might be waking up. Please click Retry.");
+         setError("Server is taking too long to respond. Please click Retry.");
       }
 
-      setIsWakingUp(false);
       setLoading(false);
     }
 
     load();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, retryCount]); // Added retryCount to dependency array
+    return () => { cancelled = true; };
+  }, [accessToken, retryCount]);
 
   async function handleResendInvitation(userId) {
     try {
@@ -151,22 +111,18 @@ export default function SuperAdminPage() {
       setSuccess("");
 
       const key = idempotencyKeys[userId] || crypto.randomUUID();
-
       if (!idempotencyKeys[userId]) {
-        setIdempotencyKeys((prev) => ({
-          ...prev,
-          [userId]: key,
-        }));
+        setIdempotencyKeys((prev) => ({ ...prev, [userId]: key }));
       }
 
       const response = await resendHospitalAdminInvitation(userId, key);
-
       setSuccess(response?.message || "Invitation email queued successfully.");
 
       const adminsResponse = await getAllHospitalAdmins(0, 10);
-      setRecentAdmins(adminsResponse?.data?.content ?? adminsResponse?.data?.items ?? []);
+      const aData = adminsResponse?.data;
+      setRecentAdmins(aData?.items || aData?.content || []);
+      
     } catch (err) {
-      console.error("resend invitation failed:", err);
       setError(err?.message || "Failed to resend invitation.");
     } finally {
       setResendingId(null);
@@ -175,59 +131,23 @@ export default function SuperAdminPage() {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const today = new Date().toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
 
   const totalHospitals = Number(stats?.totalHospitals ?? 0);
   const activeHospitals = Number(stats?.activeHospitals ?? 0);
-
   const activePercent = totalHospitals > 0 ? Math.round((activeHospitals / totalHospitals) * 100) : 0;
 
-  const pendingAdmins = recentAdmins.filter(
-    (admin) => admin.status === "PENDING_VERIFICATION" && admin.invitationStatus === "EXHAUSTED"
-  );
-
-  const expiredAdmins = recentAdmins.filter(
-    (admin) => admin.status === "INVITATION_EXPIRED"
-  );
-
+  const pendingAdmins = recentAdmins.filter((admin) => admin.status === "PENDING_VERIFICATION" && admin.invitationStatus === "EXHAUSTED");
+  const expiredAdmins = recentAdmins.filter((admin) => admin.status === "INVITATION_EXPIRED");
   const invitationAttentionCount = pendingAdmins.length + expiredAdmins.length;
 
-  if (loading && !isWakingUp) {
-    return <DashboardSkeleton />;
-  }
-
-  // 🚀 Show Waking Up UI
-  if (isWakingUp) {
-    return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-4 text-center">
-        <Loader2 className="h-10 w-10 animate-spin text-brand" />
-        <h2 className="text-xl font-bold tracking-tight">Waking up the server...</h2>
-        <p className="max-w-md text-sm text-muted-foreground">
-          Our backend server is starting up from sleep mode. This usually takes 30-50 seconds. Please wait, we are retrying automatically.
-        </p>
-      </div>
-    );
-  }
+  if (loading) return <DashboardSkeleton />;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <div className="relative overflow-hidden rounded-3xl bg-primary p-6 sm:p-8 lg:p-10">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
-            backgroundSize: "24px 24px",
-          }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-brand/20 blur-3xl"
-        />
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)", backgroundSize: "24px 24px" }} />
+        <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-brand/20 blur-3xl" />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
@@ -243,63 +163,37 @@ export default function SuperAdminPage() {
             </h1>
 
             <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">
-              MedCore platform has{" "}
-              <span className="font-semibold text-primary-foreground">{totalHospitals} hospitals</span>{" "}
-              registered, with{" "}
-              <span className="font-semibold text-primary-foreground">{activeHospitals} currently active</span>.
+              MedCore platform has <span className="font-semibold text-primary-foreground">{totalHospitals} hospitals</span> registered, with <span className="font-semibold text-primary-foreground">{activeHospitals} currently active</span>.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <Button asChild size="lg" className="bg-brand text-brand-foreground hover:bg-brand/90">
-              <Link href="/super-admin/hospitals/create">
-                <Plus className="mr-1.5 h-4 w-4" />
-                Create hospital
-              </Link>
+              <Link href="/super-admin/hospitals/create"><Plus className="mr-1.5 h-4 w-4" />Create hospital</Link>
             </Button>
-
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
-            >
-              <Link href="/super-admin/admins/create">
-                <UserPlus className="mr-1.5 h-4 w-4" />
-                Create admin
-              </Link>
+            <Button asChild size="lg" variant="outline" className="border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground">
+              <Link href="/super-admin/admins/create"><UserPlus className="mr-1.5 h-4 w-4" />Create admin</Link>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* 🚀 Error Banner with Retry Button */}
       {error && (
-        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-6 flex flex-col items-start justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 sm:flex-row sm:items-center">
           <p className="text-sm text-destructive">{error}</p>
-          <Button variant="outline" size="sm" onClick={() => setRetryCount((c) => c + 1)}>
+          <Button variant="outline" size="sm" onClick={() => setRetryCount(c => c + 1)}>
             <RefreshCw className="mr-1.5 h-4 w-4" /> Retry
           </Button>
         </div>
       )}
 
       {success && (
-        <div className="mt-6 rounded-xl border border-brand/30 bg-brand/5 p-4 text-sm text-brand">
-          {success}
-        </div>
+        <div className="mt-6 rounded-xl border border-brand/30 bg-brand/5 p-4 text-sm text-brand">{success}</div>
       )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {STAT_CONFIG.map((item) => (
-          <StatCard
-            key={item.key}
-            icon={item.icon}
-            label={item.label}
-            value={stats?.[item.key] ?? 0}
-            accent={item.accent}
-            muted={item.muted}
-            alert={item.alert}
-          />
+          <StatCard key={item.key} icon={item.icon} label={item.label} value={stats?.[item.key] ?? 0} accent={item.accent} muted={item.muted} alert={item.alert} />
         ))}
       </div>
 
@@ -311,31 +205,18 @@ export default function SuperAdminPage() {
               <p className="mt-0.5 text-xs text-muted-foreground">Hospital status breakdown</p>
             </div>
           </div>
-
           <div className="p-5">
             <div className="flex items-baseline gap-2">
               <p className="text-3xl font-bold tracking-tight">{activePercent}%</p>
               <p className="text-sm text-muted-foreground">of hospitals active</p>
             </div>
-
             <div className="mt-5 h-3 overflow-hidden rounded-full bg-muted">
               <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${activePercent}%` }} />
             </div>
-
             <div className="mt-6 space-y-3">
               <HealthRow label="Active" value={activeHospitals} total={totalHospitals} color="bg-brand" />
-              <HealthRow
-                label="Inactive"
-                value={Number(stats?.inactiveHospitals ?? 0)}
-                total={totalHospitals}
-                color="bg-muted-foreground/40"
-              />
-              <HealthRow
-                label="Deleted"
-                value={Number(stats?.deletedHospitals ?? 0)}
-                total={totalHospitals}
-                color="bg-destructive"
-              />
+              <HealthRow label="Inactive" value={Number(stats?.inactiveHospitals ?? 0)} total={totalHospitals} color="bg-muted-foreground/40" />
+              <HealthRow label="Deleted" value={Number(stats?.deletedHospitals ?? 0)} total={totalHospitals} color="bg-destructive" />
             </div>
           </div>
         </div>
@@ -345,12 +226,11 @@ export default function SuperAdminPage() {
             <h2 className="text-base font-semibold tracking-tight">Quick actions</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Common tasks</p>
           </div>
-
           <div className="p-3">
-            <ActionItem icon={Plus} label="Create hospital" desc="Add a new hospital" href="/super-admin/hospitals/create" accent />
-            <ActionItem icon={UserPlus} label="Create admin" desc="Assign an admin" href="/super-admin/admins/create" />
-            <ActionItem icon={Building2} label="All hospitals" desc="View and manage" href="/super-admin/hospitals" />
-            <ActionItem icon={Users} label="All admins" desc="View administrators" href="/super-admin/admins" />
+            <ActionItem icon={Plus} label="Create hospital" desc="Add a new hospital to the platform" href="/super-admin/hospitals/create" accent />
+            <ActionItem icon={UserPlus} label="Create admin" desc="Assign an admin to a hospital" href="/super-admin/admins/create" />
+            <ActionItem icon={Building2} label="All hospitals" desc="View and manage hospitals" href="/super-admin/hospitals" />
+            <ActionItem icon={Users} label="All admins" desc="View hospital administrators" href="/super-admin/admins" />
           </div>
         </div>
       </div>
@@ -364,7 +244,6 @@ export default function SuperAdminPage() {
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">Hospital admin invitations that need attention</p>
           </div>
-
           <div className="flex items-center gap-2">
             {pendingAdmins.length > 0 && (
               <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
@@ -393,9 +272,7 @@ export default function SuperAdminPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-semibold">{admin.fullName}</p>
-                      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                        Pending
-                      </span>
+                      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Pending</span>
                     </div>
                     <p className="mt-1 truncate text-xs text-muted-foreground">{admin.email}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -404,24 +281,13 @@ export default function SuperAdminPage() {
                     </div>
                   </div>
                 </div>
-
                 {admin.invitationStatus === "EXHAUSTED" && (
-                  <Button
-                    size="sm"
-                    onClick={() => handleResendInvitation(admin.userId)}
-                    disabled={resendingId === admin.userId}
-                    className="shrink-0"
-                  >
-                    {resendingId === admin.userId ? (
-                      <><RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />Sending...</>
-                    ) : (
-                      <><Mail className="mr-1.5 h-4 w-4" />Resend invitation</>
-                    )}
+                  <Button size="sm" onClick={() => handleResendInvitation(admin.userId)} disabled={resendingId === admin.userId} className="shrink-0">
+                    {resendingId === admin.userId ? <><RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />Sending...</> : <><Mail className="mr-1.5 h-4 w-4" />Resend invitation</>}
                   </Button>
                 )}
               </div>
             ))}
-
             {expiredAdmins.map((admin) => (
               <div key={admin.userId} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <div className="flex min-w-0 items-center gap-3">
@@ -431,9 +297,7 @@ export default function SuperAdminPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-semibold">{admin.fullName}</p>
-                      <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
-                        Invitation expired
-                      </span>
+                      <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">Invitation expired</span>
                     </div>
                     <p className="mt-1 truncate text-xs text-muted-foreground">{admin.email}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -442,21 +306,14 @@ export default function SuperAdminPage() {
                     </div>
                   </div>
                 </div>
-
                 <Button asChild size="sm" variant="outline" className="shrink-0">
-                  <Link href="/super-admin/admins/create">
-                    <UserPlus className="mr-1.5 h-4 w-4" />Create new admin
-                  </Link>
+                  <Link href="/super-admin/admins/create"><UserPlus className="mr-1.5 h-4 w-4" />Create new admin</Link>
                 </Button>
               </div>
             ))}
           </div>
         ) : (
-          <EmptyHint
-            icon={CheckCircle2}
-            title="No invitation requires attention"
-            desc="All recently created hospital admin invitations are in a normal state."
-          />
+          <EmptyHint icon={CheckCircle2} title="No invitation requires attention" desc="All recently created hospital admin invitations are in a normal state." />
         )}
       </div>
 
@@ -467,18 +324,13 @@ export default function SuperAdminPage() {
               <Building2 className="h-4 w-4 text-brand" />
               <h2 className="text-base font-semibold tracking-tight">Recently added hospitals</h2>
             </div>
-            <Link href="/super-admin/hospitals" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">
-              View all <ChevronRight className="h-3 w-3" />
-            </Link>
+            <Link href="/super-admin/hospitals" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">View all <ChevronRight className="h-3 w-3" /></Link>
           </div>
-
           {recentHospitals.length > 0 ? (
             <ul className="divide-y divide-border">
               {recentHospitals.map((hospital) => (
                 <li key={hospital.id} className="flex items-center gap-3 p-4 sm:p-5">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-sm font-bold text-brand-soft-foreground">
-                    {hospital.name?.charAt(0) || "H"}
-                  </span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-sm font-bold text-brand-soft-foreground">{hospital.name?.charAt(0) || "H"}</span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{hospital.name}</p>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
@@ -501,31 +353,22 @@ export default function SuperAdminPage() {
               <Users className="h-4 w-4 text-brand" />
               <h2 className="text-base font-semibold tracking-tight">Recently added admins</h2>
             </div>
-            <Link href="/super-admin/admins" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">
-              View all <ChevronRight className="h-3 w-3" />
-            </Link>
+            <Link href="/super-admin/admins" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">View all <ChevronRight className="h-3 w-3" /></Link>
           </div>
-
           {recentAdmins.length > 0 ? (
             <ul className="divide-y divide-border">
               {recentAdmins.map((admin) => (
                 <li key={admin.userId} className="flex items-center gap-3 p-4 sm:p-5">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand-soft-foreground">
-                    {admin.fullName?.charAt(0) || "A"}
-                  </span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand-soft-foreground">{admin.fullName?.charAt(0) || "A"}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-semibold">{admin.fullName}</p>
                       <StatusPill status={admin.status} />
                     </div>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">{admin.email}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      ID: <span className="font-medium text-foreground">{admin.userId}</span>
-                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">ID: <span className="font-medium text-foreground">{admin.userId}</span></p>
                   </div>
-                  <p className="hidden shrink-0 text-xs font-medium text-muted-foreground sm:block">
-                    {admin.hospitalName || "—"}
-                  </p>
+                  <p className="hidden shrink-0 text-xs font-medium text-muted-foreground sm:block">{admin.hospitalName || "—"}</p>
                 </li>
               ))}
             </ul>
@@ -539,14 +382,7 @@ export default function SuperAdminPage() {
 }
 
 function StatCard({ icon: Icon, label, value, accent, muted, alert }) {
-  const iconStyle = alert
-    ? "bg-destructive/10 text-destructive"
-    : accent
-    ? "bg-brand text-brand-foreground"
-    : muted
-    ? "bg-muted text-muted-foreground"
-    : "bg-brand-soft text-brand-soft-foreground";
-
+  const iconStyle = alert ? "bg-destructive/10 text-destructive" : accent ? "bg-brand text-brand-foreground" : muted ? "bg-muted text-muted-foreground" : "bg-brand-soft text-brand-soft-foreground";
   return (
     <div className="rounded-2xl border border-border bg-card p-5 transition-all hover:border-brand/40 hover:shadow-sm">
       <div className="flex items-center justify-between">
@@ -596,12 +432,7 @@ function StatusPill({ status }) {
     INVITATION_EXPIRED: "bg-destructive/10 text-destructive",
     BLOCKED: "bg-destructive/10 text-destructive",
   };
-
-  const labelMap = {
-    PENDING_VERIFICATION: "PENDING",
-    INVITATION_EXPIRED: "EXPIRED",
-  };
-
+  const labelMap = { PENDING_VERIFICATION: "PENDING", INVITATION_EXPIRED: "EXPIRED" };
   return (
     <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", map[status] || map.INACTIVE)}>
       {labelMap[status] || status || "UNKNOWN"}
@@ -627,9 +458,7 @@ function DashboardSkeleton() {
       <div className="animate-pulse space-y-6">
         <div className="h-48 rounded-3xl bg-muted" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-2xl bg-muted" />
-          ))}
+          {[1, 2, 3, 4].map((i) => <div key={i} className="h-32 rounded-2xl bg-muted" />)}
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="h-72 rounded-2xl bg-muted lg:col-span-2" />
