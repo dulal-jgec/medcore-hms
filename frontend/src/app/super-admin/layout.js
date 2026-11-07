@@ -40,6 +40,7 @@ export default function SuperAdminLayout({ children }) {
   }, [initializeAuth, initialized]);
 
   useEffect(() => {
+    // FIX: Wait until initialization is fully complete AND user is loaded
     if (!initialized) return;
 
     if (!isAuthenticated || !user) {
@@ -72,14 +73,12 @@ export default function SuperAdminLayout({ children }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-muted/20">
-      {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 border-r border-border bg-card lg:block">
         <div className="h-full overflow-y-auto">
           <SuperAdminSidebar />
         </div>
       </aside>
 
-      {/* Mobile sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 p-0">
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
@@ -87,13 +86,10 @@ export default function SuperAdminLayout({ children }) {
         </SheetContent>
       </Sheet>
 
-      {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <SuperAdminTopbar onOpenSidebar={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
-
-       
     </div>
   );
 }

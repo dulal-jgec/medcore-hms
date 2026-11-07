@@ -7,7 +7,6 @@ async function handleResponse(response) {
   try {
     result = text ? JSON.parse(text) : {};
   } catch (error) {
-    // Jodi backend 500 error dey ar HTML page pathay, tokhon crash na kore error throw korbe
     throw new Error(`Server error (${response.status}). Please try again later.`);
   }
 

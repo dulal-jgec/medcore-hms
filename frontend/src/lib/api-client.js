@@ -18,9 +18,6 @@ async function performRefresh() {
 
   refreshPromise = (async () => {
     try {
-      // ── Uses the single-flight refresh from auth.service ──
-      // If initializeAuth() is already refreshing, this just
-      // awaits the same promise instead of firing a 2nd request.
       const result = await refreshTokenApi();
       const newToken = result?.data?.accessToken;
 
@@ -64,20 +61,22 @@ export async function apiFetch(path, options = {}) {
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
   const isAuthEndpoint = /\/auth\/(refresh|login|register)/.test(path);
 
-  let response = await fetch(url, {
+  const fetchConfig = {
     ...options,
     headers: buildHeaders(options.headers),
     credentials: "include",
-  });
+    cache: "no-store", // Prevents Next.js from caching the response
+  };
+
+  let response = await fetch(url, fetchConfig);
 
   if ((response.status === 401 || response.status === 403) && !isAuthEndpoint) {
     const newToken = await performRefresh();
 
     if (newToken) {
       response = await fetch(url, {
-        ...options,
+        ...fetchConfig,
         headers: buildHeaders(options.headers),
-        credentials: "include",
       });
     } else {
       forceLogout();
