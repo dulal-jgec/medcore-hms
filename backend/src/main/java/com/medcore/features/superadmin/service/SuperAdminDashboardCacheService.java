@@ -1,4 +1,3 @@
-
 package com.medcore.features.superadmin.service;
 
 import com.medcore.features.hospital.enums.HospitalStatus;
@@ -7,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+
+import java.io.Serializable;
 
 @Service
 @RequiredArgsConstructor
@@ -17,21 +18,17 @@ public class SuperAdminDashboardCacheService {
     @Cacheable(cacheNames = "superAdminDashboard", key = "'hospitalCounts'")
     public HospitalCounts getHospitalCounts() {
 
-        long totalHospitals =
-                hospitalRepository.countByDeletedAtIsNull();
+        long totalHospitals = hospitalRepository.countByDeletedAtIsNull();
 
-        long activeHospitals =
-                hospitalRepository.countByStatusAndDeletedAtIsNull(
-                        HospitalStatus.ACTIVE
-                );
+        long activeHospitals = hospitalRepository.countByStatusAndDeletedAtIsNull(
+                HospitalStatus.ACTIVE
+        );
 
-        long inactiveHospitals =
-                hospitalRepository.countByStatusAndDeletedAtIsNull(
-                        HospitalStatus.INACTIVE
-                );
+        long inactiveHospitals = hospitalRepository.countByStatusAndDeletedAtIsNull(
+                HospitalStatus.INACTIVE
+        );
 
-        long deletedHospitals =
-                hospitalRepository.countByDeletedAtIsNotNull();
+        long deletedHospitals = hospitalRepository.countByDeletedAtIsNotNull();
 
         return new HospitalCounts(
                 totalHospitals,
@@ -46,10 +43,11 @@ public class SuperAdminDashboardCacheService {
         // Spring removes the cached entry.
     }
 
+    // Added 'implements Serializable' to fix the 500 Cache Error
     public record HospitalCounts(
             long totalHospitals,
             long activeHospitals,
             long inactiveHospitals,
             long deletedHospitals
-    ) {}
+    ) implements Serializable {}
 }
