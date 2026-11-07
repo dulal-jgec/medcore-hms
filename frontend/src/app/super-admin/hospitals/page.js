@@ -14,7 +14,7 @@ import {
   AlertCircle,
   ArrowUpRight,
   FileText,
-  Trash2,
+  RefreshCw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,10 @@ export default function SuperAdminHospitalsPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
+  
+  // Retry state for slow backend
+  const [retryCount, setRetryCount] = useState(0);
+  const [isWakingUp, setIsWakingUp] = useState(false);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -48,15 +52,23 @@ export default function SuperAdminHospitalsPage() {
       try {
         setLoading(true);
         setError("");
+        setIsWakingUp(false);
 
         const res = await getAllHospitals(0, 100, "createdAt", "desc");
 
         if (cancelled) return;
-        setHospitals(res.data?.content || []);
+        
+        // ✅ FIX: Handle both `items` and `content` safely
+        const data = res.data?.items || res.data?.content || [];
+        setHospitals(data);
       } catch (err) {
-        if (!cancelled) {
-          setError(err.message || "Failed to load hospitals.");
+        if (cancelled) return;
+        
+        // Agar request timeout hoy (Render cold start)
+        if (err.message?.includes("fetch") || err.status === 500) {
+           setIsWakingUp(true);
         }
+        setError(err.message || "Failed to load hospitals. Server might be waking up.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -67,7 +79,7 @@ export default function SuperAdminHospitalsPage() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [accessToken, retryCount]);
 
   const counts = useMemo(
     () => ({
@@ -102,6 +114,29 @@ export default function SuperAdminHospitalsPage() {
     setStatus("all");
   }
 
+  if (loading && !isWakingUp) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      </div>
+    );
+  }
+
+  if (isWakingUp && hospitals.length === 0) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <Loader2 className="h-10 w-10 animate-spin text-brand" />
+        <h2 className="text-xl font-bold tracking-tight">Waking up the server...</h2>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Our backend server is starting up from sleep mode. This usually takes 30-50 seconds.
+        </p>
+        <Button onClick={() => setRetryCount(c => c + 1)} className="mt-4">
+          <RefreshCw className="mr-2 h-4 w-4" /> Retry Now
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       {/* Header */}
@@ -118,12 +153,17 @@ export default function SuperAdminHospitalsPage() {
           </p>
         </div>
 
-        <Button asChild>
-          <Link href="/super-admin/hospitals/create">
-            <Plus className="mr-1.5 h-4 w-4" />
-            Create hospital
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setRetryCount(c => c + 1)}>
+            <RefreshCw className="mr-1.5 h-4 w-4" /> Refresh
+          </Button>
+          <Button asChild>
+            <Link href="/super-admin/hospitals/create">
+              <Plus className="mr-1.5 h-4 w-4" />
+              Create hospital
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -182,7 +222,7 @@ export default function SuperAdminHospitalsPage() {
       </div>
 
       {/* Error */}
-      {error && (
+      {error && hospitals.length === 0 && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
@@ -190,9 +230,7 @@ export default function SuperAdminHospitalsPage() {
       )}
 
       {/* Content */}
-      {loading ? (
-        <GridSkeleton />
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
       ) : (
         <>
@@ -228,7 +266,6 @@ function HospitalCard({ hospital }) {
               alt={hospital.name || "Hospital logo"}
               className="h-full w-full object-cover"
               onError={(e) => {
-                // If the image fails, hide it and let the letter fallback show
                 e.currentTarget.style.display = "none";
                 const parent = e.currentTarget.parentElement;
                 if (parent && !parent.querySelector("[data-fallback]")) {
@@ -348,31 +385,5 @@ function EmptyState({ hasFilters, onClear }) {
         </Button>
       )}
     </div>
-  );
-}
-
-function GridSkeleton() {
-  return (
-    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div
-          key={i}
-          className="h-64 animate-pulse rounded-2xl border border-border bg-muted/40"
-        />
-      ))}
-    </div>
-  );
-}
-
-/* ══════════ Helpers ══════════ */
-
-function getHospitalLogo(hospital) {
-  if (!hospital) return null;
-  return (
-    hospital.logoUrl ||
-    hospital.logo ||
-    hospital.logoURL ||
-    hospital.profileImageUrl ||
-    null
   );
 }
