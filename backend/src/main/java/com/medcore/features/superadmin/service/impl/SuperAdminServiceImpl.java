@@ -45,6 +45,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -480,66 +481,66 @@ public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
     }
 
     @Override
-    public ApiResponse<Page<CreateHospitalAdminResponse>> getAllHospitalAdmins(
-            int page,
-            int size) {
+public ApiResponse<PageResponse<CreateHospitalAdminResponse>> getAllHospitalAdmins(
+        int page,
+        int size) {
 
-        validateSuperAdmin();
+    validateSuperAdmin();
 
-        if (page < 0) {
-            throw new BusinessException(
-                    "Page must be greater than or equal to 0"
-            );
-        }
-
-        if (size < 1 || size > 100) {
-            throw new BusinessException(
-                    "Page size must be between 1 and 100"
-            );
-        }
-
-        Pageable pageable = PageRequest.of(page, size);
-
-        Page<User> admins =
-                userRepository.findByRoleNameAndDeletedAtIsNull(
-                        RoleName.HOSPITAL_ADMIN,
-                        pageable
-                );
-
-        Page<CreateHospitalAdminResponse> response =
-                admins.map(user -> {
-
-                    EmailOutbox latestInvitation =
-                            emailOutboxRepository
-                                    .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
-                                            user.getId(),
-                                            EmailType.HOSPITAL_ADMIN_CREDENTIALS
-                                    )
-                                    .orElse(null);
-
-                    return CreateHospitalAdminResponse.builder()
-                            .userId(user.getId())
-                            .fullName(user.getFullName())
-                            .email(user.getEmail())
-                            .phone(user.getPhone())
-                            .hospitalId(user.getHospital().getId())
-                            .hospitalName(user.getHospital().getName())
-                            .status(user.getStatus())
-                            .invitationStatus(
-                                    latestInvitation != null
-                                            ? latestInvitation.getStatus()
-                                            : null
-                            )
-                            .build();
-                });
-
-        return ApiResponse
-                .<Page<CreateHospitalAdminResponse>>builder()
-                .success(true)
-                .message("Hospital Admins fetched successfully")
-                .data(response)
-                .build();
+    if (page < 0) {
+        throw new BusinessException("Page must be greater than or equal to 0");
     }
+    if (size < 1 || size > 100) {
+        throw new BusinessException("Page size must be between 1 and 100");
+    }
+
+    Pageable pageable = PageRequest.of(page, size);
+
+    Page<User> admins = userRepository.findByRoleNameAndDeletedAtIsNull(
+            RoleName.HOSPITAL_ADMIN,
+            pageable
+    );
+
+    // Map Spring Page to DTO list
+    List<CreateHospitalAdminResponse> items = admins.getContent().stream().map(user -> {
+        EmailOutbox latestInvitation = emailOutboxRepository
+                .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
+                        user.getId(),
+                        EmailType.HOSPITAL_ADMIN_CREDENTIALS
+                )
+                .orElse(null);
+
+        return CreateHospitalAdminResponse.builder()
+                .userId(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .hospitalId(user.getHospital() != null ? user.getHospital().getId() : null)
+                .hospitalName(user.getHospital() != null ? user.getHospital().getName() : null)
+                .status(user.getStatus())
+                .invitationStatus(latestInvitation != null ? latestInvitation.getStatus() : null)
+                .build();
+    }).toList();
+
+    // Build Custom PageResponse
+    PageResponse<CreateHospitalAdminResponse> pageResponse = PageResponse.<CreateHospitalAdminResponse>builder()
+            .items(items)
+            .page(admins.getNumber())
+            .size(admins.getSize())
+            .totalElements(admins.getTotalElements())
+            .totalPages(admins.getTotalPages())
+            .first(admins.isFirst())
+            .last(admins.isLast())
+            .hasNext(admins.hasNext())
+            .hasPrevious(admins.hasPrevious())
+            .build();
+
+    return ApiResponse.<PageResponse<CreateHospitalAdminResponse>>builder()
+            .success(true)
+            .message("Hospital Admins fetched successfully")
+            .data(pageResponse)
+            .build();
+}
 
     
     private void validateSuperAdmin() {

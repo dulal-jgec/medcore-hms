@@ -52,9 +52,10 @@ public interface SuperAdminService {
     ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
             CreateHospitalAdminRequest request);
 
-    ApiResponse<Page<CreateHospitalAdminResponse>> getAllHospitalAdmins(
+    ApiResponse<PageResponse<CreateHospitalAdminResponse>> getAllHospitalAdmins(
             int page,
-            int size);
+            int size
+    );
 
     ApiResponse<String> resendHospitalAdminInvitation(
             Long userId,

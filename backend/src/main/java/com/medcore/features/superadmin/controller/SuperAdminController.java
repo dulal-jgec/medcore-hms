@@ -104,7 +104,7 @@ public class SuperAdminController {
     }
 
     @GetMapping("/admins")
-    public ApiResponse<Page<CreateHospitalAdminResponse>> getAllHospitalAdmins(
+    public ApiResponse<PageResponse<CreateHospitalAdminResponse>> getAllHospitalAdmins(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return superAdminService.getAllHospitalAdmins(page, size);
