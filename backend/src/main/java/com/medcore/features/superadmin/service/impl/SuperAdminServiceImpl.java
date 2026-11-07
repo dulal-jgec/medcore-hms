@@ -52,7 +52,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SuperAdminServiceImpl implements SuperAdminService {
 
-    
     private final SuperAdminRepository superAdminRepository;
     private final SuperAdminMapper superAdminMapper;
     private final UserRepository userRepository;
@@ -63,140 +62,98 @@ public class SuperAdminServiceImpl implements SuperAdminService {
     private final EmailOutboxService emailOutboxService;
     private final EmailOutboxRepository emailOutboxRepository;
     private final IdempotencyService idempotencyService;
-
     private final SuperAdminDashboardCacheService superAdminDashboardCacheService;
-     
 
     @Override
     public ApiResponse<SuperAdminResponse> getCurrentSuperAdmin() {
-
         User currentUser = getCurrentUser();
 
-        SuperAdmin superAdmin =
-                superAdminRepository
-                        .findByUserIdAndDeletedAtIsNull(
-                                currentUser.getId()
-                        )
-                        .orElseThrow(() ->
-                                new BusinessException(
-                                        "Super Admin profile not found"
-                                )
-                        );
+        SuperAdmin superAdmin = superAdminRepository
+                .findByUserIdAndDeletedAtIsNull(currentUser.getId())
+                .orElseThrow(() -> new BusinessException("Super Admin profile not found"));
 
         if (superAdmin.getStatus() != SuperAdminStatus.ACTIVE) {
-            throw new BusinessException(
-                    "Inactive Super Admin cannot access the system"
-            );
+            throw new BusinessException("Inactive Super Admin cannot access the system");
         }
 
-        SuperAdminResponse response =
-                superAdminMapper.toResponse(superAdmin);
+        SuperAdminResponse response = superAdminMapper.toResponse(superAdmin);
 
-        return ApiResponse
-                .<SuperAdminResponse>builder()
+        return ApiResponse.<SuperAdminResponse>builder()
                 .success(true)
                 .message("Super Admin profile fetched successfully")
                 .data(response)
                 .build();
     }
 
-     
-
-
-@Override
-public ApiResponse<CreateHospitalResponse> createHospital(
-        CreateHospitalRequest request) {
-
-    validateSuperAdmin();
-
-    ApiResponse<CreateHospitalResponse> response =
-            hospitalService.createHospital(request);
-
-    superAdminDashboardCacheService.evictHospitalCounts();
-
-    return response;
-}
-
-
     @Override
-public ApiResponse<PageResponse<CreateHospitalResponse>> getAllHospitals(
-        int page,
-        int size,
-        String sortBy,
-        String sortDir) {
-
-    validateSuperAdmin();
-
-    return hospitalService.getAllHospitals(
-            page,
-            size,
-            sortBy,
-            sortDir
-    );
-}
-
-    @Override
-    public ApiResponse<CreateHospitalResponse> getHospitalById(
-            Long hospitalId) {
-
+    public ApiResponse<CreateHospitalResponse> createHospital(CreateHospitalRequest request) {
         validateSuperAdmin();
 
+        ApiResponse<CreateHospitalResponse> response = hospitalService.createHospital(request);
+        
+        superAdminDashboardCacheService.evictHospitalCounts();
+
+        return response;
+    }
+
+    @Override
+    public ApiResponse<PageResponse<CreateHospitalResponse>> getAllHospitals(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+        validateSuperAdmin();
+
+        return hospitalService.getAllHospitals(page, size, sortBy, sortDir);
+    }
+
+    @Override
+    public ApiResponse<CreateHospitalResponse> getHospitalById(Long hospitalId) {
+        validateSuperAdmin();
         return hospitalService.getHospitalById(hospitalId);
     }
 
     @Override
-public ApiResponse<CreateHospitalResponse> updateHospital(
-        Long hospitalId,
-        UpdateHospitalRequest request) {
+    public ApiResponse<CreateHospitalResponse> updateHospital(
+            Long hospitalId,
+            UpdateHospitalRequest request) {
+        validateSuperAdmin();
 
-    validateSuperAdmin();
+        ApiResponse<CreateHospitalResponse> response = hospitalService.updateHospital(hospitalId, request);
+        
+        superAdminDashboardCacheService.evictHospitalCounts();
 
-    ApiResponse<CreateHospitalResponse> response =
-            hospitalService.updateHospital(hospitalId, request);
-
-    superAdminDashboardCacheService.evictHospitalCounts();
-
-    return response;
-}
+        return response;
+    }
 
     @Override
-public ApiResponse<CreateHospitalResponse> updateHospitalStatus(
-        Long hospitalId,
-        UpdateHospitalStatusRequest request) {
+    public ApiResponse<CreateHospitalResponse> updateHospitalStatus(
+            Long hospitalId,
+            UpdateHospitalStatusRequest request) {
+        validateSuperAdmin();
 
-    validateSuperAdmin();
+        ApiResponse<CreateHospitalResponse> response = hospitalService.updateHospitalStatus(hospitalId, request);
+        
+        superAdminDashboardCacheService.evictHospitalCounts();
 
-    ApiResponse<CreateHospitalResponse> response =
-            hospitalService.updateHospitalStatus(hospitalId, request);
-
-    superAdminDashboardCacheService.evictHospitalCounts();
-
-    return response;
-}
+        return response;
+    }
 
     @Override
-public ApiResponse<PageResponse<CreateHospitalResponse>> searchHospitals(
-        String keyword,
-        int page,
-        int size) {
-
-    validateSuperAdmin();
-
-    return hospitalService.searchHospitals(
-            keyword,
-            page,
-            size
-    );
-}
+    public ApiResponse<PageResponse<CreateHospitalResponse>> searchHospitals(
+            String keyword,
+            int page,
+            int size) {
+        validateSuperAdmin();
+        return hospitalService.searchHospitals(keyword, page, size);
+    }
 
     @Override
     public ApiResponse<String> deleteHospital(Long hospitalId) {
-
         validateSuperAdmin();
 
-        ApiResponse<String> response =
-                hospitalService.deleteHospital(hospitalId);
-
+        ApiResponse<String> response = hospitalService.deleteHospital(hospitalId);
+        
         superAdminDashboardCacheService.evictHospitalCounts();
 
         return response;
@@ -204,65 +161,49 @@ public ApiResponse<PageResponse<CreateHospitalResponse>> searchHospitals(
 
     @Override
     public ApiResponse<String> restoreHospital(Long hospitalId) {
-
         validateSuperAdmin();
 
-        ApiResponse<String> response =
-                hospitalService.restoreHospital(hospitalId);
-
+        ApiResponse<String> response = hospitalService.restoreHospital(hospitalId);
+        
         superAdminDashboardCacheService.evictHospitalCounts();
 
         return response;
     }
 
-     
-    
-@Override
-public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
+    @Override
+    public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
+        // Authorization validation must run on every request.
+        validateSuperAdmin();
 
-    // Authorization validation must run on every request.
-    validateSuperAdmin();
+        SuperAdminDashboardCacheService.HospitalCounts counts = superAdminDashboardCacheService.getHospitalCounts();
 
-    SuperAdminDashboardCacheService.HospitalCounts counts =
-            superAdminDashboardCacheService.getHospitalCounts();
+        // FIX: Using getter methods instead of record accessors (e.g., getTotalHospitals() instead of totalHospitals())
+        SuperAdminDashboardResponse response = SuperAdminDashboardResponse.builder()
+                .totalHospitals(counts.getTotalHospitals())
+                .activeHospitals(counts.getActiveHospitals())
+                .inactiveHospitals(counts.getInactiveHospitals())
+                .deletedHospitals(counts.getDeletedHospitals())
+                .build();
 
-    SuperAdminDashboardResponse response =
-            SuperAdminDashboardResponse.builder()
-                    .totalHospitals(counts.totalHospitals())
-                    .activeHospitals(counts.activeHospitals())
-                    .inactiveHospitals(counts.inactiveHospitals())
-                    .deletedHospitals(counts.deletedHospitals())
-                    .build();
-
-    return ApiResponse
-            .<SuperAdminDashboardResponse>builder()
-            .success(true)
-            .message("Super Admin dashboard fetched successfully")
-            .data(response)
-            .build();
-}
-
+        return ApiResponse.<SuperAdminDashboardResponse>builder()
+                .success(true)
+                .message("Super Admin dashboard fetched successfully")
+                .data(response)
+                .build();
+    }
 
     @Transactional
     @Override
-    public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(
-            CreateHospitalAdminRequest request) {
-
+    public ApiResponse<CreateHospitalAdminResponse> createHospitalAdmin(CreateHospitalAdminRequest request) {
         validateSuperAdmin();
 
         String email = request.getEmail().trim().toLowerCase();
         String phone = request.getPhone().trim();
 
-        Optional<User> pendingUser =
-                userRepository.findByEmailAndStatus(
-                        email,
-                        UserStatus.PENDING_VERIFICATION
-                );
+        Optional<User> pendingUser = userRepository.findByEmailAndStatus(email, UserStatus.PENDING_VERIFICATION);
 
         if (pendingUser.isPresent()) {
-            throw new BusinessException(
-                    "A pending hospital admin invitation already exists for this email. Please resend the invitation."
-            );
+            throw new BusinessException("A pending hospital admin invitation already exists for this email. Please resend the invitation.");
         }
 
         if (userRepository.existsActiveEmail(email)) {
@@ -275,21 +216,14 @@ public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
 
         Hospital hospital = hospitalRepository
                 .findByIdAndDeletedAtIsNull(request.getHospitalId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Hospital not found")
-                );
+                .orElseThrow(() -> new ResourceNotFoundException("Hospital not found"));
 
         if (hospital.getStatus() != HospitalStatus.ACTIVE) {
             throw new BusinessException("Hospital is not active");
         }
 
-        Role hospitalAdminRole =
-                roleRepository.findByName(RoleName.HOSPITAL_ADMIN)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Hospital Admin role not found"
-                                )
-                        );
+        Role hospitalAdminRole = roleRepository.findByName(RoleName.HOSPITAL_ADMIN)
+                .orElseThrow(() -> new ResourceNotFoundException("Hospital Admin role not found"));
 
         String temporaryPassword = generateTemporaryPassword();
 
@@ -341,16 +275,15 @@ public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
                 1
         );
 
-        CreateHospitalAdminResponse response =
-                CreateHospitalAdminResponse.builder()
-                        .userId(savedAdmin.getId())
-                        .fullName(savedAdmin.getFullName())
-                        .email(savedAdmin.getEmail())
-                        .phone(savedAdmin.getPhone())
-                        .hospitalId(hospital.getId())
-                        .hospitalName(hospital.getName())
-                        .status(savedAdmin.getStatus())
-                        .build();
+        CreateHospitalAdminResponse response = CreateHospitalAdminResponse.builder()
+                .userId(savedAdmin.getId())
+                .fullName(savedAdmin.getFullName())
+                .email(savedAdmin.getEmail())
+                .phone(savedAdmin.getPhone())
+                .hospitalId(hospital.getId())
+                .hospitalName(hospital.getName())
+                .status(savedAdmin.getStatus())
+                .build();
 
         return ApiResponse.<CreateHospitalAdminResponse>builder()
                 .success(true)
@@ -361,18 +294,10 @@ public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
 
     @Transactional
     @Override
-    public ApiResponse<String> resendHospitalAdminInvitation(
-            Long userId,
-            String idempotencyKey
-    ) {
-
+    public ApiResponse<String> resendHospitalAdminInvitation(Long userId, String idempotencyKey) {
         validateSuperAdmin();
 
-        boolean created =
-                idempotencyService.create(
-                        idempotencyKey,
-                        "RESEND_HOSPITAL_ADMIN_INVITATION"
-                );
+        boolean created = idempotencyService.create(idempotencyKey, "RESEND_HOSPITAL_ADMIN_INVITATION");
 
         if (!created) {
             return ApiResponse.<String>builder()
@@ -382,61 +307,35 @@ public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
                     .build();
         }
 
-        User hospitalAdmin =
-                userRepository.findById(userId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Hospital Admin not found"
-                                )
-                        );
+        User hospitalAdmin = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Hospital Admin not found"));
 
-        if (hospitalAdmin.getRole() == null
-                || hospitalAdmin.getRole().getName() != RoleName.HOSPITAL_ADMIN) {
-
+        if (hospitalAdmin.getRole() == null || hospitalAdmin.getRole().getName() != RoleName.HOSPITAL_ADMIN) {
             throw new BusinessException("User is not a Hospital Admin");
         }
 
         if (hospitalAdmin.getStatus() != UserStatus.PENDING_VERIFICATION) {
-            throw new BusinessException(
-                    "Hospital Admin invitation is not pending"
-            );
+            throw new BusinessException("Hospital Admin invitation is not pending");
         }
 
         EmailType emailType = EmailType.HOSPITAL_ADMIN_CREDENTIALS;
 
-        EmailOutbox latestInvitation =
-                emailOutboxRepository
-                        .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
-                                userId,
-                                emailType
-                        )
-                        .orElseThrow(() ->
-                                new BusinessException(
-                                        "Invitation record not found"
-                                )
-                        );
+        EmailOutbox latestInvitation = emailOutboxRepository
+                .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(userId, emailType)
+                .orElseThrow(() -> new BusinessException("Invitation record not found"));
 
         if (latestInvitation.getStatus() != EmailOutboxStatus.EXHAUSTED) {
-            throw new BusinessException(
-                    "Current invitation is still being processed. Please wait."
-            );
+            throw new BusinessException("Current invitation is still being processed. Please wait.");
         }
 
-        int invitationAttempt =
-                latestInvitation.getInvitationAttempt() + 1;
+        int invitationAttempt = latestInvitation.getInvitationAttempt() + 1;
 
         if (invitationAttempt > 3) {
-            throw new BusinessException(
-                    "Maximum invitation attempts reached"
-            );
+            throw new BusinessException("Maximum invitation attempts reached");
         }
 
         String temporaryPassword = generateTemporaryPassword();
-
-        hospitalAdmin.setPassword(
-                passwordEncoder.encode(temporaryPassword)
-        );
-
+        hospitalAdmin.setPassword(passwordEncoder.encode(temporaryPassword));
         userRepository.save(hospitalAdmin);
 
         String emailBody = """
@@ -481,105 +380,77 @@ public ApiResponse<SuperAdminDashboardResponse> getDashboard() {
     }
 
     @Override
-public ApiResponse<PageResponse<CreateHospitalAdminResponse>> getAllHospitalAdmins(
-        int page,
-        int size) {
+    public ApiResponse<PageResponse<CreateHospitalAdminResponse>> getAllHospitalAdmins(int page, int size) {
+        validateSuperAdmin();
 
-    validateSuperAdmin();
+        if (page < 0) {
+            throw new BusinessException("Page must be greater than or equal to 0");
+        }
+        if (size < 1 || size > 100) {
+            throw new BusinessException("Page size must be between 1 and 100");
+        }
 
-    if (page < 0) {
-        throw new BusinessException("Page must be greater than or equal to 0");
-    }
-    if (size < 1 || size > 100) {
-        throw new BusinessException("Page size must be between 1 and 100");
-    }
+        Pageable pageable = PageRequest.of(page, size);
+        Page<User> admins = userRepository.findByRoleNameAndDeletedAtIsNull(RoleName.HOSPITAL_ADMIN, pageable);
 
-    Pageable pageable = PageRequest.of(page, size);
+        List<CreateHospitalAdminResponse> items = admins.getContent().stream().map(user -> {
+            EmailOutbox latestInvitation = emailOutboxRepository
+                    .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
+                            user.getId(),
+                            EmailType.HOSPITAL_ADMIN_CREDENTIALS
+                    )
+                    .orElse(null);
 
-    Page<User> admins = userRepository.findByRoleNameAndDeletedAtIsNull(
-            RoleName.HOSPITAL_ADMIN,
-            pageable
-    );
+            return CreateHospitalAdminResponse.builder()
+                    .userId(user.getId())
+                    .fullName(user.getFullName())
+                    .email(user.getEmail())
+                    .phone(user.getPhone())
+                    .hospitalId(user.getHospital() != null ? user.getHospital().getId() : null)
+                    .hospitalName(user.getHospital() != null ? user.getHospital().getName() : null)
+                    .status(user.getStatus())
+                    .invitationStatus(latestInvitation != null ? latestInvitation.getStatus() : null)
+                    .build();
+        }).toList();
 
-    // Map Spring Page to DTO list
-    List<CreateHospitalAdminResponse> items = admins.getContent().stream().map(user -> {
-        EmailOutbox latestInvitation = emailOutboxRepository
-                .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
-                        user.getId(),
-                        EmailType.HOSPITAL_ADMIN_CREDENTIALS
-                )
-                .orElse(null);
-
-        return CreateHospitalAdminResponse.builder()
-                .userId(user.getId())
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                .phone(user.getPhone())
-                .hospitalId(user.getHospital() != null ? user.getHospital().getId() : null)
-                .hospitalName(user.getHospital() != null ? user.getHospital().getName() : null)
-                .status(user.getStatus())
-                .invitationStatus(latestInvitation != null ? latestInvitation.getStatus() : null)
+        PageResponse<CreateHospitalAdminResponse> pageResponse = PageResponse.<CreateHospitalAdminResponse>builder()
+                .items(items)
+                .page(admins.getNumber())
+                .size(admins.getSize())
+                .totalElements(admins.getTotalElements())
+                .totalPages(admins.getTotalPages())
+                .first(admins.isFirst())
+                .last(admins.isLast())
+                .hasNext(admins.hasNext())
+                .hasPrevious(admins.hasPrevious())
                 .build();
-    }).toList();
 
-    // Build Custom PageResponse
-    PageResponse<CreateHospitalAdminResponse> pageResponse = PageResponse.<CreateHospitalAdminResponse>builder()
-            .items(items)
-            .page(admins.getNumber())
-            .size(admins.getSize())
-            .totalElements(admins.getTotalElements())
-            .totalPages(admins.getTotalPages())
-            .first(admins.isFirst())
-            .last(admins.isLast())
-            .hasNext(admins.hasNext())
-            .hasPrevious(admins.hasPrevious())
-            .build();
+        return ApiResponse.<PageResponse<CreateHospitalAdminResponse>>builder()
+                .success(true)
+                .message("Hospital Admins fetched successfully")
+                .data(pageResponse)
+                .build();
+    }
 
-    return ApiResponse.<PageResponse<CreateHospitalAdminResponse>>builder()
-            .success(true)
-            .message("Hospital Admins fetched successfully")
-            .data(pageResponse)
-            .build();
-}
-
-    
     private void validateSuperAdmin() {
-
         User currentUser = getCurrentUser();
 
-        SuperAdmin superAdmin =
-                superAdminRepository
-                        .findByUserIdAndDeletedAtIsNull(
-                                currentUser.getId()
-                        )
-                        .orElseThrow(() ->
-                                new BusinessException(
-                                        "Super Admin profile not found"
-                                )
-                        );
+        SuperAdmin superAdmin = superAdminRepository
+                .findByUserIdAndDeletedAtIsNull(currentUser.getId())
+                .orElseThrow(() -> new BusinessException("Super Admin profile not found"));
 
         if (superAdmin.getStatus() != SuperAdminStatus.ACTIVE) {
-            throw new BusinessException(
-                    "Inactive Super Admin cannot perform this action"
-            );
+            throw new BusinessException("Inactive Super Admin cannot perform this action");
         }
     }
 
     private User getCurrentUser() {
-
         String username = SecurityUtil.getCurrentUsername();
-
-        return userRepository
-                .findByEmail(username)
-                .orElseThrow(() ->
-                        new BusinessException("User not found")
-                );
+        return userRepository.findByEmail(username)
+                .orElseThrow(() -> new BusinessException("User not found"));
     }
 
     private String generateTemporaryPassword() {
-        return "Temp@" +
-                java.util.UUID.randomUUID()
-                        .toString()
-                        .substring(0, 8);
+        return "Temp@" + java.util.UUID.randomUUID().toString().substring(0, 8);
     }
 }
