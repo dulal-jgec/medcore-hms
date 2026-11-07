@@ -1,10 +1,22 @@
 import { apiFetch } from "@/lib/api-client";
 
 async function handleResponse(response) {
-  const result = await response.json();
+  const text = await response.text();
+  let result = {};
 
-  if (!response.ok) {
-    throw new Error(result.message || "Something went wrong");
+  try {
+    result = text ? JSON.parse(text) : {};
+  } catch (error) {
+    // Jodi backend 500 error dey ar HTML page pathay, tokhon crash na kore error throw korbe
+    throw new Error(`Server error (${response.status}). Please try again later.`);
+  }
+
+  if (!response.ok || result.success === false) {
+    const message = 
+      result.message || 
+      result.error || 
+      `Request failed with status ${response.status}`;
+    throw new Error(message);
   }
 
   return result;
@@ -32,6 +44,13 @@ export async function getAllHospitals(
     `/super-admin/hospitals?${params.toString()}`
   );
 
+  return handleResponse(response);
+}
+
+export async function getHospitalById(hospitalId) {
+  const response = await apiFetch(
+    `/super-admin/hospitals/${hospitalId}`
+  );
   return handleResponse(response);
 }
 
@@ -68,7 +87,6 @@ export async function createHospitalAdmin(data) {
   return handleResponse(response);
 }
 
-
 export async function resendHospitalAdminInvitation(
   userId,
   idempotencyKey
@@ -83,12 +101,5 @@ export async function resendHospitalAdminInvitation(
     }
   );
 
-  return handleResponse(response);
-}
-
-export async function getHospitalById(hospitalId) {
-  const response = await apiFetch(
-    `/super-admin/hospitals/${hospitalId}`
-  );
   return handleResponse(response);
 }
