@@ -38,10 +38,7 @@ export default function SuperAdminHospitalsPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
-  
-  // Retry state for slow backend
   const [retryCount, setRetryCount] = useState(0);
-  const [isWakingUp, setIsWakingUp] = useState(false);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -52,23 +49,17 @@ export default function SuperAdminHospitalsPage() {
       try {
         setLoading(true);
         setError("");
-        setIsWakingUp(false);
 
         const res = await getAllHospitals(0, 100, "createdAt", "desc");
 
         if (cancelled) return;
         
-        // ✅ FIX: Handle both `items` and `content` safely
         const data = res.data?.items || res.data?.content || [];
         setHospitals(data);
       } catch (err) {
-        if (cancelled) return;
-        
-        // Agar request timeout hoy (Render cold start)
-        if (err.message?.includes("fetch") || err.status === 500) {
-           setIsWakingUp(true);
+        if (!cancelled) {
+          setError(err.message || "Failed to load hospitals.");
         }
-        setError(err.message || "Failed to load hospitals. Server might be waking up.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -112,29 +103,6 @@ export default function SuperAdminHospitalsPage() {
   function clearFilters() {
     setQuery("");
     setStatus("all");
-  }
-
-  if (loading && !isWakingUp) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
-      </div>
-    );
-  }
-
-  if (isWakingUp && hospitals.length === 0) {
-    return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-4 text-center">
-        <Loader2 className="h-10 w-10 animate-spin text-brand" />
-        <h2 className="text-xl font-bold tracking-tight">Waking up the server...</h2>
-        <p className="max-w-md text-sm text-muted-foreground">
-          Our backend server is starting up from sleep mode. This usually takes 30-50 seconds.
-        </p>
-        <Button onClick={() => setRetryCount(c => c + 1)} className="mt-4">
-          <RefreshCw className="mr-2 h-4 w-4" /> Retry Now
-        </Button>
-      </div>
-    );
   }
 
   return (
@@ -230,7 +198,9 @@ export default function SuperAdminHospitalsPage() {
       )}
 
       {/* Content */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <GridSkeleton />
+      ) : filtered.length === 0 ? (
         <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
       ) : (
         <>
@@ -260,22 +230,10 @@ function HospitalCard({ hospital }) {
         {/* Logo / fallback avatar */}
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-brand text-lg font-bold text-brand-foreground">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoUrl}
               alt={hospital.name || "Hospital logo"}
               className="h-full w-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                const parent = e.currentTarget.parentElement;
-                if (parent && !parent.querySelector("[data-fallback]")) {
-                  const span = document.createElement("span");
-                  span.dataset.fallback = "true";
-                  span.textContent =
-                    hospital.name?.charAt(0)?.toUpperCase() || "H";
-                  parent.appendChild(span);
-                }
-              }}
             />
           ) : (
             <span>{hospital.name?.charAt(0)?.toUpperCase() || "H"}</span>
@@ -385,5 +343,31 @@ function EmptyState({ hasFilters, onClear }) {
         </Button>
       )}
     </div>
+  );
+}
+
+function GridSkeleton() {
+  return (
+    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div
+          key={i}
+          className="h-64 animate-pulse rounded-2xl border border-border bg-muted/40"
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ══════════ Helpers ══════════ */
+
+function getHospitalLogo(hospital) {
+  if (!hospital) return null;
+  return (
+    hospital.logoUrl ||
+    hospital.logo ||
+    hospital.logoURL ||
+    hospital.profileImageUrl ||
+    null
   );
 }
