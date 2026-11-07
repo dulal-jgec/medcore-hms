@@ -1,4 +1,3 @@
-
 package com.medcore.features.superadmin.controller;
 
 import com.medcore.common.response.ApiResponse;
@@ -16,7 +15,6 @@ import com.medcore.features.superadmin.service.SuperAdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
