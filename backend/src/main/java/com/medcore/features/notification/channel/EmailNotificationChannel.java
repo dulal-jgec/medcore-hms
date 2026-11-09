@@ -1,11 +1,10 @@
 package com.medcore.features.notification.channel;
 
+import com.medcore.features.notification.service.EmailService;
 import com.medcore.features.user.entity.User;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -13,7 +12,7 @@ import org.springframework.stereotype.Service;
 public class EmailNotificationChannel
         implements NotificationChannelService {
 
-    private final JavaMailSender mailSender;
+    private final EmailService emailService;
 
     @Override
     public void send(
@@ -21,13 +20,11 @@ public class EmailNotificationChannel
             String title,
             String message) {
 
-        SimpleMailMessage mail =
-                new SimpleMailMessage();
-
-        mail.setTo(recipient.getEmail());
-        mail.setSubject(title);
-        mail.setText(message);
-
-        mailSender.send(mail);
+        // Delegate the sending logic to the centralized EmailService
+        emailService.send(
+                recipient.getEmail(),
+                title,
+                message
+        );
     }
 }
