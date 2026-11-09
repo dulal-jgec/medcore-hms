@@ -20,7 +20,6 @@ import {
   Clock3,
   AlertTriangle,
   RefreshCw,
-  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -53,7 +52,6 @@ export default function SuperAdminPage() {
   const [success, setSuccess] = useState("");
   
   const [retryCount, setRetryCount] = useState(0);
-  const [isWakingUp, setIsWakingUp] = useState(false);
   const [idempotencyKeys, setIdempotencyKeys] = useState({});
 
   useEffect(() => {
@@ -63,7 +61,6 @@ export default function SuperAdminPage() {
     async function load() {
       setLoading(true);
       setError("");
-      setIsWakingUp(false);
 
       const results = await Promise.allSettled([
         getDashboard(),
@@ -425,7 +422,7 @@ function ActionItem({ icon: Icon, label, desc, href, accent }) {
 
 function StatusPill({ status }) {
   const map = {
-    ACTIVE: "bg-brand-soft text-brand-soft-foreground",
+    ACTIVE: "bg-green-500/10 text-green-600 dark:text-green-400",
     INACTIVE: "bg-muted text-muted-foreground",
     DELETED: "bg-destructive/10 text-destructive",
     PENDING_VERIFICATION: "bg-amber-500/10 text-amber-600 dark:text-amber-400",

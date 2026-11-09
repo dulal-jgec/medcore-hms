@@ -53,17 +53,13 @@ export default function SuperAdminAdminsPage() {
 
         if (cancelled) return;
 
-        const allAdmins = result.data?.content || [];
+        // Handle both 'items' (custom PageResponse) and 'content' (Spring Page)
+        const allAdmins = result.data?.items || result.data?.content || [];
 
-        const activeAdmins = allAdmins.filter(
-          (admin) => admin.status === "ACTIVE"
-        );
-
-        setAdmins(activeAdmins);
+        // Removed the filter so ALL admins (Active, Pending, Expired) show up
+        setAdmins(allAdmins);
         setTotalPages(result.data?.totalPages || 0);
-        setTotalElements(
-          result.data?.totalElements || 0
-        );
+        setTotalElements(result.data?.totalElements || 0);
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -93,15 +89,9 @@ export default function SuperAdminAdminsPage() {
 
     return admins.filter(
       (admin) =>
-        admin.fullName
-          ?.toLowerCase()
-          .includes(q) ||
-        admin.email
-          ?.toLowerCase()
-          .includes(q) ||
-        admin.hospitalName
-          ?.toLowerCase()
-          .includes(q)
+        admin.fullName?.toLowerCase().includes(q) ||
+        admin.email?.toLowerCase().includes(q) ||
+        admin.hospitalName?.toLowerCase().includes(q)
     );
   }, [admins, query]);
 
@@ -216,9 +206,7 @@ function AdminCard({ admin }) {
               {admin.fullName}
             </h3>
 
-            <span className="shrink-0 rounded-full bg-green-500/10 px-2 py-1 text-[10px] font-semibold text-green-600">
-              Active
-            </span>
+            <StatusPill status={admin.status} />
           </div>
 
           <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
@@ -264,12 +252,24 @@ function AdminCard({ admin }) {
   );
 }
 
-function Pagination({
-  page,
-  totalPages,
-  onPrevious,
-  onNext,
-}) {
+function StatusPill({ status }) {
+  const map = {
+    ACTIVE: "bg-green-500/10 text-green-600 dark:text-green-400",
+    INACTIVE: "bg-muted text-muted-foreground",
+    DELETED: "bg-destructive/10 text-destructive",
+    PENDING_VERIFICATION: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    INVITATION_EXPIRED: "bg-destructive/10 text-destructive",
+    BLOCKED: "bg-destructive/10 text-destructive",
+  };
+  const labelMap = { PENDING_VERIFICATION: "PENDING", INVITATION_EXPIRED: "EXPIRED" };
+  return (
+    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", map[status] || map.INACTIVE)}>
+      {labelMap[status] || status || "UNKNOWN"}
+    </span>
+  );
+}
+
+function Pagination({ page, totalPages, onPrevious, onNext }) {
   return (
     <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
       <p className="text-xs text-muted-foreground">
@@ -301,10 +301,7 @@ function Pagination({
   );
 }
 
-function EmptyState({
-  hasFilters,
-  onClear,
-}) {
+function EmptyState({ hasFilters, onClear }) {
   return (
     <div className="rounded-2xl border border-dashed border-border py-16 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
@@ -312,23 +309,17 @@ function EmptyState({
       </div>
 
       <p className="mt-5 text-base font-semibold">
-        {hasFilters
-          ? "No admins found"
-          : "No active admins yet"}
+        {hasFilters ? "No admins found" : "No admins yet"}
       </p>
 
       <p className="mt-1.5 text-sm text-muted-foreground">
         {hasFilters
           ? "Try adjusting your search."
-          : "There are currently no active hospital administrators."}
+          : "There are currently no hospital administrators."}
       </p>
 
       {hasFilters && (
-        <Button
-          variant="outline"
-          onClick={onClear}
-          className="mt-5"
-        >
+        <Button variant="outline" onClick={onClear} className="mt-5">
           Clear search
         </Button>
       )}
@@ -340,10 +331,7 @@ function GridSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div
-          key={i}
-          className="h-44 animate-pulse rounded-2xl bg-muted"
-        />
+        <div key={i} className="h-44 animate-pulse rounded-2xl bg-muted" />
       ))}
     </div>
   );
