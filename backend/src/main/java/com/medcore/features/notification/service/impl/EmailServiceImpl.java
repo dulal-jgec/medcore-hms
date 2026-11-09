@@ -13,10 +13,10 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${spring.mail.username}")
+    // Updated to use the custom property defined in application.yml
+    @Value("${app.mail.from}")
     private String fromEmail;
-    	
-   
+
     @Override
     public void send(
             String recipient,
@@ -33,7 +33,6 @@ public class EmailServiceImpl implements EmailService {
 
         mailSender.send(message);
     }
-    
     
     @Override
     public void sendHospitalAdminCredentials(
@@ -222,6 +221,7 @@ public class EmailServiceImpl implements EmailService {
 
         mailSender.send(message);
     }
+    
     @Override
     public void sendReceptionistCredentials(
             String email,
@@ -269,5 +269,4 @@ public class EmailServiceImpl implements EmailService {
 
         mailSender.send(message);
     }
-    
 }
