@@ -1,56 +1,62 @@
 package com.medcore.features.notification.service.impl;
 
 import com.medcore.features.notification.service.EmailService;
+import com.sendgrid.Method;
+import com.sendgrid.Request;
+import com.sendgrid.Response;
+import com.sendgrid.SendGrid;
+import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Content;
+import com.sendgrid.helpers.mail.objects.Email;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmailServiceImpl implements EmailService {
 
-    private final JavaMailSender mailSender;
+    @Value("${sendgrid.api-key}")
+    private String sendgridApiKey;
 
-    // Updated to use the custom property defined in application.yml
     @Value("${app.mail.from}")
     private String fromEmail;
 
     @Override
-    public void send(
-            String recipient,
-            String subject,
-            String body) {
+    public void send(String recipient, String subject, String body) {
+        Email from = new Email(fromEmail);
+        Email to = new Email(recipient);
+        Content content = new Content("text/plain", body);
+        Mail mail = new Mail(from, subject, to, content);
 
-        SimpleMailMessage message =
-                new SimpleMailMessage();
+        SendGrid sg = new SendGrid(sendgridApiKey);
+        Request request = new Request();
+        
+        try {
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+            Response response = sg.api(request);
 
-        message.setFrom(fromEmail);
-        message.setTo(recipient);
-        message.setSubject(subject);
-        message.setText(body);
-
-        mailSender.send(message);
+            if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+                log.info("Email sent successfully via SendGrid API. Status Code: {}", response.getStatusCode());
+            } else {
+                log.error("Failed to send email via SendGrid API. Status Code: {}, Body: {}", response.getStatusCode(), response.getBody());
+                throw new RuntimeException("Failed to send email via SendGrid API");
+            }
+        } catch (IOException ex) {
+            log.error("IOException while sending email via SendGrid API", ex);
+            throw new RuntimeException("Failed to send email via SendGrid API", ex);
+        }
     }
-    
+
     @Override
-    public void sendHospitalAdminCredentials(
-            String email,
-            String fullName,
-            String temporaryPassword,
-            String hospitalName) {
-
-        SimpleMailMessage message =
-                new SimpleMailMessage();
-
-        message.setFrom(fromEmail);
-        message.setTo(email);
-        message.setSubject(
-                "Your MedCore Hospital Admin Account"
-        );
-
-        message.setText("""
+    public void sendHospitalAdminCredentials(String email, String fullName, String temporaryPassword, String hospitalName) {
+        String body = """
                 Welcome to MedCore
 
                 Hello %s,
@@ -68,34 +74,14 @@ public class EmailServiceImpl implements EmailService {
 
                 Regards,
                 MedCore Team
-                """.formatted(
-                fullName,
-                hospitalName,
-                email,
-                temporaryPassword
-        ));
+                """.formatted(fullName, hospitalName, email, temporaryPassword);
 
-        mailSender.send(message);
+        send(email, "Your MedCore Hospital Admin Account", body);
     }
-    
+
     @Override
-    public void sendDoctorCredentials(
-            String email,
-            String fullName,
-            String temporaryPassword,
-            String hospitalName) {
-
-        SimpleMailMessage message =
-                new SimpleMailMessage();
-
-        message.setFrom(fromEmail);
-        message.setTo(email);
-
-        message.setSubject(
-                "Welcome to MedCore - Doctor Account Created"
-        );
-
-        message.setText("""
+    public void sendDoctorCredentials(String email, String fullName, String temporaryPassword, String hospitalName) {
+        String body = """
                 Welcome to MedCore
 
                 Dear Dr. %s,
@@ -116,34 +102,14 @@ public class EmailServiceImpl implements EmailService {
 
                 Regards,
                 MedCore Team
-                """.formatted(
-                fullName,
-                hospitalName,
-                email,
-                temporaryPassword
-        ));
+                """.formatted(fullName, hospitalName, email, temporaryPassword);
 
-        mailSender.send(message);
+        send(email, "Welcome to MedCore - Doctor Account Created", body);
     }
-    
+
     @Override
-    public void sendNurseCredentials(
-            String email,
-            String fullName,
-            String temporaryPassword,
-            String hospitalName) {
-
-        SimpleMailMessage message =
-                new SimpleMailMessage();
-
-        message.setFrom(fromEmail);
-        message.setTo(email);
-
-        message.setSubject(
-                "Welcome to MedCore - Nurse Account Created"
-        );
-
-        message.setText("""
+    public void sendNurseCredentials(String email, String fullName, String temporaryPassword, String hospitalName) {
+        String body = """
                 Welcome to MedCore
 
                 Dear %s,
@@ -164,34 +130,14 @@ public class EmailServiceImpl implements EmailService {
 
                 Regards,
                 MedCore Team
-                """.formatted(
-                fullName,
-                hospitalName,
-                email,
-                temporaryPassword
-        ));
+                """.formatted(fullName, hospitalName, email, temporaryPassword);
 
-        mailSender.send(message);
+        send(email, "Welcome to MedCore - Nurse Account Created", body);
     }
-    
+
     @Override
-    public void sendAccountantCredentials(
-            String email,
-            String fullName,
-            String temporaryPassword,
-            String hospitalName) {
-
-        SimpleMailMessage message =
-                new SimpleMailMessage();
-
-        message.setFrom(fromEmail);
-        message.setTo(email);
-
-        message.setSubject(
-                "Welcome to MedCore - Accountant Account Created"
-        );
-
-        message.setText("""
+    public void sendAccountantCredentials(String email, String fullName, String temporaryPassword, String hospitalName) {
+        String body = """
                 Welcome to MedCore
 
                 Dear %s,
@@ -212,34 +158,14 @@ public class EmailServiceImpl implements EmailService {
 
                 Regards,
                 MedCore Team
-                """.formatted(
-                fullName,
-                hospitalName,
-                email,
-                temporaryPassword
-        ));
+                """.formatted(fullName, hospitalName, email, temporaryPassword);
 
-        mailSender.send(message);
+        send(email, "Welcome to MedCore - Accountant Account Created", body);
     }
-    
+
     @Override
-    public void sendReceptionistCredentials(
-            String email,
-            String fullName,
-            String temporaryPassword,
-            String hospitalName) {
-
-        SimpleMailMessage message =
-                new SimpleMailMessage();
-
-        message.setFrom(fromEmail);
-        message.setTo(email);
-
-        message.setSubject(
-                "Welcome to MedCore - Receptionist Account Created"
-        );
-
-        message.setText("""
+    public void sendReceptionistCredentials(String email, String fullName, String temporaryPassword, String hospitalName) {
+        String body = """
                 Welcome to MedCore
 
                 Dear %s,
@@ -260,13 +186,8 @@ public class EmailServiceImpl implements EmailService {
 
                 Regards,
                 MedCore Team
-                """.formatted(
-                fullName,
-                hospitalName,
-                email,
-                temporaryPassword
-        ));
+                """.formatted(fullName, hospitalName, email, temporaryPassword);
 
-        mailSender.send(message);
+        send(email, "Welcome to MedCore - Receptionist Account Created", body);
     }
 }
