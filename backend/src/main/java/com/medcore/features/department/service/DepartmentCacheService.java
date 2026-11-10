@@ -13,34 +13,21 @@ public class DepartmentCacheService {
     private final TenantCacheEvictService tenantCacheEvictService;
 
     public void evictDepartmentCaches(Long hospitalId) {
-
-        tenantCacheEvictService.evictTenantCache(
-                "departments", hospitalId
-        );
-
-        tenantCacheEvictService.evictTenantCache(
-                "publicDepartments", hospitalId
-        );
-
-        tenantCacheEvictService.evictTenantCache(
-                "publicDepartmentById", hospitalId
-        );
+        tenantCacheEvictService.evictTenantCache("departmentList", hospitalId);
+        tenantCacheEvictService.evictTenantCache("departmentSearch", hospitalId);
+        tenantCacheEvictService.evictTenantCache("departmentById", hospitalId);
+        tenantCacheEvictService.evictTenantCache("publicDepartments", hospitalId);
+        tenantCacheEvictService.evictTenantCache("publicDepartmentById", hospitalId);
     }
 
     public void evictDepartmentCachesAfterCommit(Long hospitalId) {
-
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
-
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-
-                        @Override
-                        public void afterCommit() {
-                            evictDepartmentCaches(hospitalId);
-                        }
-                    }
-            );
-
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    evictDepartmentCaches(hospitalId);
+                }
+            });
         } else {
             evictDepartmentCaches(hospitalId);
         }
