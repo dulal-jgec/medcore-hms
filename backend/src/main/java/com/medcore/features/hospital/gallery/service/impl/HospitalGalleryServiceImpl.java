@@ -2,6 +2,7 @@ package com.medcore.features.hospital.gallery.service.impl;
 
 import com.medcore.common.exception.BusinessException;
 import com.medcore.common.response.ApiResponse;
+import com.medcore.common.response.RestPage;
 import com.medcore.common.security.TenantContextService;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.gallery.dto.CreateGalleryImageRequest;
@@ -14,6 +15,7 @@ import com.medcore.features.hospital.gallery.service.HospitalGalleryService;
 import com.medcore.features.hospital.service.HospitalCacheService;
 import com.medcore.common.storage.FileStorageService;
 import com.medcore.common.storage.FileValidationService;
+import org.springframework.cache.annotation.Cacheable;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,51 +91,41 @@ public class HospitalGalleryServiceImpl
                 .build();
     }
 
-    @Override
+     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<Page<GalleryImageResponse>> getAll(
-            int page,
-            int size
-    ) {
-
-        Long hospitalId =
-                tenantContextService.getCurrentHospitalId();
-
-        Pageable pageable =
-                PageRequest.of(page, size);
+    @Cacheable(
+            cacheNames = "hospitalGalleryAdminList",
+            keyGenerator = "tenantCacheKeyGenerator",
+            unless = "#result == null || #result.data == null"
+    )
+    public ApiResponse<RestPage<GalleryImageResponse>> getAll(int page, int size) {
+        Long hospitalId = tenantContextService.getCurrentHospitalId();
+        Pageable pageable = PageRequest.of(page, size);
 
         Page<HospitalGallery> galleries =
-                galleryRepository
-                        .findByHospitalIdAndDeletedAtIsNull(
-                                hospitalId,
-                                pageable
-                        );
+                galleryRepository.findByHospitalIdAndDeletedAtIsNull(hospitalId, pageable);
 
-        Page<GalleryImageResponse> response =
-                galleries.map(galleryMapper::toResponse);
+        Page<GalleryImageResponse> response = galleries.map(galleryMapper::toResponse);
 
-        return ApiResponse
-                .<Page<GalleryImageResponse>>builder()
+        return ApiResponse.<RestPage<GalleryImageResponse>>builder()
                 .success(true)
                 .message("Hospital gallery fetched successfully")
-                .data(response)
+                .data(new RestPage<>(response))
                 .build();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<GalleryImageResponse> getById(
-            Long galleryId
-    ) {
+    @Cacheable(
+            cacheNames = "hospitalGalleryAdminById",
+            keyGenerator = "tenantCacheKeyGenerator",
+            unless = "#result == null || #result.data == null"
+    )
+    public ApiResponse<GalleryImageResponse> getById(Long galleryId) {
+        Long hospitalId = tenantContextService.getCurrentHospitalId();
+        HospitalGallery gallery = getGallery(galleryId, hospitalId);
 
-        Long hospitalId =
-                tenantContextService.getCurrentHospitalId();
-
-        HospitalGallery gallery =
-                getGallery(galleryId, hospitalId);
-
-        return ApiResponse
-                .<GalleryImageResponse>builder()
+        return ApiResponse.<GalleryImageResponse>builder()
                 .success(true)
                 .message("Gallery image fetched successfully")
                 .data(galleryMapper.toResponse(gallery))

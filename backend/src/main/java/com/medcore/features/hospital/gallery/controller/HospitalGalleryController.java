@@ -1,6 +1,7 @@
 package com.medcore.features.hospital.gallery.controller;
 
 import com.medcore.common.response.ApiResponse;
+import com.medcore.common.response.RestPage;
 import com.medcore.features.hospital.gallery.dto.CreateGalleryImageRequest;
 import com.medcore.features.hospital.gallery.dto.GalleryImageResponse;
 import com.medcore.features.hospital.gallery.dto.UpdateGalleryImageRequest;
@@ -58,17 +59,11 @@ public ResponseEntity<ApiResponse<GalleryImageResponse>> create(
 }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<GalleryImageResponse>>> getAll(
+    public ResponseEntity<ApiResponse<RestPage<GalleryImageResponse>>> getAll(
             @RequestParam(defaultValue = "0") int page,
-
-            @RequestParam(defaultValue = "20") int size
-    ) {
-
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(
-                hospitalGalleryService.getAll(
-                        page,
-                        size
-                )
+                hospitalGalleryService.getAll(page, size)
         );
     }
 

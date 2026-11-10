@@ -1,4 +1,3 @@
-
 package com.medcore.features.hospital.service;
 
 import lombok.RequiredArgsConstructor;
@@ -25,17 +24,13 @@ public class HospitalCacheService {
 
     public void evictHospitalProfile(Long hospitalId) {
         Cache cache = cacheManager.getCache("hospitalProfile");
-
         if (cache != null) {
-            cache.evict(
-                "hospital:" + hospitalId + ":getMyHospitalProfile"
-            );
+            cache.evict("hospital:" + hospitalId + ":getMyHospitalProfile");
         }
     }
 
     private void evictCache(String cacheName) {
         Cache cache = cacheManager.getCache(cacheName);
-
         if (cache != null) {
             cache.clear();
         }
@@ -55,27 +50,47 @@ public class HospitalCacheService {
             evictHospitalProfile(hospitalId);
         }
     }
-    
 
-    public void evictPublicHospitalGalleryCaches() {
-    evictCache("publicHospitalGallery");
-    evictCache("publicHospitalGalleryByCategory");
-    evictCache("publicHospitalGalleryImage");
-}
-
-    public void evictPublicHospitalGalleryCachesAfterCommit() {
-    if (TransactionSynchronizationManager.isSynchronizationActive()) {
-        TransactionSynchronizationManager.registerSynchronization(
-            new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    evictPublicHospitalGalleryCaches();
-                }
-            }
-        );
-    } else {
+    // Combined method for both Admin and Public Gallery Caches
+    public void evictHospitalGalleryCaches() {
+        evictCache("hospitalGalleryAdminList");
+        evictCache("hospitalGalleryAdminById");
         evictPublicHospitalGalleryCaches();
     }
-}
 
+    public void evictHospitalGalleryCachesAfterCommit() {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        evictHospitalGalleryCaches();
+                    }
+                }
+            );
+        } else {
+            evictHospitalGalleryCaches();
+        }
+    }
+
+    public void evictPublicHospitalGalleryCaches() {
+        evictCache("publicHospitalGallery");
+        evictCache("publicHospitalGalleryByCategory");
+        evictCache("publicHospitalGalleryImage");
+    }
+
+    public void evictPublicHospitalGalleryCachesAfterCommit() {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        evictPublicHospitalGalleryCaches();
+                    }
+                }
+            );
+        } else {
+            evictPublicHospitalGalleryCaches();
+        }
+    }
 }
