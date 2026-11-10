@@ -1,9 +1,9 @@
-
 package com.medcore.features.hospital.service.impl;
 
 import com.medcore.common.exception.BusinessException;
 import com.medcore.common.exception.ResourceNotFoundException;
 import com.medcore.common.response.ApiResponse;
+import com.medcore.common.response.RestPage;
 import com.medcore.features.hospital.dto.response.PublicHospitalResponse;
 import com.medcore.features.hospital.entity.Hospital;
 import com.medcore.features.hospital.enums.HospitalStatus;
@@ -27,8 +27,7 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class PublicHospitalServiceImpl
-        implements PublicHospitalService {
+public class PublicHospitalServiceImpl implements PublicHospitalService {
 
     private final HospitalRepository hospitalRepository;
     private final PublicHospitalMapper publicHospitalMapper;
@@ -38,11 +37,11 @@ public class PublicHospitalServiceImpl
 
     @Override
     @Cacheable(
-    	    cacheNames = "publicHospitalList",
-    	    key = "'page=' + #p0 + ':size=' + #p1 + ':sort=' + #p2 + ':dir=' + (#p3 == null ? 'asc' : #p3.trim().toLowerCase())",
-    	    unless = "#result == null || #result.data == null"
-    	)
-    public ApiResponse<Page<PublicHospitalResponse>> getHospitals(
+            cacheNames = "publicHospitalList",
+            key = "'page=' + #p0 + ':size=' + #p1 + ':sort=' + #p2 + ':dir=' + (#p3 == null ? 'asc' : #p3.trim().toLowerCase())",
+            unless = "#result == null || #result.data == null"
+    )
+    public ApiResponse<RestPage<PublicHospitalResponse>> getHospitals(
             int page,
             int size,
             String sortBy,
@@ -70,10 +69,10 @@ public class PublicHospitalServiceImpl
         Page<PublicHospitalResponse> responsePage =
                 hospitalPage.map(publicHospitalMapper::toResponse);
 
-        return ApiResponse.<Page<PublicHospitalResponse>>builder()
+        return ApiResponse.<RestPage<PublicHospitalResponse>>builder()
                 .success(true)
                 .message("Hospitals fetched successfully")
-                .data(responsePage)
+                .data(new RestPage<>(responsePage))
                 .build();
     }
 
@@ -83,8 +82,7 @@ public class PublicHospitalServiceImpl
             key = "#p0",
             unless = "#result == null || #result.data == null"
     )
-    public ApiResponse<PublicHospitalResponse> getHospital(
-            Long hospitalId) {
+    public ApiResponse<PublicHospitalResponse> getHospital(Long hospitalId) {
 
         if (hospitalId == null) {
             throw new BusinessException("Hospital ID is required");
