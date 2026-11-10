@@ -1,12 +1,12 @@
 package com.medcore.features.doctor.controller;
 
 import com.medcore.common.response.ApiResponse;
+import com.medcore.common.response.RestPage;
 import com.medcore.features.doctor.dto.response.PublicDoctorResponse;
 import com.medcore.features.doctor.service.PublicDoctorService;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,8 +18,7 @@ public class PublicDoctorController {
     private final PublicDoctorService publicDoctorService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<PublicDoctorResponse>>>
-    getDoctors(
+    public ResponseEntity<ApiResponse<RestPage<PublicDoctorResponse>>> getDoctors(
             @PathVariable Long hospitalId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size,
@@ -38,8 +37,7 @@ public class PublicDoctorController {
     }
 
     @GetMapping("/{doctorId}")
-    public ResponseEntity<ApiResponse<PublicDoctorResponse>>
-    getDoctor(
+    public ResponseEntity<ApiResponse<PublicDoctorResponse>> getDoctor(
             @PathVariable Long hospitalId,
             @PathVariable Long doctorId) {
 

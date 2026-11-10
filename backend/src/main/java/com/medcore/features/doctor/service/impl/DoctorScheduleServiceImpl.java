@@ -14,6 +14,7 @@ import com.medcore.features.doctor.enums.DoctorStatus;
 import com.medcore.features.doctor.mapper.DoctorScheduleMapper;
 import com.medcore.features.doctor.repository.DoctorRepository;
 import com.medcore.features.doctor.repository.DoctorScheduleRepository;
+import com.medcore.features.doctor.service.DoctorCacheService;
 import com.medcore.features.doctor.service.DoctorScheduleService;
 import com.medcore.features.user.entity.User;
 import com.medcore.features.user.enums.RoleName;
@@ -21,6 +22,7 @@ import com.medcore.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,73 +33,44 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class DoctorScheduleServiceImpl
-        implements DoctorScheduleService {
+public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(DoctorScheduleServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(DoctorScheduleServiceImpl.class);
 
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository scheduleRepository;
     private final DoctorScheduleMapper scheduleMapper;
     private final TenantContextService tenantContextService;
     private final UserRepository userRepository;
-
-     
+    private final DoctorCacheService doctorCacheService;
 
     @Override
-    public ApiResponse<DoctorScheduleResponse> createSchedule(
-            CreateDoctorScheduleRequest request) {
-
+    public ApiResponse<DoctorScheduleResponse> createSchedule(CreateDoctorScheduleRequest request) {
         Doctor doctor = resolveTargetDoctorForWrite(request.getDoctorId());
 
-        if (doctor.getStatus() != DoctorStatus.ACTIVE) {
-            throw new BusinessException(
-                    "Only active doctors can have schedules"
-            );
-        }
+        if (doctor.getStatus() != DoctorStatus.ACTIVE) throw new BusinessException("Only active doctors can have schedules");
 
         LocalTime startTime = request.getStartTime();
         LocalTime endTime = request.getEndTime();
 
-        if (endTime == null) {
-            throw new BusinessException("End time is required");
-        }
+        if (endTime == null) throw new BusinessException("End time is required");
+        if (!endTime.isAfter(startTime)) throw new BusinessException("End time must be after start time");
 
-        if (!endTime.isAfter(startTime)) {
-            throw new BusinessException(
-                    "End time must be after start time"
-            );
-        }
+        validateNoOverlap(doctor.getId(), request.getDayOfWeek(), startTime, endTime, null);
 
-        validateNoOverlap(
-                doctor.getId(),
-                request.getDayOfWeek(),
-                startTime,
-                endTime,
-                null
-        );
+        DoctorSchedule schedule = DoctorSchedule.builder()
+                .doctor(doctor)
+                .dayOfWeek(request.getDayOfWeek())
+                .startTime(startTime)
+                .endTime(endTime)
+                .available(true)
+                .build();
 
-        DoctorSchedule schedule =
-                DoctorSchedule.builder()
-                        .doctor(doctor)
-                        .dayOfWeek(request.getDayOfWeek())
-                        .startTime(startTime)
-                        .endTime(endTime)
-                        .available(true)
-                        .build();
+        DoctorSchedule savedSchedule = scheduleRepository.save(schedule);
 
-        DoctorSchedule savedSchedule =
-                scheduleRepository.save(schedule);
+        doctorCacheService.evictDoctorScheduleCachesAfterCommit();
 
-        log.info(
-                "Doctor schedule created: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}",
-                savedSchedule.getId(),
-                doctor.getId(),
-                savedSchedule.getDayOfWeek(),
-                savedSchedule.getStartTime(),
-                savedSchedule.getEndTime()
-        );
+        log.info("Doctor schedule created: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}", savedSchedule.getId(), doctor.getId(), savedSchedule.getDayOfWeek(), savedSchedule.getStartTime(), savedSchedule.getEndTime());
 
         return ApiResponse.<DoctorScheduleResponse>builder()
                 .success(true)
@@ -106,23 +79,14 @@ public class DoctorScheduleServiceImpl
                 .build();
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // READ
-    // ─────────────────────────────────────────────────────────────
-
     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<List<DoctorScheduleResponse>> getDoctorSchedules(
-            Long doctorId) {
-
+    @Cacheable(cacheNames = "doctorSchedules", key = "#p0", unless = "#result == null || #result.data == null")
+    public ApiResponse<List<DoctorScheduleResponse>> getDoctorSchedules(Long doctorId) {
         Doctor doctor = resolveTargetDoctorForRead(doctorId);
 
-        List<DoctorScheduleResponse> schedules =
-                scheduleRepository
-                        .findByDoctorIdAndDeletedAtIsNull(doctor.getId())
-                        .stream()
-                        .map(scheduleMapper::toResponse)
-                        .toList();
+        List<DoctorScheduleResponse> schedules = scheduleRepository.findByDoctorIdAndDeletedAtIsNull(doctor.getId())
+                .stream().map(scheduleMapper::toResponse).toList();
 
         return ApiResponse.<List<DoctorScheduleResponse>>builder()
                 .success(true)
@@ -131,305 +95,146 @@ public class DoctorScheduleServiceImpl
                 .build();
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // UPDATE
-    //
-    // NOTE: This is the ONLY updateSchedule method. The previous
-    // duplicate that used `startTime.plusMinutes(duration)` has
-    // been removed — it was overwriting the correct `endTime`
-    // sent from the frontend.
-    // ─────────────────────────────────────────────────────────────
-
     @Override
-    public ApiResponse<DoctorScheduleResponse> updateSchedule(
-            Long scheduleId,
-            UpdateDoctorScheduleRequest request) {
-
-        DoctorSchedule schedule =
-                scheduleRepository.findByIdAndDeletedAtIsNull(scheduleId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Doctor schedule not found"
-                                ));
+    public ApiResponse<DoctorScheduleResponse> updateSchedule(Long scheduleId, UpdateDoctorScheduleRequest request) {
+        DoctorSchedule schedule = scheduleRepository.findByIdAndDeletedAtIsNull(scheduleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor schedule not found"));
 
         Doctor doctor = schedule.getDoctor();
-
         validateWriteAccess(doctor);
 
-        if (doctor.getStatus() != DoctorStatus.ACTIVE) {
-            throw new BusinessException(
-                    "Only active doctors can have schedules"
-            );
-        }
+        if (doctor.getStatus() != DoctorStatus.ACTIVE) throw new BusinessException("Only active doctors can have schedules");
 
         LocalTime startTime = request.getStartTime();
         LocalTime endTime = request.getEndTime();
 
-        if (endTime == null) {
-            throw new BusinessException("End time is required");
-        }
+        if (endTime == null) throw new BusinessException("End time is required");
+        if (!endTime.isAfter(startTime)) throw new BusinessException("End time must be after start time");
 
-        if (!endTime.isAfter(startTime)) {
-            throw new BusinessException(
-                    "End time must be after start time"
-            );
-        }
-
-        validateNoOverlap(
-                doctor.getId(),
-                request.getDayOfWeek(),
-                startTime,
-                endTime,
-                scheduleId
-        );
+        validateNoOverlap(doctor.getId(), request.getDayOfWeek(), startTime, endTime, scheduleId);
 
         schedule.setDayOfWeek(request.getDayOfWeek());
         schedule.setStartTime(startTime);
         schedule.setEndTime(endTime);
         schedule.setAvailable(request.getAvailable());
 
-        DoctorSchedule updatedSchedule =
-                scheduleRepository.save(schedule);
+        DoctorSchedule updatedSchedule = scheduleRepository.save(schedule);
 
-        log.info(
-                "Doctor schedule updated: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}, available={}",
-                updatedSchedule.getId(),
-                doctor.getId(),
-                updatedSchedule.getDayOfWeek(),
-                updatedSchedule.getStartTime(),
-                updatedSchedule.getEndTime(),
-                updatedSchedule.getAvailable()
-        );
+        doctorCacheService.evictDoctorScheduleCachesAfterCommit();
 
-        return ApiResponse
-                .<DoctorScheduleResponse>builder()
+        log.info("Doctor schedule updated: scheduleId={}, doctorId={}, dayOfWeek={}, startTime={}, endTime={}, available={}", updatedSchedule.getId(), doctor.getId(), updatedSchedule.getDayOfWeek(), updatedSchedule.getStartTime(), updatedSchedule.getEndTime(), updatedSchedule.getAvailable());
+
+        return ApiResponse.<DoctorScheduleResponse>builder()
                 .success(true)
                 .message("Doctor schedule updated successfully")
                 .data(scheduleMapper.toResponse(updatedSchedule))
                 .build();
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // DELETE
-    // ─────────────────────────────────────────────────────────────
-
     @Override
     public ApiResponse<String> deleteSchedule(Long scheduleId) {
-
-        DoctorSchedule schedule =
-                scheduleRepository.findByIdAndDeletedAtIsNull(scheduleId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Doctor schedule not found"
-                                ));
+        DoctorSchedule schedule = scheduleRepository.findByIdAndDeletedAtIsNull(scheduleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor schedule not found"));
 
         Doctor doctor = schedule.getDoctor();
-
         validateWriteAccess(doctor);
 
         schedule.setDeletedAt(LocalDateTime.now());
-
         scheduleRepository.save(schedule);
 
-        log.info(
-                "Doctor schedule deleted: scheduleId={}, doctorId={}",
-                scheduleId,
-                doctor.getId()
-        );
+        doctorCacheService.evictDoctorScheduleCachesAfterCommit();
 
-        return ApiResponse
-                .<String>builder()
+        log.info("Doctor schedule deleted: scheduleId={}, doctorId={}", scheduleId, doctor.getId());
+
+        return ApiResponse.<String>builder()
                 .success(true)
                 .message("Doctor schedule deleted successfully")
                 .data("Deleted")
                 .build();
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // HELPERS
-    // ─────────────────────────────────────────────────────────────
-
     private Doctor resolveTargetDoctorForWrite(Long doctorId) {
-
         RoleName role = getCurrentRole();
 
         if (role == RoleName.DOCTOR) {
             Doctor self = getCurrentDoctor();
-
-            if (!self.getId().equals(doctorId)) {
-                throw new BusinessException(
-                        "You can only manage your own schedule"
-                );
-            }
-
+            if (!self.getId().equals(doctorId)) throw new BusinessException("You can only manage your own schedule");
             return self;
         }
 
         if (role == RoleName.HOSPITAL_ADMIN) {
             Long currentHospitalId = getRequiredHospitalId();
-
-            return doctorRepository
-                    .findByIdAndHospitalIdAndDeletedAtIsNull(
-                            doctorId,
-                            currentHospitalId
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            return doctorRepository.findByIdAndHospitalIdAndDeletedAtIsNull(doctorId, currentHospitalId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
         }
 
-        return doctorRepository
-                .findByIdAndDeletedAtIsNull(doctorId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Doctor not found"
-                        ));
+        return doctorRepository.findByIdAndDeletedAtIsNull(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
     }
 
     private Doctor resolveTargetDoctorForRead(Long doctorId) {
-
         RoleName role = getCurrentRole();
 
         if (role == RoleName.DOCTOR) {
             Doctor self = getCurrentDoctor();
-
-            if (!self.getId().equals(doctorId)) {
-                throw new ResourceNotFoundException(
-                        "Doctor not found"
-                );
-            }
-
+            if (!self.getId().equals(doctorId)) throw new ResourceNotFoundException("Doctor not found");
             return self;
         }
 
         if (role == RoleName.HOSPITAL_ADMIN) {
             Long currentHospitalId = getRequiredHospitalId();
-
-            return doctorRepository
-                    .findByIdAndHospitalIdAndDeletedAtIsNull(
-                            doctorId,
-                            currentHospitalId
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Doctor not found"
-                            ));
+            return doctorRepository.findByIdAndHospitalIdAndDeletedAtIsNull(doctorId, currentHospitalId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
         }
 
-        return doctorRepository
-                .findByIdAndDeletedAtIsNull(doctorId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Doctor not found"
-                        ));
+        return doctorRepository.findByIdAndDeletedAtIsNull(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
     }
 
     private void validateWriteAccess(Doctor doctor) {
-
         RoleName role = getCurrentRole();
 
         if (role == RoleName.DOCTOR) {
             Doctor self = getCurrentDoctor();
-
-            if (!self.getId().equals(doctor.getId())) {
-                throw new ResourceNotFoundException(
-                        "Doctor schedule not found"
-                );
-            }
-
+            if (!self.getId().equals(doctor.getId())) throw new ResourceNotFoundException("Doctor schedule not found");
             return;
         }
 
         if (role == RoleName.HOSPITAL_ADMIN) {
             Long currentHospitalId = getRequiredHospitalId();
-
-            if (doctor.getHospital() == null
-                    || !doctor.getHospital().getId().equals(currentHospitalId)) {
-
-                throw new ResourceNotFoundException(
-                        "Doctor schedule not found"
-                );
+            if (doctor.getHospital() == null || !doctor.getHospital().getId().equals(currentHospitalId)) {
+                throw new ResourceNotFoundException("Doctor schedule not found");
             }
         }
     }
 
-    private void validateNoOverlap(
-            Long doctorId,
-            com.medcore.features.doctor.enums.DayOfWeek dayOfWeek,
-            java.time.LocalTime startTime,
-            java.time.LocalTime endTime,
-            Long ignoreScheduleId) {
-
-        List<DoctorSchedule> existingSchedules =
-                scheduleRepository
-                        .findByDoctorIdAndDayOfWeekAndDeletedAtIsNull(
-                                doctorId,
-                                dayOfWeek
-                        );
+    private void validateNoOverlap(Long doctorId, com.medcore.features.doctor.enums.DayOfWeek dayOfWeek, java.time.LocalTime startTime, java.time.LocalTime endTime, Long ignoreScheduleId) {
+        List<DoctorSchedule> existingSchedules = scheduleRepository.findByDoctorIdAndDayOfWeekAndDeletedAtIsNull(doctorId, dayOfWeek);
 
         for (DoctorSchedule existing : existingSchedules) {
-
-            if (ignoreScheduleId != null
-                    && existing.getId().equals(ignoreScheduleId)) {
+            if (ignoreScheduleId != null && existing.getId().equals(ignoreScheduleId)) {
                 continue;
             }
-
-            boolean overlap =
-                    startTime.isBefore(existing.getEndTime())
-                    && endTime.isAfter(existing.getStartTime());
-
-            if (overlap) {
-                throw new BusinessException(
-                        "Doctor already has a schedule during this time"
-                );
-            }
+            boolean overlap = startTime.isBefore(existing.getEndTime()) && endTime.isAfter(existing.getStartTime());
+            if (overlap) throw new BusinessException("Doctor already has a schedule during this time");
         }
     }
 
     private Doctor getCurrentDoctor() {
-
         String email = SecurityUtil.getCurrentUsername();
-
-        User user = userRepository
-                .findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Current user not found"
-                        ));
-
-        return doctorRepository
-                .findByUserIdAndDeletedAtIsNull(user.getId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Doctor profile not found"
-                        ));
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Current user not found"));
+        return doctorRepository.findByUserIdAndDeletedAtIsNull(user.getId()).orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found"));
     }
 
     private RoleName getCurrentRole() {
-
         String email = SecurityUtil.getCurrentUsername();
-
-        User user = userRepository
-                .findByEmailWithRole(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Current user not found"
-                        ));
-
+        User user = userRepository.findByEmailWithRole(email).orElseThrow(() -> new ResourceNotFoundException("Current user not found"));
         return user.getRole().getName();
     }
 
     private Long getRequiredHospitalId() {
-
         Long hospitalId = tenantContextService.getCurrentHospitalId();
-
-        if (hospitalId == null) {
-            throw new BusinessException(
-                    "User is not associated with a hospital"
-            );
-        }
-
+        if (hospitalId == null) throw new BusinessException("User is not associated with a hospital");
         return hospitalId;
     }
 }

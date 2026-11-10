@@ -4,6 +4,7 @@ import com.medcore.features.doctor.enums.DayOfWeek;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalTime;
@@ -12,6 +13,7 @@ import java.time.LocalTime;
 @Setter
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor
 public class DoctorScheduleResponse {
 
     private Long id;

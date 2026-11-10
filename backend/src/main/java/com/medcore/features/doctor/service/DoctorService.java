@@ -14,42 +14,23 @@ public interface DoctorService {
 
     ApiResponse<DoctorResponse> createDoctor(CreateDoctorRequest request);
 
-    ApiResponse<PageResponse<DoctorResponse>> getAllDoctors(
-            int page,
-            int size,
-            String sortBy,
-            String sortDir
-    );
+    ApiResponse<PageResponse<DoctorResponse>> getAllDoctors(int page, int size, String sortBy, String sortDir);
 
     ApiResponse<DoctorResponse> getDoctorById(Long doctorId);
 
-    ApiResponse<DoctorResponse> updateDoctor(
-            Long doctorId,
-            UpdateDoctorRequest request
-    );
+    ApiResponse<DoctorResponse> updateDoctor(Long doctorId, UpdateDoctorRequest request);
 
-    ApiResponse<DoctorResponse> updateDoctorStatus(
-            Long doctorId,
-            UpdateDoctorStatusRequest request
-    );
+    ApiResponse<DoctorResponse> updateDoctorStatus(Long doctorId, UpdateDoctorStatusRequest request);
+
+    ApiResponse<PageResponse<DoctorResponse>> searchDoctors(String keyword, int page, int size);
 
     ApiResponse<String> deleteDoctor(Long doctorId);
 
     ApiResponse<String> restoreDoctor(Long doctorId);
 
-    ApiResponse<PageResponse<DoctorResponse>> searchDoctors(
-            String keyword,
-            int page,
-            int size
-    );
-
     ApiResponse<DoctorProfileResponse> getMyProfile();
 
-    ApiResponse<DoctorProfileResponse> updateMyProfile(
-            UpdateMyDoctorProfileRequest request
-    );
+    ApiResponse<DoctorProfileResponse> updateMyProfile(UpdateMyDoctorProfileRequest request);
 
-    ApiResponse<DoctorProfileResponse> uploadMyProfileImage(
-            MultipartFile file
-    );
+    ApiResponse<DoctorProfileResponse> uploadMyProfileImage(MultipartFile file);
 }

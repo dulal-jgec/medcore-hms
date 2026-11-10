@@ -9,21 +9,11 @@ import java.util.List;
 
 public interface DoctorScheduleService {
 
-    ApiResponse<DoctorScheduleResponse> createSchedule(
-            CreateDoctorScheduleRequest request
-    );
+    ApiResponse<DoctorScheduleResponse> createSchedule(CreateDoctorScheduleRequest request);
 
-    ApiResponse<List<DoctorScheduleResponse>> getDoctorSchedules(
-            Long doctorId
-    );
-    
-    ApiResponse<DoctorScheduleResponse> updateSchedule(
-            Long scheduleId,
-            UpdateDoctorScheduleRequest request
-    );
+    ApiResponse<List<DoctorScheduleResponse>> getDoctorSchedules(Long doctorId);
 
-    ApiResponse<String> deleteSchedule(
-            Long scheduleId
-    );
+    ApiResponse<DoctorScheduleResponse> updateSchedule(Long scheduleId, UpdateDoctorScheduleRequest request);
 
+    ApiResponse<String> deleteSchedule(Long scheduleId);
 }

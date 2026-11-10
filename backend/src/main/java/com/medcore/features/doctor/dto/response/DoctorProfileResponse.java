@@ -4,13 +4,17 @@ import com.medcore.features.doctor.enums.DoctorStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Setter
 @Getter
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor
 public class DoctorProfileResponse {
 
     private Long id;

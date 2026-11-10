@@ -26,9 +26,6 @@ public class DoctorController {
 
     private final DoctorService doctorService;
 
-
-    
-  
     @PostMapping
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<DoctorResponse>> createDoctor(
@@ -38,7 +35,6 @@ public class DoctorController {
                 .status(HttpStatus.CREATED)
                 .body(doctorService.createDoctor(request));
     }
-
 
     @GetMapping
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
@@ -58,7 +54,6 @@ public class DoctorController {
         );
     }
 
-
     @GetMapping("/{doctorId}")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<DoctorResponse>> getDoctorById(
@@ -68,7 +63,6 @@ public class DoctorController {
                 doctorService.getDoctorById(doctorId)
         );
     }
-
 
     @PutMapping("/{doctorId}")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
@@ -84,7 +78,6 @@ public class DoctorController {
         );
     }
 
-
     @PatchMapping("/{doctorId}/status")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<DoctorResponse>> updateDoctorStatus(
@@ -98,7 +91,6 @@ public class DoctorController {
                 )
         );
     }
-
 
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
@@ -116,7 +108,6 @@ public class DoctorController {
         );
     }
 
-
     @DeleteMapping("/{doctorId}")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
     public ResponseEntity<ApiResponse<String>> deleteDoctor(
@@ -126,7 +117,6 @@ public class DoctorController {
                 doctorService.deleteDoctor(doctorId)
         );
     }
-
 
     @PatchMapping("/{doctorId}/restore")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN')")
@@ -138,10 +128,6 @@ public class DoctorController {
         );
     }
 
-
-    
-     
- 
     @GetMapping("/me")
     @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<ApiResponse<DoctorProfileResponse>> getMyProfile() {
@@ -150,7 +136,6 @@ public class DoctorController {
                 doctorService.getMyProfile()
         );
     }
-
 
     @PutMapping("/me")
     @PreAuthorize("hasRole('DOCTOR')")
@@ -161,7 +146,6 @@ public class DoctorController {
                 doctorService.updateMyProfile(request)
         );
     }
-
 
     @PostMapping(
             value = "/me/profile-image",
