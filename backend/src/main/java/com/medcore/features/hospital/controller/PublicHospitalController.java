@@ -23,14 +23,8 @@ public class PublicHospitalController {
             @RequestParam(defaultValue = "100") int size,
             @RequestParam(defaultValue = "name") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir) {
-
         return ResponseEntity.ok(
-                publicHospitalService.getHospitals(
-                        page,
-                        size,
-                        sortBy,
-                        sortDir
-                )
+                publicHospitalService.getHospitals(page, size, sortBy, sortDir)
         );
     }
 
