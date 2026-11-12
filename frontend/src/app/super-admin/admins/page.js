@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-
 import {
   Users,
   Search,
@@ -12,16 +11,16 @@ import {
   Phone,
   ChevronLeft,
   ChevronRight,
+  Building2,
+  ShieldCheck,
+  Hash,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
-
-import {
-  getAllHospitalAdmins,
-} from "@/services/super-admin.service";
+import { getAllHospitalAdmins } from "@/services/super-admin.service";
 
 const PAGE_SIZE = 12;
 
@@ -35,6 +34,9 @@ export default function SuperAdminAdminsPage() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  
+  // State for the popup/modal
+  const [selectedAdmin, setSelectedAdmin] = useState(null);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -46,25 +48,21 @@ export default function SuperAdminAdminsPage() {
         setLoading(true);
         setError("");
 
-        const result = await getAllHospitalAdmins(
-          page,
-          PAGE_SIZE
-        );
+        const result = await getAllHospitalAdmins(page, PAGE_SIZE);
 
         if (cancelled) return;
 
-        // Handle both 'items' (custom PageResponse) and 'content' (Spring Page)
         const allAdmins = result.data?.items || result.data?.content || [];
+        
+        // Filter to only show ACTIVE admins
+        const activeAdmins = allAdmins.filter(admin => admin.status === "ACTIVE");
 
-        // Removed the filter so ALL admins (Active, Pending, Expired) show up
-        setAdmins(allAdmins);
+        setAdmins(activeAdmins);
         setTotalPages(result.data?.totalPages || 0);
         setTotalElements(result.data?.totalElements || 0);
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err.message || "Failed to load admins."
-          );
+          setError(err.message || "Failed to load admins.");
         }
       } finally {
         if (!cancelled) {
@@ -106,7 +104,7 @@ export default function SuperAdminAdminsPage() {
           </p>
 
           <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-            Hospital admins
+            Active Hospital admins
           </h1>
 
           <p className="mt-1 text-sm text-muted-foreground">
@@ -162,6 +160,7 @@ export default function SuperAdminAdminsPage() {
                 <AdminCard
                   key={admin.userId}
                   admin={admin}
+                  onClick={() => setSelectedAdmin(admin)}
                 />
               ))}
             </div>
@@ -170,14 +169,8 @@ export default function SuperAdminAdminsPage() {
               <Pagination
                 page={page}
                 totalPages={totalPages}
-                onPrevious={() =>
-                  setPage((p) => Math.max(0, p - 1))
-                }
-                onNext={() =>
-                  setPage((p) =>
-                    Math.min(totalPages - 1, p + 1)
-                  )
-                }
+                onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+                onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               />
             )}
           </>
@@ -188,13 +181,77 @@ export default function SuperAdminAdminsPage() {
           />
         )}
       </div>
+
+      {/* Admin Details Modal Popup */}
+      {selectedAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-card border border-border shadow-xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-4">
+              <h2 className="text-lg font-semibold tracking-tight">Admin Details</h2>
+              <button
+                onClick={() => setSelectedAdmin(null)}
+                className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-2xl font-bold text-brand-soft-foreground">
+                  {selectedAdmin.fullName?.charAt(0) || "A"}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">{selectedAdmin.fullName}</h3>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                    <ShieldCheck className="h-4 w-4 text-green-500" />
+                    {selectedAdmin.status}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-border bg-muted/10 p-4 text-sm">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Hash className="h-4 w-4 shrink-0" />
+                  <span className="w-20 shrink-0">User ID:</span>
+                  <span className="font-medium text-foreground">{selectedAdmin.userId}</span>
+                </div>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  <span className="w-20 shrink-0">Email:</span>
+                  <span className="font-medium text-foreground truncate">{selectedAdmin.email}</span>
+                </div>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Phone className="h-4 w-4 shrink-0" />
+                  <span className="w-20 shrink-0">Phone:</span>
+                  <span className="font-medium text-foreground">{selectedAdmin.phone || "N/A"}</span>
+                </div>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Building2 className="h-4 w-4 shrink-0" />
+                  <span className="w-20 shrink-0">Hospital:</span>
+                  <span className="font-medium text-foreground">{selectedAdmin.hospitalName || "N/A"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border bg-muted/30 px-5 py-4 flex justify-end">
+              <Button variant="outline" onClick={() => setSelectedAdmin(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function AdminCard({ admin }) {
+function AdminCard({ admin, onClick }) {
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/40 hover:shadow-md">
+    <div 
+      onClick={onClick}
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-brand/40 hover:shadow-md hover:bg-muted/10"
+    >
       <div className="flex items-start gap-4 p-5">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-soft text-lg font-bold text-brand-soft-foreground">
           {admin.fullName?.charAt(0) || "A"}
@@ -213,18 +270,14 @@ function AdminCard({ admin }) {
             {admin.email && (
               <div className="flex items-center gap-1.5">
                 <Mail className="h-3 w-3 shrink-0" />
-                <span className="truncate">
-                  {admin.email}
-                </span>
+                <span className="truncate">{admin.email}</span>
               </div>
             )}
 
             {admin.phone && (
               <div className="flex items-center gap-1.5">
                 <Phone className="h-3 w-3 shrink-0" />
-                <span className="truncate">
-                  {admin.phone}
-                </span>
+                <span className="truncate">{admin.phone}</span>
               </div>
             )}
           </div>
@@ -241,7 +294,6 @@ function AdminCard({ admin }) {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Hospital
             </p>
-
             <p className="truncate text-xs font-medium">
               {admin.hospitalName}
             </p>
@@ -309,13 +361,13 @@ function EmptyState({ hasFilters, onClear }) {
       </div>
 
       <p className="mt-5 text-base font-semibold">
-        {hasFilters ? "No admins found" : "No admins yet"}
+        {hasFilters ? "No admins found" : "No active admins yet"}
       </p>
 
       <p className="mt-1.5 text-sm text-muted-foreground">
         {hasFilters
           ? "Try adjusting your search."
-          : "There are currently no hospital administrators."}
+          : "There are currently no active hospital administrators."}
       </p>
 
       {hasFilters && (
