@@ -2,10 +2,8 @@ services:
   backend:
     build:
       context: .
-    container_name: medcore-backend
     expose:
       - "8080"
-
     environment:
       # Application
       APP_NAME: "${APP_NAME}"

@@ -47,6 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -380,57 +382,87 @@ public class SuperAdminServiceImpl implements SuperAdminService {
     }
 
     @Override
-    public ApiResponse<PageResponse<CreateHospitalAdminResponse>> getAllHospitalAdmins(int page, int size) {
-        validateSuperAdmin();
+public ApiResponse<PageResponse<CreateHospitalAdminResponse>> getAllHospitalAdmins(
+        int page,
+        int size) {
 
-        if (page < 0) {
-            throw new BusinessException("Page must be greater than or equal to 0");
+    validateSuperAdmin();
+
+    if (page < 0) {
+        throw new BusinessException("Page must be greater than or equal to 0");
+    }
+
+    if (size < 1 || size > 100) {
+        throw new BusinessException("Page size must be between 1 and 100");
+    }
+
+    Pageable pageable = PageRequest.of(page, size);
+
+    Page<User> admins = userRepository.findByRoleNameAndDeletedAtIsNull(
+            RoleName.HOSPITAL_ADMIN,
+            pageable
+    );
+
+    // Step 1: Collect all Admin IDs from the current page
+    List<Long> adminIds = admins.getContent()
+            .stream()
+            .map(User::getId)
+            .toList();
+
+    // Step 2: Fetch latest invitations in ONE batch query
+    Map<Long, EmailOutboxStatus> invitationStatusMap = new HashMap<>();
+
+    if (!adminIds.isEmpty()) {
+        List<EmailOutboxRepository.LatestInvitationStatus> invitations =
+                emailOutboxRepository.findLatestInvitationStatuses(
+                        adminIds,
+                        EmailType.HOSPITAL_ADMIN_CREDENTIALS.name()
+                 );
+
+        for (EmailOutboxRepository.LatestInvitationStatus invitation : invitations) {
+            invitationStatusMap.put(
+                    invitation.getUserId(),
+                    EmailOutboxStatus.valueOf(invitation.getStatus())
+            );
         }
-        if (size < 1 || size > 100) {
-            throw new BusinessException("Page size must be between 1 and 100");
-        }
+    }
 
-        Pageable pageable = PageRequest.of(page, size);
-        Page<User> admins = userRepository.findByRoleNameAndDeletedAtIsNull(RoleName.HOSPITAL_ADMIN, pageable);
-
-        List<CreateHospitalAdminResponse> items = admins.getContent().stream().map(user -> {
-            EmailOutbox latestInvitation = emailOutboxRepository
-                    .findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
-                            user.getId(),
-                            EmailType.HOSPITAL_ADMIN_CREDENTIALS
-                    )
-                    .orElse(null);
-
-            return CreateHospitalAdminResponse.builder()
+    // Step 3: Build response using the batch result
+    List<CreateHospitalAdminResponse> items = admins.getContent()
+            .stream()
+            .map(user -> CreateHospitalAdminResponse.builder()
                     .userId(user.getId())
                     .fullName(user.getFullName())
                     .email(user.getEmail())
                     .phone(user.getPhone())
-                    .hospitalId(user.getHospital() != null ? user.getHospital().getId() : null)
-                    .hospitalName(user.getHospital() != null ? user.getHospital().getName() : null)
+                    .hospitalId(user.getHospital() != null
+                            ? user.getHospital().getId() : null)
+                    .hospitalName(user.getHospital() != null
+                            ? user.getHospital().getName() : null)
                     .status(user.getStatus())
-                    .invitationStatus(latestInvitation != null ? latestInvitation.getStatus() : null)
+                    .invitationStatus(invitationStatusMap.get(user.getId()))
+                    .build())
+            .toList();
+
+    PageResponse<CreateHospitalAdminResponse> pageResponse =
+            PageResponse.<CreateHospitalAdminResponse>builder()
+                    .items(items)
+                    .page(admins.getNumber())
+                    .size(admins.getSize())
+                    .totalElements(admins.getTotalElements())
+                    .totalPages(admins.getTotalPages())
+                    .first(admins.isFirst())
+                    .last(admins.isLast())
+                    .hasNext(admins.hasNext())
+                    .hasPrevious(admins.hasPrevious())
                     .build();
-        }).toList();
 
-        PageResponse<CreateHospitalAdminResponse> pageResponse = PageResponse.<CreateHospitalAdminResponse>builder()
-                .items(items)
-                .page(admins.getNumber())
-                .size(admins.getSize())
-                .totalElements(admins.getTotalElements())
-                .totalPages(admins.getTotalPages())
-                .first(admins.isFirst())
-                .last(admins.isLast())
-                .hasNext(admins.hasNext())
-                .hasPrevious(admins.hasPrevious())
-                .build();
-
-        return ApiResponse.<PageResponse<CreateHospitalAdminResponse>>builder()
-                .success(true)
-                .message("Hospital Admins fetched successfully")
-                .data(pageResponse)
-                .build();
-    }
+    return ApiResponse.<PageResponse<CreateHospitalAdminResponse>>builder()
+            .success(true)
+            .message("Hospital Admins fetched successfully")
+            .data(pageResponse)
+            .build();
+}
 
     private void validateSuperAdmin() {
         User currentUser = getCurrentUser();
