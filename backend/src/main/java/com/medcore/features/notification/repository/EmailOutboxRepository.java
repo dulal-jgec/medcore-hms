@@ -1,19 +1,26 @@
+
 package com.medcore.features.notification.repository;
 
 import com.medcore.features.notification.entity.EmailOutbox;
-import com.medcore.features.notification.enums.EmailOutboxStatus;
 import com.medcore.features.notification.enums.EmailType;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface EmailOutboxRepository
         extends JpaRepository<EmailOutbox, Long> {
+
+    interface LatestInvitationStatus {
+        Long getUserId();
+
+        String getStatus();
+    }
 
     @Query(
             value = """
@@ -34,7 +41,7 @@ public interface EmailOutboxRepository
             LocalDateTime now,
             int limit
     );
-    
+
     @Modifying
     @Query("""
         UPDATE EmailOutbox e
@@ -48,7 +55,7 @@ public interface EmailOutboxRepository
             @Param("threshold") LocalDateTime threshold,
             @Param("now") LocalDateTime now
     );
-    
+
     @Query("""
             SELECT COUNT(e)
             FROM EmailOutbox e
@@ -61,7 +68,29 @@ public interface EmailOutboxRepository
             @Param("userId") Long userId,
             @Param("type") EmailType type
     );
-    
+
+    // Batch fetch: latest invitation status for multiple users
+    @Query(
+            value = """
+                    SELECT DISTINCT ON (eo.user_id)
+                           eo.user_id AS "userId",
+                           eo.status AS "status"
+                    FROM email_outbox eo
+                    WHERE eo.user_id IN (:userIds)
+                      AND eo.type = :type
+                    ORDER BY
+                        eo.user_id,
+                        eo.invitation_attempt DESC,
+                        eo.created_at DESC
+                    """,
+            nativeQuery = true
+    )
+    List<LatestInvitationStatus> findLatestInvitationStatuses(
+            @Param("userIds") List<Long> userIds,
+            @Param("type") String type
+    );
+
+    // Existing single-user lookup (used by resend invitation)
     Optional<EmailOutbox> findTopByUser_IdAndTypeOrderByInvitationAttemptDescCreatedAtDesc(
             Long userId,
             EmailType type
