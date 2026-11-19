@@ -14,8 +14,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
-public class RateLimitFilter
-        extends OncePerRequestFilter {
+public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimitService rateLimitService;
 
@@ -26,60 +25,56 @@ public class RateLimitFilter
             FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path =
-                request.getRequestURI();
+        String action = resolveAction(request.getRequestURI());
 
-        int maxRequests;
-
-        if (path.equals("/api/v1/auth/login")) {
-
-            maxRequests = 10;
-
-        } else if (path.equals("/api/v1/auth/register")) {
-
-            maxRequests = 5;
-
-        } else if (path.equals("/api/v1/auth/refresh")) {
-
-            maxRequests = 20;
-
-        } else {
-
-            filterChain.doFilter(
-                    request,
-                    response
-            );
-
+        // Not a rate-limited endpoint → pass through
+        if (action == null) {
+            filterChain.doFilter(request, response);
             return;
         }
 
-        String clientIp =
-                request.getRemoteAddr();
+        int maxRequests = maxRequestsFor(action);
+        String clientIp = request.getRemoteAddr();
 
-        boolean allowed =
-                rateLimitService.isAllowed(
-                        clientIp,
-                        maxRequests
-                );
+        boolean allowed = rateLimitService.isAllowed(clientIp, action, maxRequests);
 
         if (!allowed) {
-
             response.setStatus(429);
-
-            response.setContentType(
-                    "application/json"
-            );
-
+            response.setContentType("application/json");
             response.getWriter().write(
                     "{\"success\":false,\"message\":\"Too many requests. Please try again later.\"}"
             );
-
             return;
         }
 
-        filterChain.doFilter(
-                request,
-                response
-        );
+        filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Maps a request URI to a logical action name.
+     * Trailing slash is normalized so "/auth/login/" and "/auth/login"
+     * are treated the same — prevents trivial rate-limit bypass.
+     */
+    private String resolveAction(String path) {
+        String normalized =
+                (path.length() > 1 && path.endsWith("/"))
+                        ? path.substring(0, path.length() - 1)
+                        : path;
+
+        return switch (normalized) {
+            case "/api/v1/auth/login"    -> "login";
+            case "/api/v1/auth/register" -> "register";
+            case "/api/v1/auth/refresh"  -> "refresh";
+            default -> null;
+        };
+    }
+
+    private int maxRequestsFor(String action) {
+        return switch (action) {
+            case "login"    -> 10;
+            case "register" -> 5;
+            case "refresh"  -> 20;
+            default -> throw new IllegalArgumentException("Unknown action: " + action);
+        };
     }
 }
